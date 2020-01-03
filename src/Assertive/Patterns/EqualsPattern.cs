@@ -1,0 +1,36 @@
+using System.Linq.Expressions;
+
+namespace Assertive.Patterns
+{
+  internal class EqualsPattern : IFriendlyMessagePattern
+  {
+    public bool IsMatch(Expression expression)
+    {
+      return expression.NodeType == ExpressionType.Equal
+        || expression.NodeType == ExpressionType.NotEqual;
+    }
+
+    public string TryGetFriendlyMessage(Assertion assertion)
+    {
+      var binaryExpression = assertion.Expression as BinaryExpression;
+
+      var comparison = binaryExpression.NodeType switch
+      {
+        ExpressionType.Equal => " ",
+        ExpressionType.NotEqual => " not "
+      };
+
+      if (binaryExpression.Right.NodeType == ExpressionType.Constant)
+      {
+        return $"Expected {binaryExpression.Left} to{comparison}equal {binaryExpression.Right} but {binaryExpression.Left} was {ExpressionHelper.EvaluateExpression(binaryExpression.Left)}.";
+      }
+
+      return $"Expected {binaryExpression.Left} to{comparison}equal {binaryExpression.Right} but {binaryExpression.Left} was {ExpressionHelper.EvaluateExpression(binaryExpression.Left)} while {binaryExpression.Right} was {ExpressionHelper.EvaluateExpression(binaryExpression.Right)}.";
+    }
+
+    public IFriendlyMessagePattern[] SubPatterns { get; } = 
+    {
+      new NullPattern(),
+    };
+  }
+}

@@ -1,0 +1,6 @@
+src/Assertive.Test/bin/*
+src/Assertive.Test/obj/*
+.idea/
+.vs/
+src/Assertive/bin/*
+src/Assertive/obj/*
