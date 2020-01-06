@@ -28,6 +28,7 @@ namespace Assertive.Patterns
 
     public IFriendlyMessagePattern[] SubPatterns { get; } =
     {
+      new LengthPattern(),
       new EqualsPattern(),
       new LessThanOrGreaterThanPattern()
     };

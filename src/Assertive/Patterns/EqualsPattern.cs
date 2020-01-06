@@ -37,6 +37,7 @@ namespace Assertive.Patterns
     public IFriendlyMessagePattern[] SubPatterns { get; } = 
     {
       new NullPattern(),
+      new LengthPattern()
     };
   }
 }
