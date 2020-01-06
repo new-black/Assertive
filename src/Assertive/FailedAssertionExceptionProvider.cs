@@ -61,17 +61,27 @@ Assertion: {failedExpressionString}";
         }
         else
         {
-          var fullMessage = $@"Assertion threw {part.Exception.GetType().FullName}: {part.Exception.Message}
+          FailedAssertion failedAssertion = null;
+
+          if (part.Exception is NullReferenceException)
+          {
+            failedAssertion = new NullReferencePattern().Handle(part);
+          }
+
+          if (failedAssertion == null)
+          {
+            var fullMessage = $@"Assertion threw {part.Exception.GetType().FullName}: {part.Exception.Message}
 
 Assertion: {failedExpressionString}";
-          
-          var failedAssertion = new FailedAssertion(part, fullMessage, null);
+
+            failedAssertion = new FailedAssertion(part, fullMessage, null);
+          }
 
           failedAssertions.Add(failedAssertion);
         }
       }
 
-      var message = string.Join(Environment.NewLine, failedAssertions.Select(f => f.Message));
+      var message = string.Join(Environment.NewLine + Environment.NewLine, failedAssertions.Select(f => f.Message));
 
       return ExceptionHelper.GetException(message);
     }
