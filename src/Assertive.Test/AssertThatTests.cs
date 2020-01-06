@@ -10,15 +10,15 @@ using static Assertive.DSL;
 
 namespace Assertive.Test
 {
-  public class AssertThatTests
+  public class AssertThatTests : AssertionTestBase
   {
     [Fact]
     public void Lambda_expression_in_assert_works()
     {
       var list = new List<int>();
 
-      ShouldFail(() => list.Any(x => x > 1), "Assertion failed: list.Any(x => (x > 1))");
-      ShouldFail(() => list.Count == 0 && list.Any(x => x > 1), "Assertion failed: list.Any(x => (x > 1))");
+      ShouldFail(() => list.Any(x => x > 1), "Assertion failed: list.Any(x => x > 1)");
+      ShouldFail(() => list.Count == 0 && list.Any(x => x > 1), "Assertion failed: list.Any(x => x > 1)");
     }
 
     [Fact]
@@ -28,7 +28,7 @@ namespace Assertive.Test
       var array = new int[0];
 
       ShouldFail(() => sb.Append("a") != null,
-        "Assertion threw System.NullReferenceException: Object reference not set to an instance of an object.");
+        "NullReferenceException caused by calling Append on sb which was null.");
       ShouldFail(() => array[1] == 1, "Assertion threw System.IndexOutOfRangeException:");
     }
 
@@ -55,11 +55,11 @@ namespace Assertive.Test
 
       ShouldThrow(() => sb.Append("A"), @"Expected sb.Append(""A"") to throw an exception, but it did not.");
       ShouldThrow(() => array[1], @"Expected array[1] to throw an exception, but it did not.");
-      ShouldThrow(() => int.Parse("123"), @"Expected Parse(""123"") to throw an exception, but it did not.");
+      ShouldThrow(() => int.Parse("123"), @"Expected int.Parse(""123"") to throw an exception, but it did not.");
 
       ShouldThrow<NullReferenceException>(() => sb.Append("A"), @"Expected sb.Append(""A"") to throw an exception, but it did not.");
       ShouldThrow<IndexOutOfRangeException>(() => array[1], @"Expected array[1] to throw an exception, but it did not.");
-      ShouldThrow<FormatException>(() => int.Parse("123"), @"Expected Parse(""123"") to throw an exception, but it did not.");
+      ShouldThrow<FormatException>(() => int.Parse("123"), @"Expected int.Parse(""123"") to throw an exception, but it did not.");
     }
     
     [Fact]
@@ -70,7 +70,7 @@ namespace Assertive.Test
 
       ShouldThrow<InvalidOperationException>(() => sb.Append("A"), @"Expected sb.Append(""A"") to throw an exception of type System.InvalidOperationException, but it threw an exception of type System.NullReferenceException instead.");
       ShouldThrow<InvalidOperationException>(() => array[1], @"Expected array[1] to throw an exception of type System.InvalidOperationException, but it threw an exception of type System.IndexOutOfRangeException instead.");
-      ShouldThrow<InvalidOperationException>(() => int.Parse("abc"), @"Expected Parse(""abc"") to throw an exception of type System.InvalidOperationException, but it threw an exception of type System.FormatException instead.");
+      ShouldThrow<InvalidOperationException>(() => int.Parse("abc"), @"Expected int.Parse(""abc"") to throw an exception of type System.InvalidOperationException, but it threw an exception of type System.FormatException instead.");
     }
 
     [Fact]
@@ -111,7 +111,7 @@ namespace Assertive.Test
       ShouldFail(() => a == b, @"Expected a to equal b but a was ""A"" while b was ""B"".");
       ShouldFail(() => x == y, "Expected x to equal y but x was 1 while y was 2.");
       ShouldFail(() => foo + bar == "barfoo",
-        @"Expected (foo + bar) to equal ""barfoo"" but (foo + bar) was ""foobar"".");
+        @"Expected foo + bar to equal ""barfoo"" but foo + bar was ""foobar"".");
       ShouldFail(() => a == "B", @"Expected a to equal ""B"" but a was ""A"".");
     }
 
@@ -140,55 +140,20 @@ namespace Assertive.Test
       ShouldFail(() => list.Contains(myValue), @"Expected list to contain myValue but it did not.");
     }
 
-    private void ShouldThrow(Expression<Func<object>> assertion, string expectedMessage)
+    [Fact]
+    public void LengthPattern_tests()
     {
-      bool throws = false;
-
-      try
+      var list = new List<string>
       {
-        Assert.Throws(assertion);
-      }
-      catch (Exception ex)
-      {
-        throws = true;
-        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
-      }
+        "a", "b"
+      };
 
-      Xunit.Assert.True(throws);
-    }
+      var array = new int[2];
 
-    private void ShouldThrow<T>(Expression<Func<object>> assertion, string expectedMessage) where T : Exception
-    {
-      bool throws = false;
-
-      try
-      {
-        Assert.Throws<T>(assertion);
-      }
-      catch (Exception ex)
-      {
-        throws = true;
-        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
-      }
-
-      Xunit.Assert.True(throws);
-    }
-
-    private void ShouldFail(Expression<Func<bool>> assertion, string expectedMessage)
-    {
-      bool throws = false;
-
-      try
-      {
-        Assert.That(assertion);
-      }
-      catch (Exception ex)
-      {
-        throws = true;
-        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
-      }
-
-      Xunit.Assert.True(throws);
+      ShouldFail(() => list.Count == 3, "Expected list to have a count equal to 3 but the actual count was 2.");
+      ShouldFail(() => array.Length > 3, "Expected array to have a length greater than 3 but the actual length was 2.");
+      ShouldFail(() => list.Count() <= 1, "Expected list to have a count less than or equal to 1 but the actual count was 2.");
+      ShouldFail(() => list.Count() > array.Length, "Expected list to have a count greater than array.Length (2) but the actual count was 2.");
     }
   }
 }

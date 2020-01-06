@@ -13,7 +13,7 @@ namespace Assertive.Patterns
              && c.Value == null;
     }
 
-    public string TryGetFriendlyMessage(Assertion assertion)
+    public FormattableString TryGetFriendlyMessage(Assertion assertion)
     {
       var b = assertion.Expression as BinaryExpression;
       

@@ -1,4 +1,6 @@
+using System.Linq;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
 namespace Assertive
@@ -21,22 +23,20 @@ namespace Assertive
     
     private static readonly Regex _closureCleanup = new Regex(@"(value\(.*?<>.*?\)\.)", RegexOptions.Compiled);
     private static readonly Regex _indexPropertyRewrite = new Regex(@".get_Item\((.+?)\)", RegexOptions.Compiled);
+    private static readonly Regex _arrayLengthRewrite = new Regex(@"ArrayLength\((.+?)\)", RegexOptions.Compiled);
 
-    public static string SanitizeExpression(Expression expression)
+    public static Expression GetInstanceOfMethodCall(MethodCallExpression methodCallExpression)
     {
-      return SanitizeExpressionString(expression.ToString());
+      var instance = methodCallExpression.Object;
+
+      var isExtensionMethod = methodCallExpression.Method.IsDefined(typeof(ExtensionAttribute), false);
+
+      if (isExtensionMethod)
+      {
+        instance = methodCallExpression.Arguments.First();
+      }
+
+      return instance;
     }
-    
-    public static string SanitizeExpressionString(string str)
-    {
-      if (str == null) return null;
-
-      var result = _closureCleanup.Replace(str, "");
-
-      result = _indexPropertyRewrite.Replace(result, "[$1]");
-
-      return result;
-    }
-
   }
 }

@@ -2,9 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
+using Assertive.ExceptionPatterns;
 
 namespace Assertive
 {
@@ -27,7 +30,7 @@ namespace Assertive
 
       foreach (var part in failedParts)
       {
-        var failedExpressionString = ExpressionHelper.SanitizeExpressionString(part.Expression.ToString());
+        var failedExpressionString = ExpressionStringBuilder.ExpressionToString(part.Expression);
 
         if (part.Exception == null)
         {
@@ -35,9 +38,10 @@ namespace Assertive
 
           var friendlyMessage = friendlyMessageProvider.TryGetFriendlyMessage();
 
-          var friendlyMessageString = ExpressionHelper.SanitizeExpressionString(friendlyMessage?.Message);
+          var friendlyMessageString = friendlyMessage?.Message;
 
           string fullMessage;
+          bool b;
 
           if (friendlyMessageString != null)
           {

@@ -16,7 +16,7 @@ namespace Assertive.Patterns
       return callExpression.Method.Name == "Contains";
     }
 
-    public string TryGetFriendlyMessage(Assertion assertion)
+    public FormattableString TryGetFriendlyMessage(Assertion assertion)
     {
       var expression = assertion.Expression;
 
@@ -33,18 +33,7 @@ namespace Assertive.Patterns
 
       var expectedContainedValueExpression = callExpression.Arguments.Skip(isExtensionMethod ? 1 : 0).First();
 
-      string expectedContainedValue;
-      
-      if (expectedContainedValueExpression.NodeType == ExpressionType.Constant)
-      {
-        expectedContainedValue = ExpressionHelper.EvaluateExpression(expectedContainedValueExpression)?.ToString();
-      }
-      else
-      {
-        expectedContainedValue = expectedContainedValueExpression.ToString();
-      }
-      
-      return $"Expected {instance} to contain {expectedContainedValue} but it did not.";
+      return $"Expected {instance} to contain {expectedContainedValueExpression} but it did not.";
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();

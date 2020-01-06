@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 
@@ -20,7 +21,7 @@ namespace Assertive.Patterns
       return _comparisonTypes.Contains(expression.NodeType);
     }
 
-    public string TryGetFriendlyMessage(Assertion assertion)
+    public FormattableString TryGetFriendlyMessage(Assertion assertion)
     {
       return default;
     }

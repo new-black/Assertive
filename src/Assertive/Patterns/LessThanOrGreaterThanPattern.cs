@@ -6,19 +6,22 @@ namespace Assertive.Patterns
 {
   internal class LessThanOrGreaterThanPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public static bool IsNumericalComparison(Expression expression)
     {
       return expression.NodeType == ExpressionType.GreaterThan
              || expression.NodeType == ExpressionType.GreaterThanOrEqual
              || expression.NodeType == ExpressionType.LessThan
              || expression.NodeType == ExpressionType.LessThanOrEqual;
     }
-
-    public string TryGetFriendlyMessage(Assertion assertion)
+    
+    public bool IsMatch(Expression expression)
     {
-      var b = (BinaryExpression)assertion.Expression;
+      return IsNumericalComparison(expression);
+    }
 
-      var comparison = assertion.Expression.NodeType switch
+    public static string GetComparisonLabel(Expression expression)
+    {
+      return expression.NodeType switch
       {
         ExpressionType.GreaterThanOrEqual => "greater than or equal to",
         ExpressionType.GreaterThan => "greater than",
@@ -26,7 +29,14 @@ namespace Assertive.Patterns
         ExpressionType.LessThanOrEqual => "less than or equal to",
         _ => throw new InvalidOperationException("Unhandled comparison")
       };
+    }
 
+    public FormattableString TryGetFriendlyMessage(Assertion assertion)
+    {
+      var b = (BinaryExpression)assertion.Expression;
+
+      var comparison = GetComparisonLabel(assertion.Expression);
+      
       if (b.Right.NodeType == ExpressionType.Constant)
       {
         return

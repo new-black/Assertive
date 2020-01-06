@@ -10,7 +10,7 @@ namespace Assertive
   internal interface IFriendlyMessagePattern
   {
     bool IsMatch(Expression expression);
-    string TryGetFriendlyMessage(Assertion assertion);
+    FormattableString TryGetFriendlyMessage(Assertion assertion);
     IFriendlyMessagePattern[] SubPatterns { get; }
   }
 }

@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 
 namespace Assertive
 {
-  public class DSL
+  public static class DSL
   {
     public static void Assert(Expression<Func<bool>> assertion)
     {

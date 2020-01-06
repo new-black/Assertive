@@ -82,7 +82,7 @@ namespace Assertive
         if (expectedExceptionType != null && !expectedExceptionType.IsInstanceOfType(ex.InnerException))
         {
           throw ExceptionHelper.GetException(
-            $"Expected {ExpressionHelper.SanitizeExpression(bodyExpression)} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.InnerException.GetType().FullName} instead.");
+            $"Expected {ExpressionStringBuilder.ExpressionToString(bodyExpression)} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.InnerException.GetType().FullName} instead.");
         }
         
         threw = true;
@@ -90,7 +90,7 @@ namespace Assertive
 
       if (!threw)
       {
-        throw ExceptionHelper.GetException($"Expected {ExpressionHelper.SanitizeExpression(bodyExpression)} to throw an exception, but it did not.");
+        throw ExceptionHelper.GetException($"Expected {ExpressionStringBuilder.ExpressionToString(bodyExpression)} to throw an exception, but it did not.");
       }
     }
   }

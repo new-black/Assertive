@@ -1,18 +1,24 @@
+using System;
 using System.Linq.Expressions;
 
 namespace Assertive.Patterns
 {
   internal class EqualsPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public static bool IsEqualComparison(Expression expression)
     {
       return expression.NodeType == ExpressionType.Equal
-        || expression.NodeType == ExpressionType.NotEqual;
+             || expression.NodeType == ExpressionType.NotEqual;
+    }
+    
+    public bool IsMatch(Expression expression)
+    {
+      return IsEqualComparison(expression);
     }
 
-    public string TryGetFriendlyMessage(Assertion assertion)
+    public FormattableString TryGetFriendlyMessage(Assertion assertion)
     {
-      var binaryExpression = assertion.Expression as BinaryExpression;
+      var binaryExpression = (BinaryExpression)assertion.Expression;
 
       var comparison = binaryExpression.NodeType switch
       {

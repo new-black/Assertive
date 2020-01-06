@@ -31,7 +31,8 @@ namespace Assertive
           }
         }
 
-        return new FriendlyMessage(pattern.TryGetFriendlyMessage(_part), pattern);
+        return new FriendlyMessage(FriendlyMessageFormatter.GetString(pattern.TryGetFriendlyMessage(_part)), 
+          pattern);
       }
 
       return null;

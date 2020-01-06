@@ -1,3 +1,4 @@
+using System;
 using System.Linq.Expressions;
 
 namespace Assertive.Patterns
@@ -9,7 +10,7 @@ namespace Assertive.Patterns
       return true;
     }
 
-    public string TryGetFriendlyMessage(Assertion assertion)
+    public FormattableString TryGetFriendlyMessage(Assertion assertion)
     {
       return $"Assertion failed: {assertion.Expression}";
     }
