@@ -31,7 +31,7 @@ namespace Assertive.Patterns
       };
     }
 
-    public FormattableString TryGetFriendlyMessage(Assertion assertion)
+    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var b = (BinaryExpression)assertion.Expression;
 

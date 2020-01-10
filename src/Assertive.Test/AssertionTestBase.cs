@@ -55,5 +55,22 @@ namespace Assertive.Test
 
       Xunit.Assert.True(throws);
     } 
+    
+//    protected void ShouldFail(Expression<Func<object>> assertion, string expectedMessage)
+//    {
+//      bool throws = false;
+//
+//      try
+//      {
+//        Assert.That(assertion);
+//      }
+//      catch (Exception ex)
+//      {
+//        throws = true;
+//        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
+//      }
+//
+//      Xunit.Assert.True(throws);
+//    } 
   }
 }

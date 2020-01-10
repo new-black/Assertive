@@ -6,22 +6,13 @@ namespace Assertive.Patterns
 {
   internal class ComparisonPattern : IFriendlyMessagePattern
   {
-    private readonly HashSet<ExpressionType> _comparisonTypes = new HashSet<ExpressionType>()
-    {
-      ExpressionType.GreaterThan,
-      ExpressionType.GreaterThanOrEqual,
-      ExpressionType.LessThan,
-      ExpressionType.LessThanOrEqual,
-      ExpressionType.Equal,
-      ExpressionType.NotEqual
-    };
-    
     public bool IsMatch(Expression expression)
     {
-      return _comparisonTypes.Contains(expression.NodeType);
+      return EqualityPattern.IsEqualityComparison(expression)
+             || LessThanOrGreaterThanPattern.IsNumericalComparison(expression);
     }
 
-    public FormattableString TryGetFriendlyMessage(Assertion assertion)
+    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
       return default;
     }
@@ -29,7 +20,7 @@ namespace Assertive.Patterns
     public IFriendlyMessagePattern[] SubPatterns { get; } =
     {
       new LengthPattern(),
-      new EqualsPattern(),
+      new EqualityPattern(),
       new LessThanOrGreaterThanPattern()
     };
   }

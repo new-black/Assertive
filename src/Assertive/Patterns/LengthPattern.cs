@@ -8,7 +8,7 @@ namespace Assertive.Patterns
   {
     public bool IsMatch(Expression expression)
     {
-      return (EqualsPattern.IsEqualComparison(expression) ||
+      return (EqualityPattern.IsEqualityComparison(expression) ||
               LessThanOrGreaterThanPattern.IsNumericalComparison(expression))
              && expression is BinaryExpression binaryExpression
              && IsLengthAccess(binaryExpression.Left);
@@ -31,7 +31,7 @@ namespace Assertive.Patterns
       return IsArrayLength(expression) || IsListCount(expression) || IsCountMethod(expression) || IsStringLength(expression);
     }
 
-    public FormattableString TryGetFriendlyMessage(Assertion assertion)
+    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var binaryExpression = (BinaryExpression)assertion.Expression;
 
@@ -50,9 +50,13 @@ namespace Assertive.Patterns
 
       string comparison;
 
-      if (EqualsPattern.IsEqualComparison(assertion.Expression))
+      if (assertion.Expression.NodeType == ExpressionType.Equal)
       {
         comparison = "equal to";
+      }
+      else if (assertion.Expression.NodeType == ExpressionType.NotEqual)
+      {
+        comparison = "not equal to";
       }
       else if (LessThanOrGreaterThanPattern.IsNumericalComparison(assertion.Expression))
       {
@@ -65,6 +69,8 @@ namespace Assertive.Patterns
 
       Expression operand;
 
+      Expression filter = null;
+
       if (binaryExpression.Left is MemberExpression memberExpression)
       {
         operand = memberExpression.Expression;
@@ -75,6 +81,12 @@ namespace Assertive.Patterns
       }
       else if (binaryExpression.Left is MethodCallExpression methodCallExpression)
       {
+        if (methodCallExpression.Arguments.Count >= 2 &&
+            methodCallExpression.Arguments[1] is LambdaExpression lambdaExpression)
+        {
+          filter = lambdaExpression.Body;
+        }
+        
         operand = ExpressionHelper.GetInstanceOfMethodCall(methodCallExpression);
       }
       else
@@ -82,12 +94,30 @@ namespace Assertive.Patterns
         operand = binaryExpression.Left;
       }
 
+      FormattableString filterString = $"";
+      if (filter != null)
+      {
+        filterString = $" with filter {filter}";
+      }
+
+      FormattableString actualCountString;
+
+      if (assertion.Expression.NodeType == ExpressionType.NotEqual)
+      {
+          actualCountString =
+            $"but they were equal";
+      }
+      else
+      {
+        actualCountString = $"but the actual {countLabel} was {actualLength}";
+      }
+
       if (binaryExpression.Right.NodeType == ExpressionType.Constant)
       {
-        return $"Expected {operand} to have a {countLabel} {comparison} {binaryExpression.Right} but the actual {countLabel} was {actualLength}.";
+        return $"Expected {operand}{filterString} to have a {countLabel} {comparison} {binaryExpression.Right} {actualCountString}.";
       }
       
-      return $"Expected {operand} to have a {countLabel} {comparison} {binaryExpression.Right} ({ExpressionHelper.EvaluateExpression(binaryExpression.Right)}) but the actual {countLabel} was {actualLength}.";
+      return $"Expected {operand}{filterString} to have a {countLabel} {comparison} {binaryExpression.Right} (value: {ExpressionHelper.EvaluateExpression(binaryExpression.Right)}) {actualCountString}.";
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();

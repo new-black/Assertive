@@ -8,11 +8,11 @@ namespace Assertive
 {
   internal class FriendlyMessageProvider
   {
-    private readonly Assertion _part;
+    private readonly FailedAssertion _part;
 
     private static readonly IFriendlyMessagePattern _fallbackPattern = new FallbackPattern();
 
-    public FriendlyMessageProvider(Assertion part)
+    public FriendlyMessageProvider(FailedAssertion part)
     {
       _part = part;
     }

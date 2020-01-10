@@ -27,6 +27,8 @@ namespace Assertive
     // Labels are displayed as UnnamedLabel_#; parameters are displayed as Param_#.
     private Dictionary<object, int> _ids;
 
+    public bool EmitMethodCallWithoutObject { get; set; }
+
     private ExpressionStringBuilder()
     {
       _out = new StringBuilder();
@@ -83,12 +85,15 @@ namespace Assertive
       return esb.ToString();
     }
 
-    private void VisitExpressions<T>(char open, ReadOnlyCollection<T> expressions, char close) where T : Expression
+    internal static string MethodCallToString(MethodCallExpression node)
     {
-      VisitExpressions(open, expressions, close, ", ");
+      ExpressionStringBuilder esb = new ExpressionStringBuilder();
+      esb.EmitMethodCallWithoutObject = true;
+      esb.Visit(node);
+      return esb.ToString();
     }
 
-    private void VisitExpressions<T>(char open, ReadOnlyCollection<T> expressions, char close, string seperator)
+    private void VisitExpressions<T>(char open, ReadOnlyCollection<T> expressions, char close, string seperator = ", ")
       where T : Expression
     {
       Out(open);
@@ -255,7 +260,7 @@ namespace Assertive
       Visit(node.IfTrue);
       Out(" : ");
       Visit(node.IfFalse);
-      
+
       return node;
     }
 
@@ -461,19 +466,22 @@ namespace Assertive
       }
 
       var isIndexer = node.Method.Name == "get_Item";
-      
+
       if (ob != null)
       {
-        Visit(ob);
-        if (!isIndexer)
+        if (!EmitMethodCallWithoutObject)
         {
-          Out('.');
+          Visit(ob);
+          if (!isIndexer)
+          {
+            Out('.');
+          }
         }
       }
       else if (node.Method.IsStatic && node.Method.IsPublic)
       {
         Out(TypeNameToString(node.Method.DeclaringType));
-        
+
         if (!isIndexer)
         {
           Out('.');
@@ -497,14 +505,7 @@ namespace Assertive
         Visit(node.Arguments[i]);
       }
 
-      if (isIndexer)
-      {
-        Out(']');
-      }
-      else
-      {
-        Out(')');
-      }
+      Out(isIndexer ? ']' : ')');
 
       return node;
     }
@@ -563,7 +564,7 @@ namespace Assertive
       switch (node.NodeType)
       {
         case ExpressionType.TypeIs:
-          Out(" Is ");
+          Out(" is ");
           break;
         case ExpressionType.TypeEqual:
           Out(" TypeEqual ");
@@ -675,7 +676,7 @@ namespace Assertive
           Out('-');
           break;
         case ExpressionType.Not:
-          Out("Not(");
+          Out("!");
           break;
         case ExpressionType.IsFalse:
           Out("IsFalse(");
@@ -738,6 +739,7 @@ namespace Assertive
         case ExpressionType.PreDecrementAssign:
         case ExpressionType.PreIncrementAssign:
         case ExpressionType.Quote:
+        case ExpressionType.Not:
           break;
         case ExpressionType.ArrayLength:
           Out(".Length");

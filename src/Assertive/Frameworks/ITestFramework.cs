@@ -2,7 +2,7 @@ using System;
 
 namespace Assertive.Frameworks
 {
-  public interface ITestFramework
+  internal interface ITestFramework
   {
     bool IsAvailable { get; }
     Type ExceptionType { get; }

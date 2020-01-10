@@ -16,7 +16,7 @@ namespace Assertive.Patterns
       return callExpression.Method.Name == "Contains";
     }
 
-    public FormattableString TryGetFriendlyMessage(Assertion assertion)
+    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var expression = assertion.Expression;
 
@@ -33,7 +33,23 @@ namespace Assertive.Patterns
 
       var expectedContainedValueExpression = callExpression.Arguments.Skip(isExtensionMethod ? 1 : 0).First();
 
-      return $"Expected {instance} to contain {expectedContainedValueExpression} but it did not.";
+      FormattableString expectedValueString;
+
+      if (expectedContainedValueExpression is ConstantExpression)
+      {
+        expectedValueString = $"{expectedContainedValueExpression}";
+      }
+      else
+      {
+        expectedValueString = $"{expectedContainedValueExpression} (value: {ExpressionHelper.EvaluateExpression(expectedContainedValueExpression)})";
+      }
+      
+      if (instance != null && instance.Type == typeof(string))
+      {
+        return $"Expected {instance} (value: {ExpressionHelper.EvaluateExpression(instance)}) to contain {expectedValueString}.";
+      }
+
+      return $"Expected {instance} to contain {expectedValueString}.";
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();

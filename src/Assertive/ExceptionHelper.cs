@@ -14,6 +14,8 @@ namespace Assertive
     private static readonly ITestFramework[] _testFrameworks =
     {
       new XUnitFramework(),
+      new MSTestFramework(), 
+      new NUnitTestFramework(), 
     };
 
     private static ITestFramework _activeTestFramework = null;

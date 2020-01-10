@@ -4,11 +4,11 @@ using System.Linq.Expressions;
 
 namespace Assertive
 {
-  public class FriendlyMessageFormatter
+  internal class FriendlyMessageFormatter
   {
     public static string GetString(FormattableString formattableString)
     {
-      if (formattableString == null) return string.Empty;
+      if (formattableString == null) return null;
 
       var arguments = formattableString.GetArguments();
 
@@ -19,6 +19,14 @@ namespace Assertive
         if (a is Expression expression)
         {
           arguments[i] = ExpressionStringBuilder.ExpressionToString(expression);
+        }
+        else if (a is FormattableString innerFormattableString)
+        {
+          arguments[i] = GetString(innerFormattableString);
+        }
+        else if (a is null)
+        {
+          arguments[i] = "null";
         }
       }
 

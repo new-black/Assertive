@@ -14,6 +14,8 @@ namespace Assertive
     {
       var compiledAssertion = assertion.Compile(true);
 
+      Exception exceptionToThrow = null;
+
       try
       {
         var result = compiledAssertion();
@@ -22,14 +24,19 @@ namespace Assertive
         {
           var exceptionProvider = new FailedAssertionExceptionProvider(assertion);
 
-          throw exceptionProvider.GetException();
+          exceptionToThrow = exceptionProvider.GetException();
         }
       }
-      catch
+      catch(Exception ex)
       {
         var exceptionProvider = new FailedAssertionExceptionProvider(assertion);
 
-        throw exceptionProvider.GetException();
+        exceptionToThrow = exceptionProvider.GetException(ex);
+      }
+
+      if (exceptionToThrow != null)
+      {
+        throw exceptionToThrow;
       }
     }
 

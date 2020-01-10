@@ -10,15 +10,20 @@ namespace Assertive.Patterns
       return true;
     }
 
-    public FormattableString TryGetFriendlyMessage(Assertion assertion)
+    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      return $"Assertion failed: {assertion.Expression}";
+      return null;
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } =
     {
+      new BoolPattern(),
       new ComparisonPattern(),
-      new ContainsPattern()
+      new ContainsPattern(),
+      new AnyPattern(),
+      new AllPattern(),
+      new NotAllPattern(),
+      new SequenceEqualPattern()
     };
   }
 }

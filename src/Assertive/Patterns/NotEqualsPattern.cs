@@ -4,12 +4,12 @@ using static Assertive.ExpressionHelper;
 
 namespace Assertive.Patterns
 {
-  internal class EqualsPattern : IFriendlyMessagePattern
+  internal class NotEqualsPattern : IFriendlyMessagePattern
   {
     public bool IsMatch(Expression expression)
     {
-      return expression.NodeType == ExpressionType.Equal
-             || EqualityPattern.EqualsMethodShouldBeTrue(expression);
+      return expression.NodeType == ExpressionType.NotEqual
+             || EqualityPattern.EqualsMethodShouldBeFalse(expression);
     }
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
@@ -25,10 +25,10 @@ namespace Assertive.Patterns
 
       if (right.NodeType == ExpressionType.Constant)
       {
-        return $"Expected {left} to equal {right} but {left} was {EvaluateExpression(left)}.";
+        return $"Expected {left} to not equal {right}.";
       }
 
-      return $"Expected {left} to equal {right} but {left} was {EvaluateExpression(left)} while {right} was {EvaluateExpression(right)}.";
+      return $"Expected {left} to not equal {right} but they were equal (value: {EvaluateExpression(left)}).";
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();

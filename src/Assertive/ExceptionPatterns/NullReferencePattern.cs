@@ -5,9 +5,11 @@ using static Assertive.ExpressionStringBuilder;
 
 namespace Assertive.ExceptionPatterns
 {
-  internal class NullReferencePattern
+  internal class NullReferencePattern : IExceptionHandlerPattern
   {
-    public FailedAssertion Handle(Assertion assertion)
+    public bool IsMatch(Exception exception) => exception is NullReferenceException;
+
+    public HandledException Handle(FailedAssertion assertion)
     {
       var nullVisitor = new NullReferenceVisitor();
 
@@ -15,7 +17,7 @@ namespace Assertive.ExceptionPatterns
 
       if (nullVisitor.CauseOfNullReference != null)
       {
-        string message = null;
+        FormattableString message = null;
 
         if (nullVisitor.CauseOfNullReference is MemberExpression memberExpression)
         {
@@ -29,47 +31,124 @@ namespace Assertive.ExceptionPatterns
             ? GetReasonMessageInternalException(methodCallExpression)
             : GetReasonMessage(methodCallExpression);
         }
+        else if (nullVisitor.CauseOfNullReference is UnaryExpression unaryExpression &&
+                 unaryExpression.NodeType == ExpressionType.ArrayLength)
+        {
+          message = GetReasonMessage(unaryExpression);
+        }
+        else if (nullVisitor.CauseOfNullReference is BinaryExpression binaryExpression
+                 && binaryExpression.NodeType == ExpressionType.ArrayIndex)
+        {
+          message = GetReasonMessage(binaryExpression);
+        }
 
         if (message != null)
         {
-          return new FailedAssertion(assertion,
-            $@"{message}
-
-Assertion: {ExpressionToString(assertion.Expression)}"
-,
-            null);
+          return new HandledException(message, nullVisitor.CauseOfNullReference);
         }
       }
 
       return null;
     }
 
-    private string GetReasonMessageInternalException(MemberExpression expression)
+    private FormattableString GetReasonMessageInternalException(MemberExpression expression)
     {
-      return $"NullReferenceException was thrown inside {expression.Member.Name} on {ExpressionToString(expression)}.";
+      return $"NullReferenceException was thrown inside {expression.Member.Name} on {expression}.";
     }
 
-    private string GetReasonMessageInternalException(MethodCallExpression expression)
+    private FormattableString GetReasonMessageInternalException(MethodCallExpression expression)
     {
-      return $"NullReferenceException was thrown inside {expression.Method.Name} on {ExpressionToString(expression)}.";
+      return $"NullReferenceException was thrown inside {expression.Method.Name} on {expression}.";
     }
 
-    private string GetReasonMessage(MemberExpression causeOfNullReference)
+    private FormattableString GetReasonMessage(UnaryExpression causeOfNullReference)
     {
       return
-        $"NullReferenceException caused by accessing {causeOfNullReference.Member.Name} on {ExpressionToString(causeOfNullReference.Expression)} which was null.";
+        $"NullReferenceException caused by accessing array length on {causeOfNullReference.Operand} which was null.";
     }
-
-    private string GetReasonMessage(MethodCallExpression causeOfNullReference)
+    
+    private FormattableString GetReasonMessage(BinaryExpression causeOfNullReference)
     {
       return
-        $"NullReferenceException caused by calling {causeOfNullReference.Method.Name} on {ExpressionToString(causeOfNullReference.Object)} which was null.";
+        $"NullReferenceException caused by accessing array index {causeOfNullReference.Right} on {causeOfNullReference.Left} which was null.";
+    }
+    
+    private FormattableString GetReasonMessage(MemberExpression causeOfNullReference)
+    {
+      return
+        $"NullReferenceException caused by accessing {causeOfNullReference.Member.Name} on {causeOfNullReference.Expression} which was null.";
+    }
+
+    private FormattableString GetReasonMessage(MethodCallExpression causeOfNullReference)
+    {
+      return
+        $"NullReferenceException caused by calling {causeOfNullReference.Method.Name} on {causeOfNullReference.Object} which was null.";
     }
 
     private class NullReferenceVisitor : ExpressionVisitor
     {
       public Expression CauseOfNullReference { get; set; }
       public bool ExceptionWasThrownInternally { get; set; }
+
+      protected override Expression VisitUnary(UnaryExpression node)
+      {
+        var result = base.VisitUnary(node);
+
+        if (node.NodeType != ExpressionType.ArrayLength)
+        {
+          return result;
+        }
+        
+        if (CauseOfNullReference != null)
+        {
+          return result;
+        }
+        
+        var (value, threwInternally) = EvaluateExpression(node.Operand);
+
+        if (value == null)
+        {
+          CauseOfNullReference = node;
+        }
+
+        if (threwInternally)
+        {
+          ExceptionWasThrownInternally = true;
+          CauseOfNullReference = node.Operand;
+        }
+
+        return result;
+      }
+
+      protected override Expression VisitBinary(BinaryExpression node)
+      {
+        var result = base.VisitBinary(node);
+
+        if (node.NodeType != ExpressionType.ArrayIndex)
+        {
+          return result;
+        }
+        
+        if (CauseOfNullReference != null)
+        {
+          return result;
+        }
+        
+        var (value, threwInternally) = EvaluateExpression(node.Left);
+
+        if (value == null)
+        {
+          CauseOfNullReference = node;
+        }
+
+        if (threwInternally)
+        {
+          ExceptionWasThrownInternally = true;
+          CauseOfNullReference = node.Left;
+        }
+
+        return result;
+      }
 
       protected override Expression VisitMethodCall(MethodCallExpression node)
       {
@@ -110,7 +189,7 @@ Assertion: {ExpressionToString(assertion.Expression)}"
 
           return (value, false);
         }
-        catch (TargetInvocationException ex) when(ex.InnerException is NullReferenceException) 
+        catch (TargetInvocationException ex) when (ex.InnerException is NullReferenceException)
         {
           return (null, true);
         }

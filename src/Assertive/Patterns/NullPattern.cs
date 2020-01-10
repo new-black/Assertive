@@ -13,7 +13,7 @@ namespace Assertive.Patterns
              && c.Value == null;
     }
 
-    public FormattableString TryGetFriendlyMessage(Assertion assertion)
+    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var b = assertion.Expression as BinaryExpression;
       
@@ -23,7 +23,7 @@ namespace Assertive.Patterns
       }
       else
       {
-        return $"Expected {b.Left} to not be null but it was null.";
+        return $"Expected {b.Left} to not be null.";
       }
     }
 

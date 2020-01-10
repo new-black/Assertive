@@ -1,15 +1,14 @@
 using System;
-using System.Linq;
 
 namespace Assertive.Frameworks
 {
-  internal class XUnitFramework : ITestFramework
+  internal class NUnitTestFramework : ITestFramework
   {
     public bool IsAvailable
     {
       get
       {
-        ExceptionType = TestFrameworkHelper.TryGetExceptionType("xunit.assert", "Xunit.Sdk.XunitException");
+        ExceptionType = TestFrameworkHelper.TryGetExceptionType("nunit.framework", "NUnit.Framework.AssertionException");
 
         return ExceptionType != null;
       }

@@ -20,68 +20,51 @@ namespace Assertive
       _assertion = assertion;
     }
 
-    internal Exception GetException()
+    private string FormatExceptionMessage(FailedAnalyzedAssertion failedAssertion, Exception originalException)
     {
-      var partsProvider = new AssertionPartProvider(_assertion);
+      var assertionExpression = ExpressionStringBuilder.ExpressionToString(failedAssertion.Assertion.Expression);
 
-      var failedParts = partsProvider.GetFailedAssertions();
-
-      var failedAssertions = new List<FailedAssertion>(failedParts.Length);
-
-      foreach (var part in failedParts)
+      string result;
+      
+      if (failedAssertion.Message == null)
       {
-        var failedExpressionString = ExpressionStringBuilder.ExpressionToString(part.Expression);
+        result = $"Assertion failed: {assertionExpression}";
+      }
+      else
+      {
+        result = $@"{failedAssertion.Message}
 
-        if (part.Exception == null)
-        {
-          var friendlyMessageProvider = new FriendlyMessageProvider(part);
-
-          var friendlyMessage = friendlyMessageProvider.TryGetFriendlyMessage();
-
-          var friendlyMessageString = friendlyMessage?.Message;
-
-          string fullMessage;
-          bool b;
-
-          if (friendlyMessageString != null)
-          {
-            fullMessage =
-              $@"{friendlyMessageString}
-
-Assertion: {failedExpressionString}";
-          }
-          else
-          {
-            fullMessage = $@"Assertion failed: {failedExpressionString}";
-          }
-
-          var failedAssertion = new FailedAssertion(part, fullMessage, friendlyMessage?.Pattern);
-
-          failedAssertions.Add(failedAssertion);
-        }
-        else
-        {
-          FailedAssertion failedAssertion = null;
-
-          if (part.Exception is NullReferenceException)
-          {
-            failedAssertion = new NullReferencePattern().Handle(part);
-          }
-
-          if (failedAssertion == null)
-          {
-            var fullMessage = $@"Assertion threw {part.Exception.GetType().FullName}: {part.Exception.Message}
-
-Assertion: {failedExpressionString}";
-
-            failedAssertion = new FailedAssertion(part, fullMessage, null);
-          }
-
-          failedAssertions.Add(failedAssertion);
-        }
+Assertion: {assertionExpression}";
       }
 
-      var message = string.Join(Environment.NewLine + Environment.NewLine, failedAssertions.Select(f => f.Message));
+      if (originalException != null)
+      {
+        if (failedAssertion.CauseOfException != null)
+        {
+          result += $@"
+
+Cause of exception: {ExpressionStringBuilder.ExpressionToString(failedAssertion.CauseOfException)}";
+        }
+        
+        result += $@"
+
+Exception: {originalException.Message}
+
+StackTrace: {originalException.StackTrace}";
+      }
+
+      result += Environment.NewLine;
+
+      return result;
+    }
+
+    internal Exception GetException(Exception assertionException = null)
+    {
+      var failureAnalyzer = new AssertionFailureAnalyzer(_assertion, assertionException);
+      
+      var failedAssertions = failureAnalyzer.AnalyzeAssertionFailures();
+
+      var message = string.Join(Environment.NewLine + Environment.NewLine, failedAssertions.Select(f => FormatExceptionMessage(f, assertionException)));
 
       return ExceptionHelper.GetException(message);
     }
