@@ -53,13 +53,17 @@ var list = new List<string>()
     "bar"
 };
 
-Assert(() => list.Count == 1 && list[0].Contains("foo"));
+Assert(() => list.Count == 1 && list[0].StartsWith("foo"));
 
 ```
 
 This assertion would fail with the message:
 
-> Expected list[0] ("bar") to contain the string "foo".
+> Expected list[0] to start with "foo".
+>
+> Value of list[0]: "bar"
+>
+> Assertion: list[0].StartsWith("foo")
 
 Short-circuiting works as you would expect, if the first assertion fails then the second one is not evaluated.
 
