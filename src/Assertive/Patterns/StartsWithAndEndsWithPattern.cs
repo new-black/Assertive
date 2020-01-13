@@ -4,7 +4,7 @@ using static Assertive.ExpressionHelper;
 
 namespace Assertive.Patterns
 {
-  internal class StartsWithPattern : IFriendlyMessagePattern
+  internal class StartsWithAndEndsWithPattern : IFriendlyMessagePattern
   {
     public bool IsMatch(Expression expression)
     {
@@ -17,7 +17,7 @@ namespace Assertive.Patterns
     private static bool IsStartsWithCall(Expression expression)
     {
       return expression is MethodCallExpression methodCallExpression
-             && methodCallExpression.Method.Name == nameof(string.StartsWith)
+             && (methodCallExpression.Method.Name == nameof(string.StartsWith) || methodCallExpression.Method.Name == nameof(string.EndsWith))
              && methodCallExpression.Arguments.Count >= 1
              && methodCallExpression.Arguments[0].Type == typeof(string);
     }
@@ -30,18 +30,21 @@ namespace Assertive.Patterns
         ? assertion.Expression
         : ((UnaryExpression)assertion.Expression).Operand);
 
+      var method = methodCallExpression.Method.Name == nameof(string.StartsWith) 
+        ? "start with" : "end with";
+      
       var arg = methodCallExpression.Arguments[0];
 
       var instance = GetInstanceOfMethodCall(methodCallExpression);
 
       if (arg is ConstantExpression)
       {
-        return $@"Expected {instance} to{(startsWith ? " " : " not ")}start with {arg}.
+        return $@"Expected {instance} to{(startsWith ? " " : " not ")}{method} {arg}.
 
 Value of {instance}: {EvaluateExpression(instance)}";  
       }
       
-      return $@"Expected {instance} to{(startsWith ? " " : " not ")}start with {arg} (value: {EvaluateExpression(arg)}).
+      return $@"Expected {instance} to{(startsWith ? " " : " not ")}{method} {arg} (value: {EvaluateExpression(arg)}).
 
 Value of {instance}: {EvaluateExpression(instance)}";   
     }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Xunit;
 
@@ -8,6 +9,13 @@ namespace Assertive.Test
     [Fact]
     public void StartsWith_constant()
     {
+      var list = new List<string>()
+      {
+        "bar"
+      };
+
+      Assert.That(() => list.Count == 1 && list[0].StartsWith("foo"));
+      
       var myString = "abcdefghijklmnop";
       
       ShouldFail(() => myString.StartsWith("cba"), @"Expected myString to start with ""cba"".
@@ -46,5 +54,16 @@ Value of myString: ""abcdefghijklmnop""");
 
 Value of myString: ""abcdefghijklmnop""");
     }
+    
+    [Fact]
+    public void EndsWith_constant()
+    {
+      var myString = "abcdefghijklmnopabc";
+      
+      ShouldFail(() => !myString.EndsWith("abc"), @"Expected myString to not end with ""abc"".
+
+Value of myString: ""abcdefghijklmnopabc""");
+    }
+
   }
 }
