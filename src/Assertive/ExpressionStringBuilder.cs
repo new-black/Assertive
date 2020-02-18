@@ -25,7 +25,7 @@ namespace Assertive
 
     // Associate every unique label or anonymous parameter in the tree with an integer.
     // Labels are displayed as UnnamedLabel_#; parameters are displayed as Param_#.
-    private Dictionary<object, int> _ids;
+    private Dictionary<object, int>? _ids;
 
     public bool EmitMethodCallWithoutObject { get; set; }
 
@@ -263,7 +263,7 @@ namespace Assertive
 
       return node;
     }
-
+    
     protected override Expression VisitConstant(ConstantExpression node)
     {
       if (node.Value != null)
@@ -274,6 +274,12 @@ namespace Assertive
           Out('\"');
           Out(sValue);
           Out('\"');
+        }
+        else if (node.Type.IsEnum)
+        {
+          Out(node.Type.Name);
+          Out(".");
+          Out(sValue);
         }
         else
         {
@@ -467,7 +473,7 @@ namespace Assertive
 
       var isIndexer = node.Method.Name == "get_Item";
 
-      if (ob != null)
+      if (ob != null && !node.Method.IsPrivate)
       {
         if (!EmitMethodCallWithoutObject)
         {
@@ -666,9 +672,30 @@ namespace Assertive
       return (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>));
     }
 
+    private Expression VisitConvert(UnaryExpression node)
+    {
+      if ((node.Type.IsNullableValueType()
+          && node.Type.GetUnderlyingType() == node.Operand.Type) || node.Type == typeof(object))
+      {
+        return Visit(node.Operand);
+      }
+      else
+      {
+        Out('(');
+        Out(TypeNameToString(node.Type));
+        Out(')');
+        return Visit(node.Operand);
+      }
+    }
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
     protected override Expression VisitUnary(UnaryExpression node)
     {
+      if (node.NodeType == ExpressionType.Convert)
+      {
+        return VisitConvert(node);
+      }
+      
       switch (node.NodeType)
       {
         case ExpressionType.Negate:
@@ -688,11 +715,6 @@ namespace Assertive
           Out("~(");
           break;
         case ExpressionType.ArrayLength:
-          break;
-        case ExpressionType.Convert:
-          Out('(');
-          Out(TypeNameToString(node.Type));
-          Out(')');
           break;
         case ExpressionType.ConvertChecked:
           Out("ConvertChecked(");
@@ -749,7 +771,6 @@ namespace Assertive
           Out(TypeNameToString(node.Type));
           Out(')');
           break;
-        case ExpressionType.Convert:
         case ExpressionType.ConvertChecked:
           break;
         case ExpressionType.PostIncrementAssign:
@@ -849,7 +870,7 @@ namespace Assertive
       if (!string.IsNullOrEmpty(node.Variable?.Name))
       {
         Out(' ');
-        Out(node.Variable.Name);
+        Out(node.Variable!.Name);
       }
 
       Out(") { ... }");
@@ -871,7 +892,7 @@ namespace Assertive
       else
       {
         Debug.Assert(node.Indexer != null);
-        Out(node.Indexer.DeclaringType.Name);
+        Out(node.Indexer!.DeclaringType.Name);
       }
 
       if (node.Indexer != null)

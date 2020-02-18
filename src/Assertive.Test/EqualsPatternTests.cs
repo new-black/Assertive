@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;
@@ -18,7 +17,8 @@ namespace Assertive.Test
 
       var foo = "foo";
       var bar = "bar";
-
+      int? nullableInt = null;
+      ShouldFail(() => nullableInt == 1, "Expected nullableInt to equal 1 but nullableInt was null.");
       Assert.That(() => a != b);
       Assert.That(() => a == "A");
       Assert.That(() => x != y);
@@ -26,6 +26,8 @@ namespace Assertive.Test
       Assert.That(() => foo + bar == "foobar");
       
       ShouldFail(() => a == b, @"Expected a to equal b but a was ""A"" while b was ""B"".");
+      ShouldFail(() => nullableInt == x, "Expected nullableInt to equal x but nullableInt was null while x was 1.");
+      
       ShouldFail(() => x == y, "Expected x to equal y but x was 1 while y was 2.");
       ShouldFail(() => foo + bar == "barfoo",
         @"Expected foo + bar to equal ""barfoo"" but foo + bar was ""foobar"".");
@@ -69,10 +71,54 @@ namespace Assertive.Test
       var a = new MyStruct();
       var b = new MyStruct()
       {
-        A = "1"
+        A = "this is a string"
       };
       
-      ShouldFail(() => a.Equals(b), "Expected a to equal b but a was Assertive.Test.EqualsPatternTests+MyStruct while b was Assertive.Test.EqualsPatternTests+MyStruct.");
+      ShouldFail(() => a.Equals(b), "Expected a to equal b but a was { A = null, B = null } while b was { A = this is a string, B = null }.");
+    }
+
+    [Fact]
+    public void Enum_comparison_works()
+    {
+      var a = MyEnum.A;
+      var b = MyEnum.B;
+      
+      ShouldFail(() => a == b, "Expected a to equal b but a was MyEnum.A while b was MyEnum.B.");
+    }
+    
+    [Fact]
+    public void Nullable_Enum_comparison_works()
+    {
+      MyEnum? a = MyEnum.A;
+      //MyEnum b = MyEnum.B;
+      
+      ShouldFail(() => a == MyEnum.B, "Expected a to equal MyEnum.B but a was MyEnum.A.");
+    }
+    
+    [Fact]
+    public void Nullable_Enum_comparison_works_when_value_is_null()
+    {
+      MyEnum? a = null;
+      //MyEnum b = MyEnum.B;
+      
+      ShouldFail(() => a == MyEnum.B, "Expected a to equal MyEnum.B but a was null.");
+    }
+    
+    [Fact]
+    public void Enum_in_function_call_works()
+    {
+      ShouldFail(() => DoIt(MyEnum.A) == MyEnum.B, "Expected DoIt(MyEnum.A) to equal MyEnum.B but DoIt(MyEnum.A) was MyEnum.A.");
+    }
+    
+    private MyEnum DoIt(MyEnum x)
+    {
+      return x;
+    }
+    
+    private enum MyEnum
+    {
+      A = 1,
+      B = 2
     }
 
     private struct MyStruct

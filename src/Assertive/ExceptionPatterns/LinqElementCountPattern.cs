@@ -13,7 +13,7 @@ namespace Assertive.ExceptionPatterns
   {
     public bool IsMatch(Exception exception) => exception is InvalidOperationException;
 
-    public HandledException Handle(FailedAssertion assertion)
+    public HandledException? Handle(FailedAssertion assertion)
     {
       var linqVisitor = new LinqElementCountVisitor();
 
@@ -50,7 +50,7 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
       return null;
     }
 
-    private (List<object> items, bool hasMoreItems) GetItems(LambdaExpression filterExpression, MethodCallExpression causeOfException, Expression instanceOfMethodCallExpression)
+    private (List<object>? items, bool hasMoreItems) GetItems(LambdaExpression? filterExpression, MethodCallExpression causeOfException, Expression instanceOfMethodCallExpression)
     {
       var instance = ExpressionHelper.EvaluateExpression(instanceOfMethodCallExpression);
 
@@ -159,7 +159,7 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
         return result;
       }
 
-      public MethodCallExpression CauseOfLinqException { get; private set; }
+      public MethodCallExpression? CauseOfLinqException { get; private set; }
       public int? ActualCount { get; private set; }
       public LinqElementCountErrorTypes? Error { get; private set; }
 

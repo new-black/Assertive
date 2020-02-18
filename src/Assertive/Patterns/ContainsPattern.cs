@@ -35,7 +35,7 @@ namespace Assertive.Patterns
 
       FormattableString expectedValueString;
 
-      if (expectedContainedValueExpression is ConstantExpression)
+      if (ExpressionHelper.IsConstantExpression(expectedContainedValueExpression))
       {
         expectedValueString = $"{expectedContainedValueExpression}";
       }

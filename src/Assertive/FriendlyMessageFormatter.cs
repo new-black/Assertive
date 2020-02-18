@@ -6,7 +6,7 @@ namespace Assertive
 {
   internal class FriendlyMessageFormatter
   {
-    public static string GetString(FormattableString formattableString)
+    public static string? GetString(FormattableString? formattableString)
     {
       if (formattableString == null) return null;
 
@@ -15,10 +15,10 @@ namespace Assertive
       for (var i = 0; i < arguments.Length; i++)
       {
         var a = arguments[i];
-        
+
         if (a is Expression expression)
         {
-          arguments[i] = ExpressionStringBuilder.ExpressionToString(expression);
+          arguments[i] = ExpressionHelper.ExpressionToString(expression);
         }
         else if (a is FormattableString innerFormattableString)
         {
@@ -27,6 +27,10 @@ namespace Assertive
         else if (a is null)
         {
           arguments[i] = "null";
+        }
+        else
+        {
+          arguments[i] = Serializer.Serialize(arguments[i], 0, null);
         }
       }
 

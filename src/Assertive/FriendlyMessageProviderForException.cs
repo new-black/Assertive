@@ -15,12 +15,13 @@ namespace Assertive
     
     public FailedAnalyzedAssertion AnalyzeException(FailedAssertion part)
     {
-      HandledException handledException = null;
-      IExceptionHandlerPattern handledExceptionPattern = null;
+      HandledException? handledException = null;
+      IExceptionHandlerPattern? handledExceptionPattern = null;
+      var exception = part.Exception!;
 
       foreach (var pattern in _patterns)
       {
-        if (pattern.IsMatch(part.Exception))
+        if (pattern.IsMatch(exception))
         {
           handledException = pattern.Handle(part);
 
@@ -32,11 +33,11 @@ namespace Assertive
         }
       }
 
-      FormattableString failedAssertionMessage = handledException?.Message;
+      FormattableString? failedAssertionMessage = handledException?.Message;
       
       if (handledException == null)
       {
-        failedAssertionMessage = $@"Assertion threw {part.Exception.GetType().FullName}: {part.Exception.Message}";
+        failedAssertionMessage = $@"Assertion threw {exception.GetType().FullName}: {exception.Message}";
       }
 
       return new FailedAnalyzedAssertion(part, FriendlyMessageFormatter.GetString(failedAssertionMessage), 

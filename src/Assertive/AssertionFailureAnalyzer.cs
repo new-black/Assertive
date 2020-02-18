@@ -1,17 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using Assertive.ExceptionPatterns;
 
 namespace Assertive
 {
   internal class AssertionFailureAnalyzer
   {
     private readonly Expression<Func<bool>> _assertion;
-    private readonly Exception _assertionException;
+    private readonly Exception? _assertionException;
 
-    public AssertionFailureAnalyzer(Expression<Func<bool>> assertion, Exception assertionException)
+    public AssertionFailureAnalyzer(Expression<Func<bool>> assertion, Exception? assertionException)
     {
       _assertion = assertion;
       _assertionException = assertionException;
@@ -27,8 +25,6 @@ namespace Assertive
 
       var failedParts = executor.Execute();
       
-      //var failedParts = partsProvider.GetFailedAssertions();
-
       var failedAssertions = new List<FailedAnalyzedAssertion>(failedParts.Length);
 
       foreach (var part in failedParts)

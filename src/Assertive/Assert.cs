@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.ExceptionServices;
-using System.Text;
 
 namespace Assertive
 {
@@ -12,9 +8,29 @@ namespace Assertive
   {
     public static void That(Expression<Func<bool>> assertion)
     {
+      ThatImpl(assertion, null, null);
+    }
+
+    public static void That(Expression<Func<bool>> assertion, object message)
+    {
+      ThatImpl(assertion, message, null);
+    }
+    
+    public static void That(Expression<Func<bool>> assertion, Expression<Func<object>> context)
+    {
+      ThatImpl(assertion, null, context);
+    }
+
+    public static void That(Expression<Func<bool>> assertion, object message, Expression<Func<object>> context)
+    {
+      ThatImpl(assertion, message, context);
+    }
+    
+    private static void ThatImpl(Expression<Func<bool>> assertion, object? message, Expression<Func<object>>? context)
+    {
       var compiledAssertion = assertion.Compile(true);
 
-      Exception exceptionToThrow = null;
+      Exception? exceptionToThrow = null;
 
       try
       {
@@ -22,14 +38,14 @@ namespace Assertive
 
         if (!result)
         {
-          var exceptionProvider = new FailedAssertionExceptionProvider(assertion);
+          var exceptionProvider = new FailedAssertionExceptionProvider(new Assertion(assertion, message, context));
 
           exceptionToThrow = exceptionProvider.GetException();
         }
       }
-      catch(Exception ex)
+      catch (Exception ex)
       {
-        var exceptionProvider = new FailedAssertionExceptionProvider(assertion);
+        var exceptionProvider = new FailedAssertionExceptionProvider(new Assertion(assertion, message, context));
 
         exceptionToThrow = exceptionProvider.GetException(ex);
       }
@@ -61,7 +77,7 @@ namespace Assertive
     }
     
     private static void ThrowsImpl(LambdaExpression expression, 
-      Type expectedExceptionType = null)
+      Type? expectedExceptionType = null)
     {
       var threw = false;
 
@@ -84,12 +100,10 @@ namespace Assertive
       }
       catch(TargetInvocationException ex)
       {
-        Debug.Assert(ex.InnerException != null, "ex.InnerException != null");
-
         if (expectedExceptionType != null && !expectedExceptionType.IsInstanceOfType(ex.InnerException))
         {
           throw ExceptionHelper.GetException(
-            $"Expected {ExpressionStringBuilder.ExpressionToString(bodyExpression)} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.InnerException.GetType().FullName} instead.");
+            $"Expected {ExpressionHelper.ExpressionToString(bodyExpression)} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.InnerException.GetType().FullName} instead.");
         }
         
         threw = true;
@@ -97,7 +111,7 @@ namespace Assertive
 
       if (!threw)
       {
-        throw ExceptionHelper.GetException($"Expected {ExpressionStringBuilder.ExpressionToString(bodyExpression)} to throw an exception, but it did not.");
+        throw ExceptionHelper.GetException($"Expected {ExpressionHelper.ExpressionToString(bodyExpression)} to throw an exception, but it did not.");
       }
     }
   }

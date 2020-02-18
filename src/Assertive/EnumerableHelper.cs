@@ -14,7 +14,7 @@ namespace Assertive
       {
         if (o is null) return "null";
 
-        return Quote(o);
+        return Quote(o) ?? "null";
       }
 
       if (count > 10)

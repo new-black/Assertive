@@ -14,6 +14,6 @@ namespace Assertive.Frameworks
       }
     }
 
-    public Type ExceptionType { get; private set; } = null;
+    public Type? ExceptionType { get; private set; } = null;
   }
 }

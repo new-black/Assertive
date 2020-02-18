@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace Assertive.Patterns
@@ -12,7 +11,7 @@ namespace Assertive.Patterns
              || LessThanOrGreaterThanPattern.IsNumericalComparison(expression);
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
     {
       return default;
     }

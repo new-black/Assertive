@@ -1,8 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel.Design;
-using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
 using static Assertive.EnumerableHelper;
@@ -24,25 +22,25 @@ namespace Assertive.Patterns
     private struct Difference
     {
       public int Index;
-      public object ValueSequence1;
+      public object? ValueSequence1;
       public bool HasValueSequence1;
 
-      public object ValueSequence2;
+      public object? ValueSequence2;
       public bool HasValueSequence2;
     }
 
-    private object GetDefaultComparer(Type enumerableType)
+    private object? GetDefaultComparer(Type enumerableType)
     {
       var defaultComparerType = typeof(EqualityComparer<>).MakeGenericType(enumerableType);
 
       return defaultComparerType.GetProperty(nameof(EqualityComparer<int>.Default))?.GetValue(null);
     }
 
-    private Func<object, object, bool> GetComparerFunc(MethodCallExpression methodCallExpression, Type enumerableType)
+    private Func<object?, object?, bool>? GetComparerFunc(MethodCallExpression methodCallExpression, Type enumerableType)
     {
-      Func<object, object, bool> equals = null;
+      Func<object?, object?, bool>? equals = null;
 
-      object comparer;
+      object? comparer;
       
       if (methodCallExpression.Arguments.Count >= 3)
       {
@@ -90,14 +88,14 @@ namespace Assertive.Patterns
       return equals;
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var methodCallExpression = (MethodCallExpression)assertion.Expression;
       var collection1Expression = ExpressionHelper.GetInstanceOfMethodCall(methodCallExpression);
       var collection2Expression = methodCallExpression.Arguments[1];
 
-      var collection1 = ((IEnumerable)ExpressionHelper.EvaluateExpression(collection1Expression)).Cast<object>();
-      var collection2 = ((IEnumerable)ExpressionHelper.EvaluateExpression(collection2Expression)).Cast<object>();
+      var collection1 = ((IEnumerable)ExpressionHelper.EvaluateExpression(collection1Expression)!).Cast<object>();
+      var collection2 = ((IEnumerable)ExpressionHelper.EvaluateExpression(collection2Expression)!).Cast<object>();
       
       var differences = new List<Difference>();
 
@@ -120,8 +118,8 @@ namespace Assertive.Patterns
 
         var differenceCount = 0;
 
-        IEnumerator<object> enumerator1 = null;
-        IEnumerator<object> enumerator2 = null;
+        IEnumerator<object>? enumerator1 = null;
+        IEnumerator<object>? enumerator2 = null;
 
         try
         {

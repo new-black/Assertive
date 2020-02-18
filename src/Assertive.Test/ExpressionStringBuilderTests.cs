@@ -13,11 +13,15 @@ namespace Assertive.Test
       var b = 2;
       var array = new int[10];
       var myClass = new MyClass();
+      int? nullableA = 1;
       
       Same(() => a + b, "a + b");
       Same(() => CallFunction(a + b), "CallFunction(a + b)");
       Same(() => (long)a + b, "(long)a + (long)b");
-      Same(() => (int?)a + b, "(int?)a + (int?)b");
+      Same(() => (int?)a + b, "a + b");
+      Same(() => nullableA == 1, "nullableA == 1");
+      Same(() => nullableA == a, "nullableA == a");
+      Same(() => (long)nullableA == a, "(long)nullableA == (long)a");
       Same(() => int.Parse("123"), @"int.Parse(""123"")");
       Same(() => array.Length, "array.Length");
       Same(() => array[2], "array[2]");

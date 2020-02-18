@@ -1,16 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Net.Http.Headers;
 
 namespace Assertive
 {
   internal class AssertionTreeExecutor
   {
     private readonly AssertionNode _root;
-    private readonly Exception _assertionException;
+    private readonly Exception? _assertionException;
 
-    public AssertionTreeExecutor(AssertionNode root, Exception assertionException)
+    public AssertionTreeExecutor(AssertionNode root, Exception? assertionException)
     {
       _root = root;
       _assertionException = assertionException;
@@ -72,22 +71,22 @@ namespace Assertive
 
     private bool ExecuteAndAlso(AssertionNode node)
     {
-      return ExecuteNode(node.Left) && ExecuteNode(node.Right);
+      return ExecuteNode(node.Left!) && ExecuteNode(node.Right!);
     }
 
     private bool ExecuteAnd(AssertionNode node)
     {
-      return ExecuteNode(node.Left) & ExecuteNode(node.Right);
+      return ExecuteNode(node.Left!) & ExecuteNode(node.Right!);
     }
 
     private bool ExecuteOr(AssertionNode node)
     {
-      return ExecuteNode(node.Left) | ExecuteNode(node.Right);
+      return ExecuteNode(node.Left!) | ExecuteNode(node.Right!);
     }
 
     private bool ExecuteOrElse(AssertionNode node)
     {
-      return ExecuteNode(node.Left) || ExecuteNode(node.Right);
+      return ExecuteNode(node.Left!) || ExecuteNode(node.Right!);
     }
   }
 }

@@ -1,9 +1,6 @@
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
-using static Assertive.ExpressionStringBuilder;
 
 namespace Assertive.ExceptionPatterns
 {
@@ -11,7 +8,7 @@ namespace Assertive.ExceptionPatterns
   {
     public bool IsMatch(Exception exception) => exception is ArgumentNullException;
 
-    public HandledException Handle(FailedAssertion assertion)
+    public HandledException? Handle(FailedAssertion assertion)
     {
       var nullVisitor = new ArgumentNullVisitor();
 
@@ -35,7 +32,7 @@ namespace Assertive.ExceptionPatterns
 
     private class ArgumentNullVisitor : ExpressionVisitor
     {
-      public MethodCallExpression CauseOfArgumentNull { get; private set; }
+      public MethodCallExpression? CauseOfArgumentNull { get; private set; }
 
       protected override Expression VisitMethodCall(MethodCallExpression node)
       {

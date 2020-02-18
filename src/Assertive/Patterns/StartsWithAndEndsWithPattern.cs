@@ -37,7 +37,7 @@ namespace Assertive.Patterns
 
       var instance = GetInstanceOfMethodCall(methodCallExpression);
 
-      if (arg is ConstantExpression)
+      if (ExpressionHelper.IsConstantExpression(arg))
       {
         return $@"Expected {instance} to{(startsWith ? " " : " not ")}{method} {arg}.
 

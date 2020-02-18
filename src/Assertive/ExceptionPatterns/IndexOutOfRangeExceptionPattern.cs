@@ -1,9 +1,6 @@
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices.ComTypes;
-using System.Xml.Schema;
 
 namespace Assertive.ExceptionPatterns
 {
@@ -12,7 +9,7 @@ namespace Assertive.ExceptionPatterns
     public bool IsMatch(Exception exception) => exception is IndexOutOfRangeException
                                                 || exception is ArgumentOutOfRangeException;
 
-    public HandledException Handle(FailedAssertion assertion)
+    public HandledException? Handle(FailedAssertion assertion)
     {
       var visitor = new IndexOutOfRangeExceptionVisitor();
 
@@ -36,7 +33,7 @@ namespace Assertive.ExceptionPatterns
 
         indexExpression = b.Right;
         operand = b.Left;
-        actualLength = (int)ExpressionHelper.EvaluateExpression(Expression.ArrayLength(operand));
+        actualLength = (int?)ExpressionHelper.EvaluateExpression(Expression.ArrayLength(operand));
         lengthString = "length";
       }
       else if (assertion.Exception is ArgumentOutOfRangeException &&
@@ -56,7 +53,7 @@ namespace Assertive.ExceptionPatterns
 
       FormattableString indexExpressionString;
 
-      if (indexExpression is ConstantExpression)
+      if (ExpressionHelper.IsConstantExpression(indexExpression))
       {
         indexExpressionString = $"{indexExpression}";
       }
@@ -73,7 +70,7 @@ namespace Assertive.ExceptionPatterns
 
     private class IndexOutOfRangeExceptionVisitor : ExpressionVisitor
     {
-      public Expression CauseOfIndexOutOfRangeException { get; set; }
+      public Expression? CauseOfIndexOutOfRangeException { get; private set; }
       
       protected override Expression VisitBinary(BinaryExpression node)
       {

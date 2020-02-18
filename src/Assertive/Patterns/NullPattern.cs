@@ -9,22 +9,25 @@ namespace Assertive.Patterns
     {
       return (expression.NodeType == ExpressionType.Equal || expression.NodeType == ExpressionType.NotEqual)
              && expression is BinaryExpression b
-             && b.Right is ConstantExpression c
-             && c.Value == null;
+             && ((b.Right is ConstantExpression c
+             && c.Value == null) || (b.Right is DefaultExpression && b.Right.Type.IsClass));
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      var b = assertion.Expression as BinaryExpression;
-      
-      if (b.NodeType == ExpressionType.Equal)
+      if (assertion.Expression is BinaryExpression b)
       {
-        return $"Expected {b.Left} to be null but it was {ExpressionHelper.EvaluateExpression(b.Left)} instead.";
+        if (b.NodeType == ExpressionType.Equal)
+        {
+          return $"Expected {b.Left} to be null but it was {ExpressionHelper.EvaluateExpression(b.Left)} instead.";
+        }
+        else
+        {
+          return $"Expected {b.Left} to not be null.";
+        }
       }
-      else
-      {
-        return $"Expected {b.Left} to not be null.";
-      }
+
+      return default;
     }
 
     public IFriendlyMessagePattern[] SubPatterns => Array.Empty<IFriendlyMessagePattern>();

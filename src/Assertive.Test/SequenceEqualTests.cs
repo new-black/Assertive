@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 
@@ -83,6 +84,30 @@ Value of seq2: [13,1,2,3,4,5,6,7,8,9,...]");
 [7]: 107 <> 7,
 [8]: 108 <> 8,
 [9]: 109 <> 9");
+    }
+
+    [Fact]
+    public void Dictionary_tests()
+    {
+      var dict1 = new Dictionary<int, string>()
+      {
+        [1] = "a",
+        [2] = "b"
+      };
+      
+      var dict2 = new Dictionary<int, string>()
+      {
+        [2] = "c",
+        [3] = "d"
+      };
+
+      ShouldFail(() => dict1.SequenceEqual(dict2), @"Expected dict1 to be equal to dict2, but there were 2 differences:
+
+[0]: [1, a] <> [2, c],
+[1]: [2, b] <> [3, d]
+
+Value of dict1: [[1, a],[2, b]]
+Value of dict2: [[2, c],[3, d]]");
     }
   }
 }

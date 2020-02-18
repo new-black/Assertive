@@ -1,28 +1,21 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
-using System.Runtime.ExceptionServices;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Xml;
-using Assertive.ExceptionPatterns;
+using static Assertive.ExpressionHelper;
 
 namespace Assertive
 {
   internal class FailedAssertionExceptionProvider
   {
-    private readonly Expression<Func<bool>> _assertion;
+    private readonly Assertion _assertion;
 
-    public FailedAssertionExceptionProvider(Expression<Func<bool>> assertion)
+    public FailedAssertionExceptionProvider(Assertion assertion)
     {
       _assertion = assertion;
     }
 
-    private string FormatExceptionMessage(FailedAnalyzedAssertion failedAssertion, Exception originalException)
+    private string FormatExceptionMessage(FailedAnalyzedAssertion failedAssertion, Exception? originalException)
     {
-      var assertionExpression = ExpressionStringBuilder.ExpressionToString(failedAssertion.Assertion.Expression);
+      var assertionExpression = ExpressionToString(failedAssertion.Assertion.Expression);
 
       string result;
       
@@ -37,13 +30,28 @@ namespace Assertive
 Assertion: {assertionExpression}";
       }
 
+      if (_assertion.Message != null)
+      {
+        result += $@"
+
+Message: {_assertion.Message}";
+      }
+
+      if (_assertion.Context != null)
+      {
+        result += $@"
+
+Context: {ExpressionToString(_assertion.Context.Body)} = {Serializer.Serialize(EvaluateExpression(_assertion.Context.Body), 0, null)}
+";
+      }
+
       if (originalException != null)
       {
         if (failedAssertion.CauseOfException != null)
         {
           result += $@"
 
-Cause of exception: {ExpressionStringBuilder.ExpressionToString(failedAssertion.CauseOfException)}";
+Cause of exception: {ExpressionToString(failedAssertion.CauseOfException)}";
         }
         
         result += $@"
@@ -58,9 +66,9 @@ StackTrace: {originalException.StackTrace}";
       return result;
     }
 
-    internal Exception GetException(Exception assertionException = null)
+    internal Exception GetException(Exception? assertionException = null)
     {
-      var failureAnalyzer = new AssertionFailureAnalyzer(_assertion, assertionException);
+      var failureAnalyzer = new AssertionFailureAnalyzer(_assertion.Expression, assertionException);
       
       var failedAssertions = failureAnalyzer.AnalyzeAssertionFailures();
 

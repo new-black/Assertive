@@ -7,11 +7,10 @@ namespace Assertive
 {
   internal static class TypeHelper
   {
-    public static bool IsNullableValueType(Type type)
+    public static bool IsNullableValueType(this Type type)
     {
       return (type.IsGenericType && type.
-                GetGenericTypeDefinition().Equals
-                  (typeof(Nullable<>)));
+                GetGenericTypeDefinition() == typeof(Nullable<>));
     }
     
     public static bool IsType<TBase>(this Type t)
@@ -24,19 +23,13 @@ namespace Assertive
       return t2.IsAssignableFrom(t);
     }
     
-    public static Type GetUnderlyingType(Type type)
+    public static Type GetUnderlyingType(this Type type)
     {
       if (IsNullableValueType(type))
       {
         return Nullable.GetUnderlyingType(type);
       }
       return type;
-    }
-
-
-    public static bool IsEnumerable(Type t)
-    {
-      return typeof(IEnumerable).IsAssignableFrom(t) && t != typeof(string);
     }
 
     public static bool IsDictionary(Type t)
@@ -46,7 +39,7 @@ namespace Assertive
       return t.IsGenericType && t.GetGenericTypeDefinition().IsType(typeof(IDictionary<,>));
     }
 
-    public static Type GetTypeInsideEnumerable(Type type)
+    public static Type? GetTypeInsideEnumerable(Type type)
     {
       var getEnumeratorMethod = type.GetMethod("GetEnumerator", Type.EmptyTypes);
 

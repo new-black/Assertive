@@ -10,7 +10,7 @@ namespace Assertive.Patterns
       return true;
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
     {
       return null;
     }

@@ -1,6 +1,5 @@
 using System;
 using System.Linq.Expressions;
-using System.Runtime.InteropServices.ComTypes;
 
 namespace Assertive.Patterns
 {
@@ -69,7 +68,7 @@ namespace Assertive.Patterns
 
       Expression operand;
 
-      Expression filter = null;
+      Expression? filter = null;
 
       if (binaryExpression.Left is MemberExpression memberExpression)
       {

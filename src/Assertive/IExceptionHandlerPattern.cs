@@ -6,7 +6,7 @@ namespace Assertive
   internal interface IExceptionHandlerPattern
   {
     bool IsMatch(Exception exception);
-    HandledException Handle(FailedAssertion assertion);
+    HandledException? Handle(FailedAssertion assertion);
   }
 
   internal class HandledException

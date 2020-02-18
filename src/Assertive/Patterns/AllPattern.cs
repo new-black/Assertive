@@ -3,8 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
-using System.Text;
 
 namespace Assertive.Patterns
 {
@@ -33,7 +31,7 @@ namespace Assertive.Patterns
 
       var filter = (LambdaExpression)methodCallExpression.Arguments[1];
 
-      var collection = ((IEnumerable)ExpressionHelper.EvaluateExpression(collectionExpression)).Cast<object>();
+      var collection = ((IEnumerable)ExpressionHelper.EvaluateExpression(collectionExpression)!).Cast<object>();
 
       var compiledFilter = filter.Compile(true);
 

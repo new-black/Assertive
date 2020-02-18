@@ -14,16 +14,16 @@ namespace Assertive.Patterns
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      var right = EqualityPattern.GetRightSide(assertion.Expression);
+      var left = EqualityPattern.GetLeftSide(assertion.Expression);
+      
+      var right = EqualityPattern.GetRightSide(assertion.Expression, left);
 
       if (right.NodeType == ExpressionType.Convert && right.Type == typeof(object))
       {
         right = ((UnaryExpression)right).Operand;
       }
-      
-      var left = EqualityPattern.GetLeftSide(assertion.Expression);
 
-      if (right.NodeType == ExpressionType.Constant)
+      if (IsConstantExpression(right))
       {
         return $"Expected {left} to equal {right} but {left} was {EvaluateExpression(left)}.";
       }

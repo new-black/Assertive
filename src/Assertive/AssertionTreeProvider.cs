@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Text;
-using Assertive.ExceptionPatterns;
 
 namespace Assertive
 {
@@ -15,7 +12,7 @@ namespace Assertive
       _assertion = assertion;
     }
 
-    private AssertionNode _currentNode;
+    private AssertionNode? _currentNode;
 
     internal AssertionNode GetTree()
     {
@@ -89,8 +86,8 @@ namespace Assertive
     public Expression Expression { get; }
     public AssertionNodeType Type { get; }
 
-    public AssertionNode Left { get; set; }
-    public AssertionNode Right { get; set; }
+    public AssertionNode? Left { get; set; }
+    public AssertionNode? Right { get; set; }
   }
 
   internal enum AssertionNodeType

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq.Expressions;
-using System.Text;
-using Assertive.Patterns;
+﻿using Assertive.Patterns;
 
 namespace Assertive
 {
@@ -17,28 +13,35 @@ namespace Assertive
       _part = part;
     }
 
-    private FriendlyMessage EvaluatePattern(IFriendlyMessagePattern pattern)
+    private FriendlyMessage? EvaluatePattern(IFriendlyMessagePattern pattern)
     {
-      if (pattern.IsMatch(_part.Expression))
+      try
       {
-        foreach (var subPattern in pattern.SubPatterns)
+        if (pattern.IsMatch(_part.Expression))
         {
-          var message = EvaluatePattern(subPattern);
-
-          if (message != null)
+          foreach (var subPattern in pattern.SubPatterns)
           {
-            return message;
-          }
-        }
+            var message = EvaluatePattern(subPattern);
 
-        return new FriendlyMessage(FriendlyMessageFormatter.GetString(pattern.TryGetFriendlyMessage(_part)), 
-          pattern);
+            if (message != null)
+            {
+              return message;
+            }
+          }
+
+          return new FriendlyMessage(FriendlyMessageFormatter.GetString(pattern.TryGetFriendlyMessage(_part)),
+            pattern);
+        }
+      }
+      catch
+      {
+        return null;
       }
 
       return null;
     }
 
-    public FriendlyMessage TryGetFriendlyMessage()
+    public FriendlyMessage? TryGetFriendlyMessage()
     {
       var message = EvaluatePattern(_fallbackPattern);
       return message;

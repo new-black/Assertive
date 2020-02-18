@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using Assertive.Frameworks;
 
 namespace Assertive
@@ -18,10 +17,10 @@ namespace Assertive
       new NUnitTestFramework(), 
     };
 
-    private static ITestFramework _activeTestFramework = null;
+    private static ITestFramework? _activeTestFramework = null;
     private static bool _initialized = false;
 
-    private static ITestFramework GetActiveTestFramework()
+    private static ITestFramework? GetActiveTestFramework()
     {
       foreach (var framework in _testFrameworks)
       {

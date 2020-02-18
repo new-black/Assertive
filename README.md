@@ -1,6 +1,6 @@
 # About Assertive
 
-Assertive is a free, open source library available on [NuGet](https://www.nuget.org/packages/Assertive/) for easily writing test assertions using the power of the C# language. It's not a test framework of itself, it's meant to be used in conjunction with a test framework like xUnit or MSTest. 
+Assertive is a free, open source library available on [NuGet](https://www.nuget.org/packages/Assertive/) for easily writing test assertions using the power of the C# language and aims to be the easiest possible way to write assertions while still providing useful and contextual error information. It's not a test framework of itself, it's meant to be used in conjunction with a test framework like xUnit or MSTest. 
 
 Assertive does away with a long list of possible assertion methods or "fluent" assertion chaining and only provides a single `Assert.That` method (or just `Assert()` if you add `using static Assertive.DSL`).
 
@@ -31,11 +31,12 @@ Assertive has a number of built-in patterns that it recognizes, which currently 
 - Boolean check (`Assert(() => success)`)
 - Equality comparison (`Assert(() => a == b)`)
 - Numerical comparisons (`Assert(() => a >= b)`)
-- Null checks (`Assert(() => value != null)`)
+- Null checks (`Assert(() => value != null)` or `Assert(() => creditBalance.HasValue)`)
 - Size and length checks (`Assert(() => customers.Count(c => c.Age > 50) > 0))` or `Assert(() => name.Length < 50)`)
 - Collection existence checks (`Assert(() => customers.Any(c => c.Age <= 40))` or `Assert(() => customers.All(c => c.IsVerified))`)
 - Collection contains checks (`Assert(() => result.Contains("test"))`)
 - Collection equality comparison (`Assert(() => seq1.SequenceEqual(seq2))`)
+- String contains/starts with/ends with checks (`Assert(() => name.StartsWith("John"))`)
 
 When there is no matching pattern for your assertion, it will simply report the assertion that failed.
 
@@ -131,7 +132,15 @@ However if `names` has more than one element:
 > 
 > Value of list: ["Bob", "John"]
 
-## Test frameworks
+## Compatibility
+
+### .NET
+
+Assertive targets .NET Standard 2.0 and is compatible with .NET Core 2.0 and up as well as .NET Framework 4.6.1 and up. 
+
+While it should work fine on .NET Framework, Assertive makes heavy use of `LambdaExpression.Compile` which on .NET Core uses an Expression interpreter which is not available for .NET Framework. As such, a call to `Compile` will actually go through the entire JIT native code pipeline which is rather expensive for a function that will only ever be called once (on the order of hundreds of microseconds to milliseconds). 
+
+### Test frameworks
 
 Assertive is currently compatible with:
 

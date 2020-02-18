@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 
 namespace Assertive.Frameworks
 {
@@ -15,6 +14,6 @@ namespace Assertive.Frameworks
       }
     }
 
-    public Type ExceptionType { get; private set; } = null;
+    public Type? ExceptionType { get; private set; } = null;
   }
 }

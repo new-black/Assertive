@@ -27,6 +27,9 @@ namespace Assertive.Patterns
       return $"Expected {assertion.Expression} to be true.";
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns { get; } = 
+    {
+      new HasValuePattern(),
+    };
   }
 }

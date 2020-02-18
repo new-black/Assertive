@@ -36,7 +36,7 @@ namespace Assertive.Patterns
              && unaryExpression.Operand is MethodCallExpression methodCallExpression
              && methodCallExpression.Method.Name == "Equals";
     }
-    
+
     public bool IsMatch(Expression expression)
     {
       return IsEqualityComparison(expression);
@@ -56,8 +56,28 @@ namespace Assertive.Patterns
 
       return ((BinaryExpression)assertion).Left;
     }
-    
-    public static Expression GetRightSide(Expression assertion)
+
+    public static Expression GetRightSide(Expression assertion, Expression left)
+    {
+      var right = GetRightSideImpl(assertion);
+
+      if (IsConstantExpression(right) && left.NodeType == ExpressionType.Convert
+                                                       && left is UnaryExpression unaryExpression
+                                                       && unaryExpression.Operand.Type.GetUnderlyingType().IsEnum)
+      {
+        var enumType = unaryExpression.Operand.Type.GetUnderlyingType();
+        var rightValue = GetConstantExpressionValue(right);
+
+        if (Enum.IsDefined(enumType, rightValue))
+        {
+          return Expression.Constant(Enum.ToObject(enumType, rightValue));
+        }
+      }
+
+      return right;
+    }
+
+    private static Expression GetRightSideImpl(Expression assertion)
     {
       if (IsCallToEqualsMethod(assertion))
       {
@@ -71,13 +91,13 @@ namespace Assertive.Patterns
 
       return ((BinaryExpression)assertion).Right;
     }
-    
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+
+    public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
     {
       return null;
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = 
+    public IFriendlyMessagePattern[] SubPatterns { get; } =
     {
       new NullPattern(),
       new LengthPattern(),

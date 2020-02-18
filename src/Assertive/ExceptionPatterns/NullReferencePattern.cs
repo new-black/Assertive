@@ -1,7 +1,6 @@
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
-using static Assertive.ExpressionStringBuilder;
 
 namespace Assertive.ExceptionPatterns
 {
@@ -9,7 +8,7 @@ namespace Assertive.ExceptionPatterns
   {
     public bool IsMatch(Exception exception) => exception is NullReferenceException;
 
-    public HandledException Handle(FailedAssertion assertion)
+    public HandledException? Handle(FailedAssertion assertion)
     {
       var nullVisitor = new NullReferenceVisitor();
 
@@ -17,7 +16,7 @@ namespace Assertive.ExceptionPatterns
 
       if (nullVisitor.CauseOfNullReference != null)
       {
-        FormattableString message = null;
+        FormattableString? message = null;
 
         if (nullVisitor.CauseOfNullReference is MemberExpression memberExpression)
         {
@@ -87,8 +86,8 @@ namespace Assertive.ExceptionPatterns
 
     private class NullReferenceVisitor : ExpressionVisitor
     {
-      public Expression CauseOfNullReference { get; set; }
-      public bool ExceptionWasThrownInternally { get; set; }
+      public Expression? CauseOfNullReference { get; private set; }
+      public bool ExceptionWasThrownInternally { get; private set; }
 
       protected override Expression VisitUnary(UnaryExpression node)
       {
@@ -181,7 +180,7 @@ namespace Assertive.ExceptionPatterns
         return result;
       }
 
-      private static (object value, bool threwInternally) EvaluateExpression(Expression node)
+      private static (object? value, bool threwInternally) EvaluateExpression(Expression node)
       {
         try
         {
