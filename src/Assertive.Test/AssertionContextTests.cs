@@ -29,6 +29,18 @@ namespace Assertive.Test
       ShouldFail(() => order.Amount > 20, () => order, "Context: order = { ID = 99, Amount = 10 }");
     }
 
+    [Fact]
+    public void Anonymous_type_context_object_is_serialized()
+    {
+      var order = new
+      {
+        ID = 99,
+        Amount = 10
+      };
+      
+      ShouldFail(() => order.Amount > 20, () => order, "Context: order = { ID = 99, Amount = 10 }");
+    }
+    
     private class Order
     {
       public int ID { get; set; }

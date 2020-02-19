@@ -34,7 +34,7 @@ Assertion: {assertionExpression}";
       {
         result += $@"
 
-Message: {_assertion.Message}";
+Message: {Serializer.Serialize(_assertion.Message, 0, null)}";
       }
 
       if (_assertion.Context != null)
