@@ -8,11 +8,24 @@ Assertive does away with a long list of possible assertion methods or "fluent" a
 
 With Assertive, instead of:
 
-`Assert.Equal(expected, actual)` 
+```csharp
+Assert.NotNull(payment);
+Assert.Equal(50, payment.Amount);
+```
 
 You just write:
 
-`Assert(() => expected == actual)`
+```csharp
+Assert(() => payment != null && payment.Amount == 50);
+```
+
+Or even just:
+
+```csharp
+Assert(() => payment.Amount == 50);
+```
+
+[As the null check isn't necessary](#nullreferenceexceptions)
 
 ## How is this different from using Assert.IsTrue?
 
