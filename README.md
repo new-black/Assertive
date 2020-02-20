@@ -132,6 +132,43 @@ However if `names` has more than one element:
 > 
 > Value of list: ["Bob", "John"]
 
+### Custom messages
+
+In case you want to add more context to your assertion, or to document the intent of the assertion more clearly, Assertive offers an overload that lets you supply your own message that will be printed if the assertion fails.
+
+Example:
+
+```csharp
+Assert(() => order.Amount < 100, "Expected the discount on the order to reduce the amount to below 100");
+```
+
+Additionally, instead of a string, any object can be provided to provide more context:
+
+```csharp
+Assert(() => order.Amount < 100, order);
+```
+
+This would print the contents of the `order` object as JSON-like:
+
+```
+{
+    Amount: 120,
+    Discount: -15
+}
+```
+
+Another overload exists that allows you to provide the context object as an expression, for example:
+
+```csharp
+Assert(() => order.Amount < 100, () => orderID);
+```
+
+Which will output:
+
+```
+Context: orderID = 10
+```
+
 ## Compatibility
 
 ### .NET
