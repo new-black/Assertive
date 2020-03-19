@@ -263,7 +263,7 @@ namespace Assertive
 
       return node;
     }
-    
+
     protected override Expression VisitConstant(ConstantExpression node)
     {
       if (node.Value != null)
@@ -315,15 +315,21 @@ namespace Assertive
       return node;
     }
 
-    // Prints ".instanceField" or "declaringType.staticField"
-    private void OutMember(Expression instance, MemberInfo member)
+    protected override Expression VisitMember(MemberExpression node)
     {
       bool isLocal = false;
+      var instance = node.Expression;
+      var member = node.Member;
 
       if (instance != null)
       {
         if (instance is ConstantExpression constantExpression
             && constantExpression.Value?.GetType().GetCustomAttribute<CompilerGeneratedAttribute>() != null)
+        {
+          isLocal = true;
+        }
+        else if (instance is MemberExpression memberExpression
+                 && memberExpression.Member.Name.Contains("<"))
         {
           isLocal = true;
         }
@@ -344,12 +350,36 @@ namespace Assertive
         Out('.');
       }
 
-      Out(member.Name);
-    }
+      var memberName = member.Name;
 
-    protected override Expression VisitMember(MemberExpression node)
-    {
-      OutMember(node.Expression, node.Member);
+      TupleElementNamesAttribute? GetTupleNames()
+      {
+        if (instance is MemberExpression m)
+        {
+          return m.Member.GetCustomAttribute<TupleElementNamesAttribute>();
+        }
+
+        if (instance is MethodCallExpression c)
+        {
+          return c.Method.ReturnParameter?.GetCustomAttribute<TupleElementNamesAttribute>();
+        }
+
+        return null;
+      }
+
+      var tupleNames = GetTupleNames();
+
+      if (tupleNames != null)
+      {
+        if (int.TryParse(member.Name.Replace("Item", ""), out var tupleElement))
+        {
+          memberName = tupleNames.TransformNames[tupleElement - 1];
+        }
+      }
+
+      Out(memberName);
+
+
       return node;
     }
 
@@ -675,7 +705,7 @@ namespace Assertive
     private Expression VisitConvert(UnaryExpression node)
     {
       if ((node.Type.IsNullableValueType()
-          && node.Type.GetUnderlyingType() == node.Operand.Type) || node.Type == typeof(object))
+           && node.Type.GetUnderlyingType() == node.Operand.Type) || node.Type == typeof(object))
       {
         return Visit(node.Operand);
       }
@@ -695,7 +725,7 @@ namespace Assertive
       {
         return VisitConvert(node);
       }
-      
+
       switch (node.NodeType)
       {
         case ExpressionType.Negate:

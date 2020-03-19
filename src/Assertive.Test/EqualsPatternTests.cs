@@ -1,3 +1,6 @@
+using System;
+using System.Text.RegularExpressions;
+using System.Threading;
 using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;
@@ -24,17 +27,17 @@ namespace Assertive.Test
       Assert.That(() => x != y);
       Assert.That(() => x == 1);
       Assert.That(() => foo + bar == "foobar");
-      
+
       ShouldFail(() => a == b, @"Expected a to equal b but a was ""A"" while b was ""B"".");
       ShouldFail(() => nullableInt == x, "Expected nullableInt to equal x but nullableInt was null while x was 1.");
-      
+
       ShouldFail(() => x == y, "Expected x to equal y but x was 1 while y was 2.");
       ShouldFail(() => foo + bar == "barfoo",
         @"Expected foo + bar to equal ""barfoo"" but foo + bar was ""foobar"".");
       ShouldFail(() => a == "B", @"Expected a to equal ""B"" but a was ""A"".");
       ShouldFail(() => a.Equals(b), @"Expected a to equal b but a was ""A"" while b was ""B"".");
     }
-    
+
     [Fact]
     public void Not_equals_works()
     {
@@ -54,7 +57,41 @@ namespace Assertive.Test
       ShouldFail(() => a != "A", @"Expected a to not equal ""A"".");
       ShouldFail(() => !a.Equals(b), @"Expected a to not equal b but they were equal (value: ""A"").");
     }
-    
+
+    private (string a, string b) GetTuple()
+    {
+      return ("a", "b");
+    }
+
+    [Fact]
+    public void Tuple_names_test_from_method()
+    {
+      ShouldFail(() => GetTuple().a == GetTuple().b, @"Expected GetTuple().a to equal GetTuple().b but GetTuple().a was ""a"" while GetTuple().b was ""b"".");
+    }
+
+    [Fact]
+    public void Tuple_names_test_from_local()
+    {
+      var s = (a: "foo", b: "bar");
+
+      ShouldFail(() => s.a == s.b, @"Expected s.a to equal s.b but s.a was ""foo"" while s.b was ""bar"".");
+    }
+
+    [Fact]
+    public void Locals_in_foreach_test()
+    {
+      var strings = new[]
+      {
+        ("foo", bar: "bar")
+      };
+
+      foreach (var s in strings)
+      {
+        var foo = s.Item1;
+        ShouldFail(() => foo == s.bar, @"Expected foo to equal s.bar but foo was ""foo"" while s.bar was ""bar"".");
+      }
+    }
+
     [Fact]
     public void EqualsPattern_is_triggered()
     {
@@ -73,8 +110,9 @@ namespace Assertive.Test
       {
         A = "this is a string"
       };
-      
-      ShouldFail(() => a.Equals(b), "Expected a to equal b but a was { A = null, B = null } while b was { A = this is a string, B = null }.");
+
+      ShouldFail(() => a.Equals(b),
+        "Expected a to equal b but a was { A = null, B = null } while b was { A = this is a string, B = null }.");
     }
 
     [Fact]
@@ -82,39 +120,40 @@ namespace Assertive.Test
     {
       var a = MyEnum.A;
       var b = MyEnum.B;
-      
+
       ShouldFail(() => a == b, "Expected a to equal b but a was MyEnum.A while b was MyEnum.B.");
     }
-    
+
     [Fact]
     public void Nullable_Enum_comparison_works()
     {
       MyEnum? a = MyEnum.A;
       //MyEnum b = MyEnum.B;
-      
+
       ShouldFail(() => a == MyEnum.B, "Expected a to equal MyEnum.B but a was MyEnum.A.");
     }
-    
+
     [Fact]
     public void Nullable_Enum_comparison_works_when_value_is_null()
     {
       MyEnum? a = null;
       //MyEnum b = MyEnum.B;
-      
+
       ShouldFail(() => a == MyEnum.B, "Expected a to equal MyEnum.B but a was null.");
     }
-    
+
     [Fact]
     public void Enum_in_function_call_works()
     {
-      ShouldFail(() => DoIt(MyEnum.A) == MyEnum.B, "Expected DoIt(MyEnum.A) to equal MyEnum.B but DoIt(MyEnum.A) was MyEnum.A.");
+      ShouldFail(() => DoIt(MyEnum.A) == MyEnum.B,
+        "Expected DoIt(MyEnum.A) to equal MyEnum.B but DoIt(MyEnum.A) was MyEnum.A.");
     }
-    
+
     private MyEnum DoIt(MyEnum x)
     {
       return x;
     }
-    
+
     private enum MyEnum
     {
       A = 1,
