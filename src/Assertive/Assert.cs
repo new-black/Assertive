@@ -8,110 +8,81 @@ namespace Assertive
   {
     public static void That(Expression<Func<bool>> assertion)
     {
-      ThatImpl(assertion, null, null);
+      var exception = AssertImpl.That(assertion, null, null);
+
+      if (exception != null)
+      {
+        throw exception;
+      }
     }
 
     public static void That(Expression<Func<bool>> assertion, object message)
     {
-      ThatImpl(assertion, message, null);
+      var exception = AssertImpl.That(assertion, message, null);
+
+      if (exception != null)
+      {
+        throw exception;
+      }
     }
     
     public static void That(Expression<Func<bool>> assertion, Expression<Func<object>> context)
     {
-      ThatImpl(assertion, null, context);
+      var exception = AssertImpl.That(assertion, null, context);
+
+      if (exception != null)
+      {
+        throw exception;
+      }
     }
 
     public static void That(Expression<Func<bool>> assertion, object message, Expression<Func<object>> context)
     {
-      ThatImpl(assertion, message, context);
+      var exception = AssertImpl.That(assertion, message, context);
+
+      if (exception != null)
+      {
+        throw exception;
+      }
     }
     
-    private static void ThatImpl(Expression<Func<bool>> assertion, object? message, Expression<Func<object>>? context)
-    {
-      var compiledAssertion = assertion.Compile(true);
-
-      Exception? exceptionToThrow = null;
-
-      try
-      {
-        var result = compiledAssertion();
-
-        if (!result)
-        {
-          var exceptionProvider = new FailedAssertionExceptionProvider(new Assertion(assertion, message, context));
-
-          exceptionToThrow = exceptionProvider.GetException();
-        }
-      }
-      catch (Exception ex)
-      {
-        var exceptionProvider = new FailedAssertionExceptionProvider(new Assertion(assertion, message, context));
-
-        exceptionToThrow = exceptionProvider.GetException(ex);
-      }
-
-      if (exceptionToThrow != null)
-      {
-        throw exceptionToThrow;
-      }
-    }
-
     public static void Throws(Expression<Func<object>> expression)
     {
-      ThrowsImpl(expression);
+      var exception = AssertImpl.Throws(expression);
+
+      if (exception != null)
+      {
+        throw exception;
+      }
     }
 
     public static void Throws(Expression<Action> expression)
     {
-      ThrowsImpl(expression);
+      var exception = AssertImpl.Throws(expression);
+
+      if (exception != null)
+      {
+        throw exception;
+      }
     }
 
     public static void Throws<TException>(Expression<Action> expression) where TException : Exception
     {
-      ThrowsImpl(expression, typeof(TException));
+      var exception = AssertImpl.Throws(expression, typeof(TException));
+
+      if (exception != null)
+      {
+        throw exception;
+      }
     }
     
     public static void Throws<TException>(Expression<Func<object>> expression) where TException : Exception
     {
-      ThrowsImpl(expression, typeof(TException));
-    }
-    
-    private static void ThrowsImpl(LambdaExpression expression, 
-      Type? expectedExceptionType = null)
-    {
-      var threw = false;
+      var exception = AssertImpl.Throws(expression, typeof(TException));
 
-      Expression bodyExpression;
-
-      if (expression.Body.NodeType == ExpressionType.Convert 
-          && expression.Body is UnaryExpression convertExpression 
-          && expression.Body.Type == typeof(object))
+      if (exception != null)
       {
-        bodyExpression = convertExpression.Operand;
-      }
-      else
-      {
-        bodyExpression = expression.Body;
-      }
-
-      try
-      {
-        expression.Compile(true).DynamicInvoke();
-      }
-      catch(TargetInvocationException ex)
-      {
-        if (expectedExceptionType != null && !expectedExceptionType.IsInstanceOfType(ex.InnerException))
-        {
-          throw ExceptionHelper.GetException(
-            $"Expected {ExpressionHelper.ExpressionToString(bodyExpression)} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.InnerException.GetType().FullName} instead.");
-        }
-        
-        threw = true;
-      }
-
-      if (!threw)
-      {
-        throw ExceptionHelper.GetException($"Expected {ExpressionHelper.ExpressionToString(bodyExpression)} to throw an exception, but it did not.");
+        throw exception;
       }
     }
   }
