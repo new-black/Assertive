@@ -5,7 +5,7 @@ namespace Assertive.Patterns
 {
   internal class FallbackPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
       return true;
     }

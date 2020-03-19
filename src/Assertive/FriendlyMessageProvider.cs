@@ -17,7 +17,7 @@ namespace Assertive
     {
       try
       {
-        if (pattern.IsMatch(_part.Expression))
+        if (pattern.IsMatch(_part))
         {
           foreach (var subPattern in pattern.SubPatterns)
           {

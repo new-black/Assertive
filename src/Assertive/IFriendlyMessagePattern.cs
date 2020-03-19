@@ -5,7 +5,7 @@ namespace Assertive
 {
   internal interface IFriendlyMessagePattern
   {
-    bool IsMatch(Expression expression);
+    bool IsMatch(FailedAssertion failedAssertion);
     FormattableString? TryGetFriendlyMessage(FailedAssertion assertion);
     IFriendlyMessagePattern[] SubPatterns { get; }
   }

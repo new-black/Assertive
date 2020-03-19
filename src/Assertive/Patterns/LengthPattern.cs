@@ -5,8 +5,10 @@ namespace Assertive.Patterns
 {
   internal class LengthPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
+      var expression = failedAssertion.Expression;
+      
       return (EqualityPattern.IsEqualityComparison(expression) ||
               LessThanOrGreaterThanPattern.IsNumericalComparison(expression))
              && expression is BinaryExpression binaryExpression

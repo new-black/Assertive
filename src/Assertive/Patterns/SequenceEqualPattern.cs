@@ -10,9 +10,9 @@ namespace Assertive.Patterns
 {
   internal class SequenceEqualPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return expression is MethodCallExpression methodCallExpression
+      return failedAssertion.Expression is MethodCallExpression methodCallExpression
              && methodCallExpression.Method.Name == nameof(Enumerable.SequenceEqual)
              && methodCallExpression.Arguments.Count >= 2
              && ExpressionHelper.GetInstanceOfMethodCall(methodCallExpression).Type.IsType<IEnumerable>()

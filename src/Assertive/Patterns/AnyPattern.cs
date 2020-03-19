@@ -6,16 +6,9 @@ namespace Assertive.Patterns
 {
   internal class AnyPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return IsAnyMethodCall(expression) || IsNotAnyMethodCall(expression);
-    }
-
-    private static bool IsNotAnyMethodCall(Expression expression)
-    {
-      return expression.NodeType == ExpressionType.Not
-             && expression is UnaryExpression unaryExpression
-             && IsAnyMethodCall(unaryExpression.Operand);
+      return IsAnyMethodCall(failedAssertion.ExpressionPossiblyNegated);
     }
 
     private static bool IsAnyMethodCall(Expression expression)
@@ -26,7 +19,7 @@ namespace Assertive.Patterns
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      var notAny = IsNotAnyMethodCall(assertion.Expression);
+      var notAny = assertion.IsNegated;
 
       MethodCallExpression methodCallExpression;
 

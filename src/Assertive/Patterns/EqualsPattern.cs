@@ -6,10 +6,10 @@ namespace Assertive.Patterns
 {
   internal class EqualsPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return expression.NodeType == ExpressionType.Equal
-             || EqualityPattern.EqualsMethodShouldBeTrue(expression);
+      return failedAssertion.Expression.NodeType == ExpressionType.Equal
+             || EqualityPattern.EqualsMethodShouldBeTrue(failedAssertion.Expression);
     }
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)

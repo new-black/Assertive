@@ -5,21 +5,14 @@ namespace Assertive.Patterns
 {
   internal class BoolPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return expression is MemberExpression || IsNotTrue(expression);
-    }
-
-    private static bool IsNotTrue(Expression expression)
-    {
-      return expression is UnaryExpression unaryExpression
-             && expression.NodeType == ExpressionType.Not
-             && unaryExpression.Operand is MemberExpression;
+      return failedAssertion.ExpressionPossiblyNegated is MemberExpression;
     }
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      if (IsNotTrue(assertion.Expression))
+      if (assertion.IsNegated)
       {
         return $"Expected {((UnaryExpression)assertion.Expression).Operand} to be false.";
       }

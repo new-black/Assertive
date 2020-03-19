@@ -5,10 +5,10 @@ namespace Assertive.Patterns
 {
   internal class ComparisonPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return EqualityPattern.IsEqualityComparison(expression)
-             || LessThanOrGreaterThanPattern.IsNumericalComparison(expression);
+      return EqualityPattern.IsEqualityComparison(failedAssertion.Expression)
+             || LessThanOrGreaterThanPattern.IsNumericalComparison(failedAssertion.Expression);
     }
 
     public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)

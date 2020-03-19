@@ -5,10 +5,10 @@ namespace Assertive.Patterns
 {
   internal class NullPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return (expression.NodeType == ExpressionType.Equal || expression.NodeType == ExpressionType.NotEqual)
-             && expression is BinaryExpression b
+      return (failedAssertion.Expression.NodeType == ExpressionType.Equal || failedAssertion.Expression.NodeType == ExpressionType.NotEqual)
+             && failedAssertion.Expression is BinaryExpression b
              && ((b.Right is ConstantExpression c
              && c.Value == null) || (b.Right is DefaultExpression && b.Right.Type.IsClass));
     }

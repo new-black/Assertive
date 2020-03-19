@@ -5,11 +5,9 @@ namespace Assertive.Patterns
 {
   internal class NotAllPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return expression is UnaryExpression unaryExpression
-             && unaryExpression.NodeType == ExpressionType.Not
-             && AllPattern.IsAllMethodCall(unaryExpression.Operand);
+      return failedAssertion.IsNegated && AllPattern.IsAllMethodCall(failedAssertion.NegatedExpression!);
     }
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)

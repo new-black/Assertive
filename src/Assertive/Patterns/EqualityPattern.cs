@@ -37,9 +37,9 @@ namespace Assertive.Patterns
              && methodCallExpression.Method.Name == "Equals";
     }
 
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return IsEqualityComparison(expression);
+      return IsEqualityComparison(failedAssertion.Expression);
     }
 
     public static Expression GetLeftSide(Expression assertion)

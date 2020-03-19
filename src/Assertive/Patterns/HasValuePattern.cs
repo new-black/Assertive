@@ -6,12 +6,9 @@ namespace Assertive.Patterns
 {
   internal class HasValuePattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return IsHasValueAccess(expression)
-             || (expression.NodeType == ExpressionType.Not
-                 && expression is UnaryExpression unaryExpression
-                 && IsHasValueAccess(unaryExpression.Operand));
+      return IsHasValueAccess(failedAssertion.ExpressionPossiblyNegated);
     }
 
     private static bool IsHasValueAccess(Expression expression)
@@ -23,17 +20,14 @@ namespace Assertive.Patterns
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      var memberExpression = (MemberExpression)(assertion.Expression.NodeType == ExpressionType.Not
-        ? ((UnaryExpression)assertion.Expression).Operand
-        : assertion.Expression);
+      var memberExpression = (MemberExpression)assertion.ExpressionPossiblyNegated;
 
-      var isNot = assertion.Expression.NodeType == ExpressionType.Not;
-
-      if (isNot)
+      if (assertion.IsNegated)
       {
-        return $"Expected {memberExpression.Expression} to not have a value but its value was {EvaluateExpression(memberExpression.Expression)}.";
+        return
+          $"Expected {memberExpression.Expression} to not have a value but its value was {EvaluateExpression(memberExpression.Expression)}.";
       }
-      
+
       return $"Expected {memberExpression.Expression} to have a value.";
     }
 

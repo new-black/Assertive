@@ -14,9 +14,9 @@ namespace Assertive.Patterns
              || expression.NodeType == ExpressionType.LessThanOrEqual;
     }
     
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return IsNumericalComparison(expression);
+      return IsNumericalComparison(failedAssertion.Expression);
     }
 
     public static string GetComparisonLabel(Expression expression)

@@ -31,6 +31,14 @@ namespace Assertive.Test
     }
     
     [Fact]
+    public void Not_ContainsPattern_string_test()
+    {
+      var value = "abcdefg";
+      
+      ShouldFail(() => !value.Contains("abc"), @"Expected value (value: ""abcdefg"") to not contain ""abc"".");
+    }
+    
+    [Fact]
     public void ContainsPattern_is_triggered()
     {
       var list = new List<string>

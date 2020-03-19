@@ -7,20 +7,22 @@ namespace Assertive.Patterns
 {
   internal class ContainsPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      var callExpression = expression as MethodCallExpression;
-
-      if (callExpression == null) return false;
-
-      return callExpression.Method.Name == "Contains";
+      return IsContainsMethodCall(failedAssertion.ExpressionPossiblyNegated);
     }
-
+    
+    private static bool IsContainsMethodCall(Expression expression)
+    {
+      return expression is MethodCallExpression methodCallExpression
+             && methodCallExpression.Method.Name == nameof(Enumerable.Contains);
+    }
+    
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      var expression = assertion.Expression;
+      var notContains = assertion.IsNegated;
 
-      var callExpression = (MethodCallExpression)expression;
+      var callExpression = (MethodCallExpression)assertion.ExpressionPossiblyNegated;
 
       var instance = callExpression.Object;
 
@@ -46,10 +48,10 @@ namespace Assertive.Patterns
       
       if (instance != null && instance.Type == typeof(string))
       {
-        return $"Expected {instance} (value: {ExpressionHelper.EvaluateExpression(instance)}) to contain {expectedValueString}.";
+        return $"Expected {instance} (value: {ExpressionHelper.EvaluateExpression(instance)}) to{(notContains ? " not " : " ")}contain {expectedValueString}.";
       }
 
-      return $"Expected {instance} to contain {expectedValueString}.";
+      return $"Expected {instance} to{(notContains ? " not " : " ")}contain {expectedValueString}.";
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();

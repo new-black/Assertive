@@ -8,9 +8,9 @@ namespace Assertive.Patterns
 {
   internal class AllPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return IsAllMethodCall(expression);
+      return IsAllMethodCall(failedAssertion.Expression);
     }
 
     public static bool IsAllMethodCall(Expression expression)

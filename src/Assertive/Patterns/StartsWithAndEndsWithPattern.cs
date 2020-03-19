@@ -6,15 +6,12 @@ namespace Assertive.Patterns
 {
   internal class StartsWithAndEndsWithPattern : IFriendlyMessagePattern
   {
-    public bool IsMatch(Expression expression)
+    public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return IsStartsWithCall(expression)
-        || (expression is UnaryExpression unaryExpression 
-        && expression.NodeType == ExpressionType.Not
-        && IsStartsWithCall(unaryExpression.Operand));
+      return IsStartsOrEndsWithCall(failedAssertion.ExpressionPossiblyNegated);
     }
 
-    private static bool IsStartsWithCall(Expression expression)
+    private static bool IsStartsOrEndsWithCall(Expression expression)
     {
       return expression is MethodCallExpression methodCallExpression
              && (methodCallExpression.Method.Name == nameof(string.StartsWith) || methodCallExpression.Method.Name == nameof(string.EndsWith))
@@ -24,11 +21,9 @@ namespace Assertive.Patterns
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      var startsWith = IsStartsWithCall(assertion.Expression);
-      
-      var methodCallExpression = (MethodCallExpression)(startsWith
-        ? assertion.Expression
-        : ((UnaryExpression)assertion.Expression).Operand);
+      var startsWith = IsStartsOrEndsWithCall(assertion.Expression);
+
+      var methodCallExpression = (MethodCallExpression)assertion.ExpressionPossiblyNegated;
 
       var method = methodCallExpression.Method.Name == nameof(string.StartsWith) 
         ? "start with" : "end with";

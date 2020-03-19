@@ -7,8 +7,6 @@ namespace Assertive.Test
     [Fact]
     public void Message_is_part_of_output()
     {
-      int orderID = 10;
-      
       var order = new
       {
         Amount = 10
