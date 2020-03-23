@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -20,6 +21,18 @@ namespace Assertive
 
     public static string Serialize(object? o, int indentation, Stack<object>? recursionGuard)
     {
+      try
+      {
+        return SerializeImpl(o, indentation, recursionGuard);
+      }
+      catch
+      {
+        return "<exception serializing>";
+      }
+    }
+
+    private static string SerializeImpl(object? o, int indentation, Stack<object>? recursionGuard)
+    {
       if (o is null)
       {
         return "null";
@@ -37,17 +50,9 @@ namespace Assertive
         return o.ToString();
       }
 
-      var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-        .Where(p => p.CanRead).ToArray();
-
-      var toStringMethod = o.GetType().GetMethod("ToString", Type.EmptyTypes);
-
-      if (toStringMethod == null
-          || (toStringMethod.DeclaringType != typeof(object)
-              && toStringMethod.DeclaringType != typeof(ValueType))
-          || properties.Length == 0)
+      string IndentString(string str)
       {
-        return o.ToString();
+        return new string(' ', indentation) + str;
       }
 
       if (recursionGuard == null)
@@ -62,33 +67,83 @@ namespace Assertive
 
       recursionGuard.Push(o);
 
-      string IndentString(string str)
-      {
-        return new string(' ', indentation) + str;
-      }
-
       var sb = new StringBuilder();
 
-      sb.AppendLine("{");
-      indentation++;
-
-      for (var i = 0; i < properties.Length; i++)
+      if (TypeHelper.IsEnumerable(type))
       {
-        var p = properties[i];
-        sb.Append(IndentString($"{p.Name} = {Serialize(p.GetValue(o), indentation, recursionGuard)}"));
+        var items = new List<object>();
+        
+        foreach (var v in (IEnumerable)o)
+        {
+          items.Add(v);
+        }
 
-        if (i == properties.Length - 1)
+        sb.AppendLine("[");
+        indentation++;
+
+        for (var i = 0; i < items.Count; i++)
         {
-          sb.AppendLine();
+          var item = items[i];
+          
+          sb.Append(IndentString(SerializeImpl(item, indentation, recursionGuard)));
+
+          if (i == items.Count - 1)
+          {
+            sb.AppendLine();
+          }
+          else
+          {
+            sb.AppendLine(",");
+          }
         }
-        else
-        {
-          sb.AppendLine(",");
-        }
+        
+        indentation--;
+        sb.Append(IndentString("]"));
       }
+      else
+      {
+        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+          .Where(p => p.CanRead).ToArray();
 
-      indentation--;
-      sb.Append(IndentString("}"));
+        var toStringMethod = o.GetType().GetMethod("ToString", Type.EmptyTypes);
+
+        if (toStringMethod == null
+            || (toStringMethod.DeclaringType != typeof(object)
+                && toStringMethod.DeclaringType != typeof(ValueType))
+            || properties.Length == 0)
+        {
+          return o.ToString();
+        }
+
+        sb.AppendLine("{");
+        indentation++;
+
+        for (var i = 0; i < properties.Length; i++)
+        {
+          var p = properties[i];
+
+          if (p.GetIndexParameters().Length != 0)
+          {
+            continue;
+          }
+
+          var value = p.GetValue(o);
+
+          sb.Append(IndentString($"{p.Name} = {SerializeImpl(value, indentation, recursionGuard)}"));
+
+          if (i == properties.Length - 1)
+          {
+            sb.AppendLine();
+          }
+          else
+          {
+            sb.AppendLine(",");
+          }
+        }
+
+        indentation--;
+        sb.Append(IndentString("}"));
+      }
 
       recursionGuard.Pop();
 

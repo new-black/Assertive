@@ -39,6 +39,11 @@ namespace Assertive
       return t.IsGenericType && t.GetGenericTypeDefinition().IsType(typeof(IDictionary<,>));
     }
 
+    public static bool IsEnumerable(Type t)
+    {
+      return typeof(IEnumerable).IsAssignableFrom(t) && t != typeof(string);
+    }
+    
     public static Type? GetTypeInsideEnumerable(Type type)
     {
       var getEnumeratorMethod = type.GetMethod("GetEnumerator", Type.EmptyTypes);
