@@ -283,6 +283,11 @@ namespace Assertive
         }
         else
         {
+          if (node.Value is bool)
+          {
+            sValue = sValue.ToLower();
+          }
+          
           Out(sValue);
         }
       }
