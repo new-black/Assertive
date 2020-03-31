@@ -76,6 +76,16 @@ namespace Assertive
       }
     }
 
+    public override Expression Visit(Expression node)
+    {
+      if (node is NamedConstantExpression namedConstantExpression)
+      {
+        return node;
+      }
+      
+      return base.Visit(node);
+    }
+
     private bool IsConversionOfEnum(Expression node)
     {
       return node.NodeType == ExpressionType.Convert

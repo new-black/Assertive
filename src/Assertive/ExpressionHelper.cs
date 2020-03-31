@@ -113,5 +113,43 @@ namespace Assertive
 
       return ExpressionStringBuilder.ExpressionToString(rewriter.Visit(expression));
     }
+
+    public static Expression ReplaceParameter(Expression expression, ParameterExpression parameter, Expression replacement)
+    {
+      return new ParameterVisitor(parameter, replacement).Visit(expression);
+    }
+
+    private class ParameterVisitor : ExpressionVisitor
+    {
+      private readonly ParameterExpression _parameter;
+      private readonly Expression _replacement;
+
+      public ParameterVisitor(ParameterExpression parameter, Expression replacement)
+      {
+        _parameter = parameter;
+        _replacement = replacement;
+      }
+
+      private Expression ReplaceParameter(ParameterExpression parameter)
+      {
+        if (parameter == _parameter)
+        {
+          return _replacement;
+        }
+
+        return parameter;
+      }
+
+      protected override Expression VisitParameter(ParameterExpression node)
+      {
+        return ReplaceParameter(node);
+      }
+    }
+
+  }
+
+  public enum CustomExpressionTypes
+  {
+    NamedConstant = -1
   }
 }

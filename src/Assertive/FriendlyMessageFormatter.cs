@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Linq.Expressions;
 
 namespace Assertive
@@ -23,6 +25,10 @@ namespace Assertive
         else if (a is FormattableString innerFormattableString)
         {
           arguments[i] = GetString(innerFormattableString);
+        }
+        else if (a is IEnumerable<FormattableString> formattableStrings)
+        {
+          arguments[i] = string.Join(Environment.NewLine, formattableStrings.Select(GetString));
         }
         else if (a is null)
         {

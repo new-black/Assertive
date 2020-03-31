@@ -81,7 +81,7 @@ namespace Assertive
     {
       Debug.Assert(node != null);
       ExpressionStringBuilder esb = new ExpressionStringBuilder();
-      esb.Visit(node);
+      esb.Visit(node!);
       return esb.ToString();
     }
 
@@ -965,6 +965,17 @@ namespace Assertive
       Out(node.NodeType == ExpressionType.Extension ? node.GetType().FullName : node.NodeType.ToString());
       Out(']');
       return node;
+    }
+
+    public override Expression Visit(Expression node)
+    {
+      if (node is NamedConstantExpression namedConstantExpression)
+      {
+        Out(namedConstantExpression.Name);
+        return node;
+      }
+      
+      return base.Visit(node);
     }
 
     private void DumpLabel(LabelTarget target)

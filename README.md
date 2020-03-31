@@ -182,6 +182,22 @@ Which will output:
 Context: orderID = 10
 ```
 
+### Analysis of each item when `collection.All` fails
+
+When you have a collection of items and you want to check each item, instead of writing a `foreach` on the collection, you can simply write `collection.All(<assertion>)`. 
+
+For example:
+
+```csharp
+Assert(() => orders.All(o => o.PaidAmount > 100));
+```
+
+Assuming the 29th order (starting from zero) in this collection did not meet this condition, the message will be something like this:
+
+> Expected all items of orders to match the filter o.PaidAmount > 100, but this item did not: { ID = 54, PaidAmount = 50 }
+>
+> orders[29] - Expected item.PaidAmount to be greater than 100, but item.PaidAmount was 50.
+
 ## Compatibility
 
 ### .NET

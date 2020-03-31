@@ -42,9 +42,10 @@ namespace Assertive.Test
     [Fact]
     public void Primitives_are_serialized_directly()
     {
-      Assert(() => Serializer.Serialize(1, 0, null) == "1");
-      Assert(() => Serializer.Serialize(true, 0, null) == "True");
-      Assert(() => Serializer.Serialize("my value", 0, null) == "my value");
+      Assert(() => Serializer.Serialize(1, 0, null, false) == "1");
+      Assert(() => Serializer.Serialize(true, 0, null, false) == "True");
+      Assert(() => Serializer.Serialize("my value", 0, null, false) == "my value");
+      Assert(() => Serializer.Serialize("my value", 0, null, true) == "\"my value\"");
     }
 
     class RecursiveReference

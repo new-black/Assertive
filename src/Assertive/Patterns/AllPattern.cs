@@ -40,6 +40,10 @@ namespace Assertive.Patterns
       var moreItems = false;
       var invalidCount = 0;
 
+      var subMessages = new List<FormattableString>();
+
+      var index = 0;
+      
       foreach (var obj in collection)
       {
         var isMatch = (bool)compiledFilter.DynamicInvoke(obj);
@@ -47,7 +51,7 @@ namespace Assertive.Patterns
         if (!isMatch)
         {
           invalidCount++;
-          
+
           if (invalidMatches.Count == 10)
           {
             moreItems = true;
@@ -55,25 +59,71 @@ namespace Assertive.Patterns
           else
           {
             invalidMatches.Add(obj);
+
+            var namedConstant = new NamedConstantExpression("item", obj);
+
+            var newExpression =
+              Expression.Lambda<Func<bool>>(
+                ExpressionHelper.ReplaceParameter(filter.Body, filter.Parameters[0], namedConstant));
+            
+            var analyzer = new AssertionFailureAnalyzer(newExpression, null);
+
+            var failures = analyzer.AnalyzeAssertionFailures();
+
+            foreach (var failure in failures)
+            {
+              if (failure.Message != null)
+              {
+                if (collectionExpression is MethodCallExpression)
+                {
+                  subMessages.Add($"[{index}] - {failure.Message}");
+                }
+                else
+                {
+                  subMessages.Add($"{collectionExpression}[{index}] - {failure.Message}");
+                }
+              }
+            }
           }
         }
+
+        index++;
       }
 
-      var i = 0;
+      FormattableString MessagesPerItem()
+      {
+        if (subMessages.Count == 0)
+        {
+          return $"";
+        }
 
-      var items = invalidMatches.Select(obj => $"[{i++}]: {StringQuoter.Quote(obj)}").ToList();
+        if (subMessages.Count == 1 && invalidCount == 1)
+        {
+          return $@"
 
+{subMessages[0]}";
+        }
+
+        return $@"
+
+Messages per item:
+
+{subMessages}";
+      }
+      
       if (invalidCount == 1)
       {
         return
-          $@"Expected all items of {collectionExpression} to match the filter {filter.Body}, but this item did not: {invalidMatches[0]}";
+          $@"Expected all items of {collectionExpression} to match the filter {filter.Body}, but this item did not: {invalidMatches[0]}{MessagesPerItem()}";
       }
 
       var invalidMatchesString = $"but these {invalidCount} items did not{(moreItems ? " (first 10)" : "")}:";
+      
+      var items = invalidMatches.Select((obj, i) => $"[{i}]: {Serializer.Serialize(obj)}").ToList();
 
       return $@"Expected all items of {collectionExpression} to match the filter {filter.Body}, {invalidMatchesString}
 
-{string.Join("," + Environment.NewLine, items)}";
+{string.Join("," + Environment.NewLine, items)}{MessagesPerItem()}";
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
