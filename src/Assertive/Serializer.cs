@@ -19,11 +19,16 @@ namespace Assertive
       " "
     };
 
-    public static string Serialize(object? o, int indentation, Stack<object>? recursionGuard)
+    public static string Serialize(object? o)
+    {
+      return Serialize(o, 0, null, false);
+    }
+    
+    public static string Serialize(object? o, int indentation, Stack<object>? recursionGuard, bool quoteStrings = false)
     {
       try
       {
-        return SerializeImpl(o, indentation, recursionGuard);
+        return SerializeImpl(o, indentation, recursionGuard, quoteStrings);
       }
       catch
       {
@@ -31,7 +36,7 @@ namespace Assertive
       }
     }
 
-    private static string SerializeImpl(object? o, int indentation, Stack<object>? recursionGuard)
+    private static string SerializeImpl(object? o, int indentation, Stack<object>? recursionGuard, bool quoteStrings)
     {
       if (o is null)
       {
@@ -40,7 +45,14 @@ namespace Assertive
 
       if (o is string s)
       {
-        return s;
+        if (quoteStrings)
+        {
+          return "\"" + s + "\"";
+        }
+        else
+        {
+          return s;
+        }
       }
 
       var type = o.GetType();
@@ -85,7 +97,7 @@ namespace Assertive
         {
           var item = items[i];
           
-          sb.Append(IndentString(SerializeImpl(item, indentation, recursionGuard)));
+          sb.Append(IndentString(SerializeImpl(item, indentation, recursionGuard, quoteStrings)));
 
           if (i == items.Count - 1)
           {
@@ -129,7 +141,7 @@ namespace Assertive
 
           var value = p.GetValue(o);
 
-          sb.Append(IndentString($"{p.Name} = {SerializeImpl(value, indentation, recursionGuard)}"));
+          sb.Append(IndentString($"{p.Name} = {SerializeImpl(value, indentation, recursionGuard, quoteStrings)}"));
 
           if (i == properties.Length - 1)
           {

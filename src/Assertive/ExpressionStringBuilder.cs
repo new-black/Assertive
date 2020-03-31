@@ -573,9 +573,16 @@ namespace Assertive
 
     protected override Expression VisitNew(NewExpression node)
     {
+      var isAnonymous = node.Type.GetCustomAttribute<CompilerGeneratedAttribute>() != null;
+      
       Out("new ");
-      Out(node.Type.Name);
-      Out('(');
+      
+      if (!isAnonymous)
+      {
+        Out(node.Type.Name);
+      }
+
+      Out(isAnonymous ? "{ " : "(");
       ReadOnlyCollection<MemberInfo> members = node.Members;
       for (int i = 0; i < node.Arguments.Count; i++)
       {
@@ -594,7 +601,7 @@ namespace Assertive
         Visit(node.Arguments[i]);
       }
 
-      Out(')');
+      Out(isAnonymous ? " }" : ")");
       return node;
     }
 
