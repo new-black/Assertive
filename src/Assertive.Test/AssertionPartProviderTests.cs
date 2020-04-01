@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using Assertive.Analyzers;
 using Xunit;
 using static Assertive.DSL;
 

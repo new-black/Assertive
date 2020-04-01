@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Linq;
-using static Assertive.ExpressionHelper;
+using Assertive.Helpers;
+using static Assertive.Expressions.ExpressionHelper;
 
-namespace Assertive
+namespace Assertive.Analyzers
 {
   internal class FailedAssertionExceptionProvider
   {

@@ -15,8 +15,9 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Assertive.Helpers;
 
-namespace Assertive
+namespace Assertive.Expressions
 {
   [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
   internal sealed class ExpressionStringBuilder : ExpressionVisitor

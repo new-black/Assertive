@@ -1,6 +1,7 @@
-﻿using Assertive.Patterns;
+﻿using Assertive.Interfaces;
+using Assertive.Patterns;
 
-namespace Assertive
+namespace Assertive.Analyzers
 {
   internal class FriendlyMessageProvider
   {

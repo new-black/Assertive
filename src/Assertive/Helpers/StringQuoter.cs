@@ -1,4 +1,4 @@
-namespace Assertive
+namespace Assertive.Helpers
 {
   internal static class StringQuoter
   {

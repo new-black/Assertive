@@ -4,8 +4,9 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Assertive.Helpers;
 
-namespace Assertive
+namespace Assertive.Expressions
 {
   internal static class ExpressionHelper
   {

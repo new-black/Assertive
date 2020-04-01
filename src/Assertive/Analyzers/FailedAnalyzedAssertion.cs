@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
+using Assertive.Interfaces;
 
-namespace Assertive
+namespace Assertive.Analyzers
 {
   internal class FailedAnalyzedAssertion
   {

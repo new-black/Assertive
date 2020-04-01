@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Assertive.Analyzers;
 using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;

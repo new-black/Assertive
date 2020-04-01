@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 
-namespace Assertive
+namespace Assertive.Analyzers
 {
   internal class AssertionTreeExecutor
   {

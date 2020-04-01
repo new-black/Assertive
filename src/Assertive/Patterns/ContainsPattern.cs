@@ -2,6 +2,9 @@ using System;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using Assertive.Analyzers;
+using Assertive.Expressions;
+using Assertive.Interfaces;
 
 namespace Assertive.Patterns
 {

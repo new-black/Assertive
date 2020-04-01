@@ -3,8 +3,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using static Assertive.EnumerableHelper;
-using static Assertive.StringQuoter;
+using Assertive.Analyzers;
+using Assertive.Expressions;
+using Assertive.Helpers;
+using Assertive.Interfaces;
+using static Assertive.Helpers.EnumerableHelper;
+using static Assertive.Helpers.StringQuoter;
 
 namespace Assertive.Patterns
 {

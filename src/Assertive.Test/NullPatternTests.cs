@@ -1,4 +1,5 @@
 using System;
+using Assertive.Analyzers;
 using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;

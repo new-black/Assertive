@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq.Expressions;
 
-namespace Assertive
+namespace Assertive.Analyzers
 {
   internal class AssertionTreeProvider : ExpressionVisitor
   {

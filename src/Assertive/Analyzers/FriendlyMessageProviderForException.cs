@@ -1,7 +1,8 @@
 using System;
 using Assertive.ExceptionPatterns;
+using Assertive.Interfaces;
 
-namespace Assertive
+namespace Assertive.Analyzers
 {
   internal class FriendlyMessageProviderForException
   {

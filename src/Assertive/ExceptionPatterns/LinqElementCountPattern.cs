@@ -4,8 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using static Assertive.EnumerableHelper;
-using static Assertive.ExpressionStringBuilder;
+using Assertive.Analyzers;
+using Assertive.Expressions;
+using Assertive.Interfaces;
+using static Assertive.Helpers.EnumerableHelper;
+using static Assertive.Expressions.ExpressionStringBuilder;
 
 namespace Assertive.ExceptionPatterns
 {

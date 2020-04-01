@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Linq.Expressions;
+using Assertive.Analyzers;
 
-namespace Assertive
+namespace Assertive.Interfaces
 {
   internal interface IFriendlyMessagePattern
   {

@@ -1,7 +1,7 @@
 using System;
-using Assertive.Frameworks;
+using Assertive.TestFrameworks;
 
-namespace Assertive
+namespace Assertive.Helpers
 {
   internal static class ExceptionHelper
   {

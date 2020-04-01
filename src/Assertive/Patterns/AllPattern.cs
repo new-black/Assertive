@@ -3,6 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using Assertive.Analyzers;
+using Assertive.Expressions;
+using Assertive.Helpers;
+using Assertive.Interfaces;
 
 namespace Assertive.Patterns
 {

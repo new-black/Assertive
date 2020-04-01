@@ -1,6 +1,6 @@
 using System;
 
-namespace Assertive.Frameworks
+namespace Assertive.TestFrameworks
 {
   internal interface ITestFramework
   {

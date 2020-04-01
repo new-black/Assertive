@@ -1,7 +1,7 @@
 using System;
 using System.Linq.Expressions;
 
-namespace Assertive
+namespace Assertive.Expressions
 {
   internal class NamedConstantExpression : Expression
   {

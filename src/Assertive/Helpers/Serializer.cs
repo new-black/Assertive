@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace Assertive
+namespace Assertive.Helpers
 {
   internal static class Serializer
   {

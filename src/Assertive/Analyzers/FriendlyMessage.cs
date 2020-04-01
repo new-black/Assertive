@@ -1,4 +1,6 @@
-﻿namespace Assertive
+﻿using Assertive.Interfaces;
+
+namespace Assertive.Analyzers
 {
   internal class FriendlyMessage
   {

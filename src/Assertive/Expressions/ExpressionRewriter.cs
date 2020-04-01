@@ -1,7 +1,8 @@
 using System;
 using System.Linq.Expressions;
+using Assertive.Helpers;
 
-namespace Assertive
+namespace Assertive.Expressions
 {
   internal class ExpressionRewriter : ExpressionVisitor
   {

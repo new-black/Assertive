@@ -1,5 +1,6 @@
 using System;
 using System.Linq.Expressions;
+using Assertive.Expressions;
 using Xunit;
 using static Assertive.DSL;
 

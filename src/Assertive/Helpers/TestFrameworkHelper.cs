@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace Assertive.Frameworks
+namespace Assertive.Helpers
 {
   internal static class TestFrameworkHelper
   {
@@ -9,11 +9,11 @@ namespace Assertive.Frameworks
     {
       var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
-      var xunit = assemblies.FirstOrDefault(a => a.FullName.StartsWith(assemblyName + ",", StringComparison.OrdinalIgnoreCase));
+      var assembly = assemblies.FirstOrDefault(a => a.FullName.StartsWith(assemblyName + ",", StringComparison.OrdinalIgnoreCase));
 
-      if (xunit != null)
+      if (assembly != null)
       {
-        var type = xunit.GetType(typeName);
+        var type = assembly.GetType(typeName);
 
         if (type != null)
         {

@@ -1,6 +1,7 @@
 using System;
+using Assertive.Helpers;
 
-namespace Assertive.Frameworks
+namespace Assertive.TestFrameworks
 {
   internal class XUnitFramework : ITestFramework
   {

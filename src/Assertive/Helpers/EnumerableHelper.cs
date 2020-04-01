@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
-using static Assertive.StringQuoter;
+using static Assertive.Helpers.StringQuoter;
 
-namespace Assertive
+namespace Assertive.Helpers
 {
   internal static class EnumerableHelper
   {

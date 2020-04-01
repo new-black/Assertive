@@ -1,6 +1,8 @@
 using System;
 using System.Linq.Expressions;
-using static Assertive.ExpressionHelper;
+using Assertive.Analyzers;
+using Assertive.Interfaces;
+using static Assertive.Expressions.ExpressionHelper;
 
 namespace Assertive.Patterns
 {

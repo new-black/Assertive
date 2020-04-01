@@ -1,5 +1,7 @@
 using System;
 using System.Linq.Expressions;
+using Assertive.Analyzers;
+using Assertive.Interfaces;
 
 namespace Assertive.Patterns
 {

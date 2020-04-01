@@ -1,6 +1,8 @@
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
+using Assertive.Analyzers;
+using Assertive.Interfaces;
 
 namespace Assertive.ExceptionPatterns
 {

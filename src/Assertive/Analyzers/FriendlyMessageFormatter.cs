@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
+using Assertive.Expressions;
+using Assertive.Helpers;
 
-namespace Assertive
+namespace Assertive.Analyzers
 {
   internal class FriendlyMessageFormatter
   {
