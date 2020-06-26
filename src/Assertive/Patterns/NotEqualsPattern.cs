@@ -31,7 +31,7 @@ namespace Assertive.Patterns
         return $"Expected {left} to not equal {right}.";
       }
 
-      return $"Expected {left} to not equal {right} but they were equal (value: {EvaluateExpression(left)}).";
+      return $"Expected {left} to not equal {right} (value: {EvaluateExpression(left)}).";
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();

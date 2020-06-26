@@ -288,7 +288,7 @@ namespace Assertive.Expressions
           {
             sValue = sValue.ToLower();
           }
-          
+
           Out(sValue);
         }
       }
@@ -327,6 +327,20 @@ namespace Assertive.Expressions
       var instance = node.Expression;
       var member = node.Member;
 
+      if (member is FieldInfo fieldInfo && fieldInfo.IsPrivate)
+      {
+        isLocal = true;
+      }
+      else if (member is PropertyInfo propertyInfo)
+      {
+        var getMethod = propertyInfo.GetGetMethod(true);
+
+        if (getMethod != null && (getMethod.IsPrivate || getMethod.IsFamily))
+        {
+          isLocal = true;
+        }
+      }
+
       if (instance != null)
       {
         if (instance is ConstantExpression constantExpression
@@ -345,7 +359,7 @@ namespace Assertive.Expressions
           Visit(instance);
         }
       }
-      else
+      else if (!isLocal)
       {
         // For static members, include the type name
         Out(member.DeclaringType.Name);
@@ -575,9 +589,9 @@ namespace Assertive.Expressions
     protected override Expression VisitNew(NewExpression node)
     {
       var isAnonymous = node.Type.GetCustomAttribute<CompilerGeneratedAttribute>() != null;
-      
+
       Out("new ");
-      
+
       if (!isAnonymous)
       {
         Out(node.Type.Name);
@@ -739,6 +753,8 @@ namespace Assertive.Expressions
         return VisitConvert(node);
       }
 
+      var parentheses = false;
+
       switch (node.NodeType)
       {
         case ExpressionType.Negate:
@@ -747,6 +763,12 @@ namespace Assertive.Expressions
           break;
         case ExpressionType.Not:
           Out("!");
+
+          if (node.Operand is BinaryExpression)
+          {
+            parentheses = true;
+          }
+          
           break;
         case ExpressionType.IsFalse:
           Out("IsFalse(");
@@ -794,8 +816,18 @@ namespace Assertive.Expressions
           throw new InvalidOperationException();
       }
 
+      if (parentheses)
+      {
+        Out('(');
+      }
+
       Visit(node.Operand);
 
+      if (parentheses)
+      {
+        Out(')');
+      }
+      
       switch (node.NodeType)
       {
         case ExpressionType.Negate:
@@ -982,7 +1014,7 @@ namespace Assertive.Expressions
         Out(namedConstantExpression.Name);
         return node;
       }
-      
+
       return base.Visit(node);
     }
 

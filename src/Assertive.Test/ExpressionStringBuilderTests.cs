@@ -7,6 +7,13 @@ namespace Assertive.Test
 {
   public class ExpressionStringBuilderTests
   {
+    private readonly int _instanceField = 10;
+    private static readonly int _staticField = 100;
+    
+    protected int MyProperty { get; set; }
+    private int PrivateProperty { get; set; }
+    public int PublicPropertyPrivateSetter { private get; set; }
+    
     [Fact]
     public void String_representation_of_expressions_are_as_expected()
     {
@@ -17,6 +24,7 @@ namespace Assertive.Test
       int? nullableA = 1;
       
       Same(() => a + b, "a + b");
+      Same(() => !(a + b == 0), "!(a + b == 0)");
       Same(() => CallFunction(a + b), "CallFunction(a + b)");
       Same(() => (long)a + b, "(long)a + (long)b");
       Same(() => (int?)a + b, "a + b");
@@ -28,11 +36,19 @@ namespace Assertive.Test
       Same(() => array[2], "array[2]");
       Same(() => myClass[5], "myClass[5]");
       Same(() => a + b > 3 ? 10 : 12, "a + b > 3 ? 10 : 12");
+      Same(() => _instanceField == 11, "_instanceField == 11");
+      Same(() => _staticField == 110, "_staticField == 110");
+      Same(() => MyClass.Value == 10, "MyClass.Value == 10");
+      Same(() => MyProperty == 10, "MyProperty == 10");
+      Same(() => PrivateProperty == 10, "PrivateProperty == 10");
+      Same(() => PublicPropertyPrivateSetter == 10, "PublicPropertyPrivateSetter == 10");
     }
 
     private class MyClass
     {
       public int this[int i] => 10;
+      
+      public static int Value { get; set; }
     }
 
     private static void CallFunction(int value)

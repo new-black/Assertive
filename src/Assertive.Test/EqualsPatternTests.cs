@@ -21,6 +21,7 @@ namespace Assertive.Test
 
       var foo = "foo";
       var bar = "bar";
+      
       int? nullableInt = null;
       ShouldFail(() => nullableInt == 1, "Expected nullableInt to equal 1 but nullableInt was null.");
       Assert.That(() => a != b);
@@ -28,7 +29,7 @@ namespace Assertive.Test
       Assert.That(() => x != y);
       Assert.That(() => x == 1);
       Assert.That(() => foo + bar == "foobar");
-
+      
       ShouldFail(() => a == b, @"Expected a to equal b but a was ""A"" while b was ""B"".");
       ShouldFail(() => nullableInt == x, "Expected nullableInt to equal x but nullableInt was null while x was 1.");
 
@@ -51,12 +52,12 @@ namespace Assertive.Test
       var foo = "foo";
       var bar = "bar";
 
-      ShouldFail(() => a != b, @"Expected a to not equal b but they were equal (value: ""A"").");
-      ShouldFail(() => x != y, @"Expected x to not equal y but they were equal (value: 1).");
+      ShouldFail(() => a != b, @"Expected a to not equal b (value: ""A"").");
+      ShouldFail(() => x != y, @"Expected x to not equal y (value: 1).");
       ShouldFail(() => foo + bar != "foobar",
         @"Expected foo + bar to not equal ""foobar"".");
       ShouldFail(() => a != "A", @"Expected a to not equal ""A"".");
-      ShouldFail(() => !a.Equals(b), @"Expected a to not equal b but they were equal (value: ""A"").");
+      ShouldFail(() => !a.Equals(b), @"Expected a to not equal b (value: ""A"").");
     }
 
     private (string a, string b) GetTuple()
@@ -148,6 +149,14 @@ namespace Assertive.Test
     {
       ShouldFail(() => DoIt(MyEnum.A) == MyEnum.B,
         "Expected DoIt(MyEnum.A) to equal MyEnum.B but DoIt(MyEnum.A) was MyEnum.A.");
+    }
+
+    [Fact]
+    public void Nullable_bool_false()
+    {
+      bool? success = null;
+      
+      ShouldFail(() => success == false, "Expected success to equal false but success was null.");
     }
 
     private MyEnum DoIt(MyEnum x)
