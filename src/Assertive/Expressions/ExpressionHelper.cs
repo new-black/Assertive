@@ -97,15 +97,23 @@ namespace Assertive.Expressions
         return c.Value;
       }
 
-      return ((ConstantExpression)((UnaryExpression)expression).Operand).Value;
+      if (expression is NamedConstantExpression n)
+      {
+        return n.Value;
+      }
+
+      var operand = ((UnaryExpression)expression).Operand;
+
+      return GetConstantExpressionValue(operand);
     }
 
     public static bool IsConstantExpression(Expression expression)
     {
       return expression is ConstantExpression
+             || expression is NamedConstantExpression
              || (expression.NodeType == ExpressionType.Convert
                  && expression is UnaryExpression unaryExpression
-                 && unaryExpression.Operand is ConstantExpression);
+                 && (IsConstantExpression(unaryExpression.Operand)));
     }
 
     public static string ExpressionToString(Expression expression)
@@ -115,7 +123,8 @@ namespace Assertive.Expressions
       return ExpressionStringBuilder.ExpressionToString(rewriter.Visit(expression));
     }
 
-    public static Expression ReplaceParameter(Expression expression, ParameterExpression parameter, Expression replacement)
+    public static Expression ReplaceParameter(Expression expression, ParameterExpression parameter,
+      Expression replacement)
     {
       return new ParameterVisitor(parameter, replacement).Visit(expression);
     }
@@ -146,7 +155,6 @@ namespace Assertive.Expressions
         return ReplaceParameter(node);
       }
     }
-
   }
 
   public enum CustomExpressionTypes

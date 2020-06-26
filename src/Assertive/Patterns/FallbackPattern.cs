@@ -26,7 +26,8 @@ namespace Assertive.Patterns
       new AllPattern(),
       new NotAllPattern(),
       new SequenceEqualPattern(),
-      new StartsWithAndEndsWithPattern()
+      new StartsWithAndEndsWithPattern(),
+      new ReferenceEqualsPattern()
     };
   }
 }
