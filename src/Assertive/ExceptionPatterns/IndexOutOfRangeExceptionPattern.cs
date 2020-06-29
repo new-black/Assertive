@@ -54,16 +54,9 @@ namespace Assertive.ExceptionPatterns
         return null;
       }
 
-      FormattableString indexExpressionString;
-
-      if (ExpressionHelper.IsConstantExpression(indexExpression))
-      {
-        indexExpressionString = $"{indexExpression}";
-      }
-      else
-      {
-        indexExpressionString = $"{indexExpression} (value: {ExpressionHelper.EvaluateExpression(indexExpression)})";
-      }
+      var indexExpressionString = ExpressionHelper.IsConstantExpression(indexExpression) ? 
+        $"{indexExpression}" 
+        : (FormattableString)$"{indexExpression} (value: {ExpressionHelper.EvaluateExpression(indexExpression)})";
 
       FormattableString message = 
         $"{assertion.Exception.GetType().Name} caused by accessing index {indexExpressionString} on {operand}, actual {lengthString} was {actualLength?.ToString() ?? "unknown"}.";

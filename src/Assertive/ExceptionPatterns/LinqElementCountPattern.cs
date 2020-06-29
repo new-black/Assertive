@@ -24,8 +24,8 @@ namespace Assertive.ExceptionPatterns
 
       if (linqVisitor.CauseOfLinqException != null)
       {
-        bool filtered = linqVisitor.CauseOfLinqException.Arguments.Count == 2 &&
-                        linqVisitor.CauseOfLinqException.Arguments[1] is LambdaExpression;
+        var filtered = linqVisitor.CauseOfLinqException.Arguments.Count == 2 &&
+                       linqVisitor.CauseOfLinqException.Arguments[1] is LambdaExpression;
         
         var instanceOfMethodCallExpression = ExpressionHelper.GetInstanceOfMethodCall(linqVisitor.CauseOfLinqException);
 
@@ -99,7 +99,7 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
       return (items, hasMoreItems);
     }
 
-    private string GetMethod(MethodCallExpression methodCallExpression)
+    private static string GetMethod(MethodCallExpression methodCallExpression)
     {
       if (methodCallExpression.Arguments.Count >= 2 && methodCallExpression.Arguments[1] is LambdaExpression)
       {
@@ -109,22 +109,18 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
       return methodCallExpression.Method.Name;
     }
 
-    private FormattableString GetReasonMessage(MethodCallExpression methodCallExpression,
+    private static FormattableString GetReasonMessage(MethodCallExpression methodCallExpression,
       LinqElementCountErrorTypes? error,
       int? actualCount, bool filtered, Expression instanceOfMethodCall)
     {
-      switch (error)
+      return error switch
       {
-        case LinqElementCountErrorTypes.TooFew:
-          return
-            $"InvalidOperationException caused by calling {GetMethod(methodCallExpression)} on {instanceOfMethodCall} which contains no elements{(filtered ? " that match the filter" : "")}.";
-        case LinqElementCountErrorTypes.TooMany:
-          return
-            $"InvalidOperationException caused by calling {GetMethod(methodCallExpression)} on {instanceOfMethodCall} which contains more than one element{(filtered ? " that matches the filter" : "")}. Actual element count: {actualCount}.";
-        default:
-          return
-            $"InvalidOperationException caused by calling {GetMethod(methodCallExpression)} on {instanceOfMethodCall}.";
-      }
+        LinqElementCountErrorTypes.TooFew =>
+        $"InvalidOperationException caused by calling {GetMethod(methodCallExpression)} on {instanceOfMethodCall} which contains no elements{(filtered ? " that match the filter" : "")}.",
+        LinqElementCountErrorTypes.TooMany =>
+        $"InvalidOperationException caused by calling {GetMethod(methodCallExpression)} on {instanceOfMethodCall} which contains more than one element{(filtered ? " that matches the filter" : "")}. Actual element count: {actualCount}.",
+        _ => $"InvalidOperationException caused by calling {GetMethod(methodCallExpression)} on {instanceOfMethodCall}."
+      };
     }
 
     private enum LinqElementCountErrorTypes

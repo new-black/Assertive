@@ -18,30 +18,20 @@ namespace Assertive.ExceptionPatterns
 
       if (nullVisitor.CauseOfNullReference != null)
       {
-        FormattableString? message = null;
-
-        if (nullVisitor.CauseOfNullReference is MemberExpression memberExpression)
+        var message = nullVisitor.CauseOfNullReference switch
         {
-          message = nullVisitor.ExceptionWasThrownInternally
+          MemberExpression memberExpression => nullVisitor.ExceptionWasThrownInternally
             ? GetReasonMessageInternalException(memberExpression)
-            : GetReasonMessage(memberExpression);
-        }
-        else if (nullVisitor.CauseOfNullReference is MethodCallExpression methodCallExpression)
-        {
-          message = nullVisitor.ExceptionWasThrownInternally
+            : GetReasonMessage(memberExpression),
+          MethodCallExpression methodCallExpression => nullVisitor.ExceptionWasThrownInternally
             ? GetReasonMessageInternalException(methodCallExpression)
-            : GetReasonMessage(methodCallExpression);
-        }
-        else if (nullVisitor.CauseOfNullReference is UnaryExpression unaryExpression &&
-                 unaryExpression.NodeType == ExpressionType.ArrayLength)
-        {
-          message = GetReasonMessage(unaryExpression);
-        }
-        else if (nullVisitor.CauseOfNullReference is BinaryExpression binaryExpression
-                 && binaryExpression.NodeType == ExpressionType.ArrayIndex)
-        {
-          message = GetReasonMessage(binaryExpression);
-        }
+            : GetReasonMessage(methodCallExpression),
+          UnaryExpression unaryExpression when unaryExpression.NodeType == ExpressionType.ArrayLength =>
+          GetReasonMessage(unaryExpression),
+          BinaryExpression binaryExpression when binaryExpression.NodeType == ExpressionType.ArrayIndex =>
+          GetReasonMessage(binaryExpression),
+          _ => null
+        };
 
         if (message != null)
         {
@@ -52,35 +42,35 @@ namespace Assertive.ExceptionPatterns
       return null;
     }
 
-    private FormattableString GetReasonMessageInternalException(MemberExpression expression)
+    private static FormattableString GetReasonMessageInternalException(MemberExpression expression)
     {
       return $"NullReferenceException was thrown inside {expression.Member.Name} on {expression}.";
     }
 
-    private FormattableString GetReasonMessageInternalException(MethodCallExpression expression)
+    private static FormattableString GetReasonMessageInternalException(MethodCallExpression expression)
     {
       return $"NullReferenceException was thrown inside {expression.Method.Name} on {expression}.";
     }
 
-    private FormattableString GetReasonMessage(UnaryExpression causeOfNullReference)
+    private static FormattableString GetReasonMessage(UnaryExpression causeOfNullReference)
     {
       return
         $"NullReferenceException caused by accessing array length on {causeOfNullReference.Operand} which was null.";
     }
     
-    private FormattableString GetReasonMessage(BinaryExpression causeOfNullReference)
+    private static FormattableString GetReasonMessage(BinaryExpression causeOfNullReference)
     {
       return
         $"NullReferenceException caused by accessing array index {causeOfNullReference.Right} on {causeOfNullReference.Left} which was null.";
     }
     
-    private FormattableString GetReasonMessage(MemberExpression causeOfNullReference)
+    private static FormattableString GetReasonMessage(MemberExpression causeOfNullReference)
     {
       return
         $"NullReferenceException caused by accessing {causeOfNullReference.Member.Name} on {causeOfNullReference.Expression} which was null.";
     }
 
-    private FormattableString GetReasonMessage(MethodCallExpression causeOfNullReference)
+    private static FormattableString GetReasonMessage(MethodCallExpression causeOfNullReference)
     {
       return
         $"NullReferenceException caused by calling {causeOfNullReference.Method.Name} on {causeOfNullReference.Object} which was null.";
