@@ -86,6 +86,8 @@ Likewise, it's possible to use a bitwise AND (`&`) to force evaluation of both s
 
 ### Exception handling
 
+Assertive has special handling of certain common exceptions that occur when writing tests, providing immediate feedback on what caused the exception without having to attach the debugger.
+
 #### NullReferenceExceptions
 
 When a NullReferenceException occurs somewhere within your assertion (because the thing you thought wasn't going to be `null` was in fact `null`) Assertive will try to find the cause of that exception by looking at what you dereferenced and what part of that was `null` or returned `null`. 
