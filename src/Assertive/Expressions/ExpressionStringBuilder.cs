@@ -24,10 +24,6 @@ namespace Assertive.Expressions
   {
     private readonly StringBuilder _out;
 
-    // Associate every unique label or anonymous parameter in the tree with an integer.
-    // Labels are displayed as UnnamedLabel_#; parameters are displayed as Param_#.
-    private Dictionary<object, int>? _ids;
-
     public bool EmitMethodCallWithoutObject { get; set; }
 
     private ExpressionStringBuilder()
@@ -38,25 +34,6 @@ namespace Assertive.Expressions
     public override string ToString()
     {
       return _out.ToString();
-    }
-
-    private int GetLabelId(LabelTarget label) => GetId(label);
-    private int GetParamId(ParameterExpression p) => GetId(p);
-
-    private int GetId(object o)
-    {
-      if (_ids == null)
-      {
-        _ids = new Dictionary<object, int>();
-      }
-
-      if (!_ids.TryGetValue(o, out var id))
-      {
-        id = _ids.Count;
-        _ids.Add(o, id);
-      }
-
-      return id;
     }
 
     #region The printing code
@@ -92,6 +69,12 @@ namespace Assertive.Expressions
       esb.EmitMethodCallWithoutObject = true;
       esb.Visit(node);
       return esb.ToString();
+    }
+
+    protected override Expression VisitParameter(ParameterExpression node)
+    {
+      Out(node.Name);
+      return node;
     }
 
     private void VisitExpressions<T>(char open, ReadOnlyCollection<T> expressions, char close, string seperator = ", ")
@@ -186,26 +169,6 @@ namespace Assertive.Expressions
       return node;
     }
 
-    protected override Expression VisitParameter(ParameterExpression node)
-    {
-      if (node.IsByRef)
-      {
-        Out("ref ");
-      }
-
-      string name = node.Name;
-      if (string.IsNullOrEmpty(name))
-      {
-        Out("Param_" + GetParamId(node));
-      }
-      else
-      {
-        Out(name);
-      }
-
-      return node;
-    }
-
     protected override Expression VisitLambda<T>(Expression<T> node)
     {
       if (node.Parameters.Count == 1)
@@ -239,7 +202,7 @@ namespace Assertive.Expressions
     protected override Expression VisitListInit(ListInitExpression node)
     {
       Visit(node.NewExpression);
-      Out(" {");
+      Out(" { ");
       for (int i = 0, n = node.Initializers.Count; i < n; i++)
       {
         if (i > 0)
@@ -250,7 +213,7 @@ namespace Assertive.Expressions
         VisitElementInit(node.Initializers[i]);
       }
 
-      Out('}');
+      Out(" }");
       return node;
     }
 
@@ -297,27 +260,6 @@ namespace Assertive.Expressions
         Out("null");
       }
 
-      return node;
-    }
-
-    protected override Expression VisitDebugInfo(DebugInfoExpression node)
-    {
-      string s = string.Format(
-        CultureInfo.CurrentCulture,
-        "<DebugInfo({0}: {1}, {2}, {3}, {4})>",
-        node.Document.FileName,
-        node.StartLine,
-        node.StartColumn,
-        node.EndLine,
-        node.EndColumn
-      );
-      Out(s);
-      return node;
-    }
-
-    protected override Expression VisitRuntimeVariables(RuntimeVariablesExpression node)
-    {
-      VisitExpressions('(', node.Variables, ')');
       return node;
     }
 
@@ -478,9 +420,8 @@ namespace Assertive.Expressions
 
     protected override ElementInit VisitElementInit(ElementInit initializer)
     {
-      Out(initializer.AddMethod.ToString());
       string sep = ", ";
-      Out('(');
+
       for (int i = 0, n = initializer.Arguments.Count; i < n; i++)
       {
         if (i > 0)
@@ -491,7 +432,6 @@ namespace Assertive.Expressions
         Visit(initializer.Arguments[i]);
       }
 
-      Out(')');
       return initializer;
     }
 
@@ -568,13 +508,40 @@ namespace Assertive.Expressions
 
     protected override Expression VisitNewArray(NewArrayExpression node)
     {
+      string ArrayElementType(Type t)
+      {
+        if (!t.IsArray) return TypeNameToString(t);
+
+        var elementType = t.GetElementType();
+
+        if (elementType.IsArray)
+        {
+          return ArrayElementType(elementType);
+        }
+        else
+        {
+          return TypeNameToString(elementType);
+        }
+      }
+
+      void Multidimensional(Type t)
+      {
+        if (t.IsArray && t.GetElementType().IsArray)
+        {
+          Out("[]");
+          Multidimensional(t.GetElementType());
+        }
+      }
+      
       switch (node.NodeType)
       {
         case ExpressionType.NewArrayBounds:
           // new MyType[](expr1, expr2)
           Out("new ");
-          Out(node.Type.ToString());
-          VisitExpressions('(', node.Expressions, ')');
+          Out(ArrayElementType(node.Type));
+          VisitExpressions('[', node.Expressions, ']');
+          Multidimensional(node.Type);
+          
           break;
         case ExpressionType.NewArrayInit:
           // new [] {expr1, expr2}
@@ -592,9 +559,23 @@ namespace Assertive.Expressions
 
       Out("new ");
 
+      string TypeToString(Type t)
+      {
+        if (t.IsGenericType)
+        {
+          var baseName = t.Name.Substring(0, t.Name.IndexOf('`'));
+
+          return $"{baseName}<{string.Join(", ", t.GetGenericArguments().Select(TypeToString))}>";
+        }
+        else
+        {
+          return TypeNameToString(t);
+        }
+      }
+
       if (!isAnonymous)
       {
-        Out(node.Type.Name);
+        Out(TypeToString(node.Type));
       }
 
       Out(isAnonymous ? "{ " : "(");
@@ -768,7 +749,7 @@ namespace Assertive.Expressions
           {
             parentheses = true;
           }
-          
+
           break;
         case ExpressionType.IsFalse:
           Out("IsFalse(");
@@ -827,7 +808,7 @@ namespace Assertive.Expressions
       {
         Out(')');
       }
-      
+
       switch (node.NodeType)
       {
         case ExpressionType.Negate:
@@ -862,99 +843,11 @@ namespace Assertive.Expressions
       return node;
     }
 
-    protected override Expression VisitBlock(BlockExpression node)
-    {
-      Out('{');
-      foreach (ParameterExpression v in node.Variables)
-      {
-        Out("var ");
-        Visit(v);
-        Out(';');
-      }
-
-      Out(" ... }");
-      return node;
-    }
-
     protected override Expression VisitDefault(DefaultExpression node)
     {
       Out("default(");
       Out(TypeNameToString(node.Type));
       Out(')');
-      return node;
-    }
-
-    protected override Expression VisitLabel(LabelExpression node)
-    {
-      Out("{ ... } ");
-      DumpLabel(node.Target);
-      Out(':');
-      return node;
-    }
-
-    protected override Expression VisitGoto(GotoExpression node)
-    {
-      string op = node.Kind switch
-      {
-        GotoExpressionKind.Goto => "goto",
-        GotoExpressionKind.Break => "break",
-        GotoExpressionKind.Continue => "continue",
-        GotoExpressionKind.Return => "return",
-        _ => throw new InvalidOperationException(),
-      };
-      Out(op);
-      Out(' ');
-      DumpLabel(node.Target);
-      if (node.Value != null)
-      {
-        Out(" (");
-        Visit(node.Value);
-        Out(")");
-      }
-
-      return node;
-    }
-
-    protected override Expression VisitLoop(LoopExpression node)
-    {
-      Out("while(true) { ... }");
-      return node;
-    }
-
-    protected override SwitchCase VisitSwitchCase(SwitchCase node)
-    {
-      Out("case ");
-      VisitExpressions('(', node.TestValues, ')');
-      Out(": ...");
-      return node;
-    }
-
-    protected override Expression VisitSwitch(SwitchExpression node)
-    {
-      Out("switch ");
-      Out('(');
-      Visit(node.SwitchValue);
-      Out(") { ... }");
-      return node;
-    }
-
-    protected override CatchBlock VisitCatchBlock(CatchBlock node)
-    {
-      Out("catch (");
-      Out(node.Test.Name);
-      if (!string.IsNullOrEmpty(node.Variable?.Name))
-      {
-        Out(' ');
-        Out(node.Variable!.Name);
-      }
-
-      Out(") { ... }");
-      return node;
-    }
-
-    protected override Expression VisitTry(TryExpression node)
-    {
-      Out("try { ... }");
       return node;
     }
 
@@ -1016,19 +909,6 @@ namespace Assertive.Expressions
       }
 
       return base.Visit(node);
-    }
-
-    private void DumpLabel(LabelTarget target)
-    {
-      if (!string.IsNullOrEmpty(target.Name))
-      {
-        Out(target.Name);
-      }
-      else
-      {
-        int labelId = GetLabelId(target);
-        Out("UnnamedLabel_" + labelId);
-      }
     }
 
     #endregion

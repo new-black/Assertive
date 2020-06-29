@@ -127,6 +127,19 @@ namespace Assertive.Test
     }
 
     [Fact]
+    public void Enum_comparison_works_when_rhs_is_nullable()
+    {
+      var a = MyEnum.A;
+      MyEnum? b = MyEnum.B;
+
+      ShouldFail(() => a == b, "Expected a to equal b but a was MyEnum.A while b was MyEnum.B.");
+
+      b = null;
+      
+      ShouldFail(() => a == b, "Expected a to equal b but a was MyEnum.A while b was null.");
+    }
+
+    [Fact]
     public void Nullable_Enum_comparison_works()
     {
       MyEnum? a = MyEnum.A;

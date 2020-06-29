@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using Assertive.Expressions;
 using Xunit;
@@ -13,6 +15,16 @@ namespace Assertive.Test
     protected int MyProperty { get; set; }
     private int PrivateProperty { get; set; }
     public int PublicPropertyPrivateSetter { private get; set; }
+
+    private class GenericClass<T>
+    {
+      
+    }
+
+    private class ClassWithIndexer
+    {
+      public int this[int a, int b] => 0;
+    }
     
     [Fact]
     public void String_representation_of_expressions_are_as_expected()
@@ -22,6 +34,8 @@ namespace Assertive.Test
       var array = new int[10];
       var myClass = new MyClass();
       int? nullableA = 1;
+      var list = new List<int>();
+      var indexer = new ClassWithIndexer();
       
       Same(() => a + b, "a + b");
       Same(() => !(a + b == 0), "!(a + b == 0)");
@@ -34,6 +48,8 @@ namespace Assertive.Test
       Same(() => int.Parse("123"), @"int.Parse(""123"")");
       Same(() => array.Length, "array.Length");
       Same(() => array[2], "array[2]");
+      Same(() => list[2], "list[2]");
+      Same(() => indexer[2, 5], "indexer[2, 5]");
       Same(() => myClass[5], "myClass[5]");
       Same(() => a + b > 3 ? 10 : 12, "a + b > 3 ? 10 : 12");
       Same(() => _instanceField == 11, "_instanceField == 11");
@@ -42,6 +58,13 @@ namespace Assertive.Test
       Same(() => MyProperty == 10, "MyProperty == 10");
       Same(() => PrivateProperty == 10, "PrivateProperty == 10");
       Same(() => PublicPropertyPrivateSetter == 10, "PublicPropertyPrivateSetter == 10");
+      Same(() => new GenericClass<string>() == null, "new GenericClass<string>() == null");
+      Same(() => new GenericClass<GenericClass<string>>() == null, "new GenericClass<GenericClass<string>>() == null");
+      Same(() => new List<int> { 10, 11, 12 }.SequenceEqual(array), "new List<int>() { 10, 11, 12 }.SequenceEqual(array)");
+      Same(() => new int[10] != null, "new int[10] != null");
+      Same(() => new int?[10] != null, "new int?[10] != null");
+      Same(() => new int[10][] != null, "new int[10][] != null");
+      Same(() => new int[10][][] != null, "new int[10][][] != null");
     }
 
     private class MyClass

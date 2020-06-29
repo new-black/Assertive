@@ -157,7 +157,7 @@ namespace Assertive.Expressions
     }
   }
 
-  public enum CustomExpressionTypes
+  internal enum CustomExpressionTypes
   {
     NamedConstant = -1
   }
