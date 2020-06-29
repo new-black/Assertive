@@ -50,6 +50,7 @@ Assertive has a number of built-in patterns that it recognizes, which currently 
 - Collection contains checks (`Assert(() => result.Contains("test"))`)
 - Collection equality comparison (`Assert(() => seq1.SequenceEqual(seq2))`)
 - String contains/starts with/ends with checks (`Assert(() => name.StartsWith("John"))`)
+- Reference equality checks (`Assert(() => ReferenceEquals(a, b))`)
 
 When there is no matching pattern for your assertion, it will simply report the assertion that failed.
 
