@@ -146,7 +146,7 @@ However if `names` has more than one element:
 
 > InvalidOperationException caused by calling Single on names which contains more than one element. Actual element count: 2.
 > 
-> Value of list: ["Bob", "John"]
+> Value of names: ["Bob", "John"]
 
 ### Custom messages
 
