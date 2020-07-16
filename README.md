@@ -203,7 +203,7 @@ Assuming the 29th order (starting from zero) in this collection did not meet thi
 
 ### Contents of locals used in your assertion are rendered to the output
 
-If you use an assertion like `Assert(() => customers.Count() == expectedCustomers)` and it fails, the contents of the locals you use in your assertion are rendered to the test output. 
+If you have an assertion like `Assert(() => customers.Count() == expectedCustomers)` that references local variables and it fails, the contents of the locals you use in your assertion are rendered to the test output. 
 
 For example:
 
