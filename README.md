@@ -52,7 +52,7 @@ Assertive has a number of built-in patterns that it recognizes, which currently 
 - String contains/starts with/ends with checks (`Assert(() => name.StartsWith("John"))`)
 - Reference equality checks (`Assert(() => ReferenceEquals(a, b))`)
 
-When there is no matching pattern for your assertion, it will simply report the assertion that failed.
+When there is no matching pattern for your assertion, it will simply report the assertion that failed plus whatever useful information can be distilled from the assertion.
 
 ## Other features
 
