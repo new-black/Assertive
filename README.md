@@ -201,6 +201,22 @@ Assuming the 29th order (starting from zero) in this collection did not meet thi
 >
 > orders[29] - Expected item.PaidAmount to be greater than 100, but item.PaidAmount was 50.
 
+### Contents of locals used in your assertion are rendered to the output
+
+If you use an assertion like `Assert(() => customers.Count() == expectedCustomers)` and it fails, the contents of the locals you use in your assertion are rendered to the test output. 
+
+For example:
+
+> Expected customers to have a count equal to expectedCustomers (value: 2) but the actual count was 3.
+>
+> Assertion: customers.Count() == expectedCustomers
+>
+> Locals:
+>
+> - customers = [ { ID = 1, FirstName = "John" }, { ID = 2, FirstName = "Bob" }, { ID = 3, FirstName = "Alice " } ]
+
+But note how only `customers` is rendered as the value of `expectedCustomers` is already displayed in the message at some other point.
+
 ## Compatibility
 
 ### .NET
