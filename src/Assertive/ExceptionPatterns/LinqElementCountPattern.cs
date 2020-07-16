@@ -146,7 +146,12 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
       protected override Expression VisitMethodCall(MethodCallExpression node)
       {
         var result = base.VisitMethodCall(node);
-
+        
+        if (CauseOfLinqException != null)
+        {
+          return result;
+        }
+        
         if (_methodNames.Contains(node.Method.Name))
         {
           try

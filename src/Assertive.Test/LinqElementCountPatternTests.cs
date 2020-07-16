@@ -106,5 +106,25 @@ Value of list: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... ]
 
 Value of list: [ 1, 2, 3 ]");
     }
+
+    class Something
+    {
+      public List<string> Items { get; set; }
+    }
+    
+    [Fact]
+    public void List_of_list_works()
+    {
+      var list = new List<Something>()
+      {
+        new Something(),
+        new Something()
+      };
+      
+      ShouldFail(() => list.Single().Items.Single() != null, 
+        @"InvalidOperationException caused by calling Single on list which contains more than one element. Actual element count: 2.
+
+Value of list: [ { }, { } ]");
+    }
   }
 }
