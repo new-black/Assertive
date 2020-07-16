@@ -27,10 +27,10 @@ namespace Assertive.Patterns
 
       if (IsConstantExpression(right))
       {
-        return $"Expected {left} to equal {right} but {left} was {EvaluateExpression(left)}.";
+        return $"Expected {left} to equal {right} but {left} was {left.ToValue()}.";
       }
 
-      return $"Expected {left} to equal {right} but {left} was {EvaluateExpression(left)} while {right} was {EvaluateExpression(right)}.";
+      return $"Expected {left} to equal {right} but {left} was {left.ToValue()} while {right} was {right.ToValue()}.";
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();

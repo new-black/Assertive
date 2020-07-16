@@ -39,7 +39,7 @@ namespace Assertive.Test
       Xunit.Assert.True(throws);
     }
 
-    protected void ShouldFail(Expression<Func<bool>> assertion, string expectedMessage)
+    protected void ShouldFail(Expression<Func<bool>> assertion, string expectedMessage, bool exactMatch = false)
     {
       bool throws = false;
 
@@ -50,7 +50,15 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         throws = true;
-        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
+        
+        if (exactMatch)
+        {
+          Xunit.Assert.Equal(expectedMessage, ex.Message);
+        }
+        else
+        {
+          Xunit.Assert.StartsWith(expectedMessage, ex.Message);
+        }
       }
 
       Xunit.Assert.True(throws);

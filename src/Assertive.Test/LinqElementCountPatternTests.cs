@@ -26,7 +26,7 @@ namespace Assertive.Test
       ShouldFail(() => list.Single(l => l > 3) == 10, 
         @"InvalidOperationException caused by calling Single(l => l > 3) on list which contains no elements that match the filter.
 
-Value of list: [1,2,3]");
+Value of list: [ 1, 2, 3 ]");
     }
     
     [Fact]
@@ -40,7 +40,7 @@ Value of list: [1,2,3]");
       ShouldFail(() => list.Single(l => l > 1) == 10, 
         @"InvalidOperationException caused by calling Single(l => l > 1) on list which contains more than one element that matches the filter. Actual element count: 2.
 
-Value of list.Single(l => l > 1): [2,3]
+Value of list.Single(l => l > 1): [ 2, 3 ]
 ");
     }
     
@@ -52,7 +52,7 @@ Value of list.Single(l => l > 1): [2,3]
       ShouldFail(() => list.Single() == 10, 
         @"InvalidOperationException caused by calling Single on list which contains more than one element. Actual element count: 1000.
 
-Value of list: [0,1,2,3,4,5,6,7,8,9,...]
+Value of list: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... ]
 ");
     }
     
@@ -104,7 +104,7 @@ Value of list: [0,1,2,3,4,5,6,7,8,9,...]
       ShouldFail(() => list.Single() == 10, 
         @"InvalidOperationException caused by calling Single on list which contains more than one element. Actual element count: 3.
 
-Value of list: [1,2,3]");
+Value of list: [ 1, 2, 3 ]");
     }
   }
 }

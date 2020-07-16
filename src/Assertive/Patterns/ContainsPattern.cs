@@ -46,12 +46,12 @@ namespace Assertive.Patterns
       }
       else
       {
-        expectedValueString = $"{expectedContainedValueExpression} (value: {ExpressionHelper.EvaluateExpression(expectedContainedValueExpression)})";
+        expectedValueString = $"{expectedContainedValueExpression} (value: {expectedContainedValueExpression.ToValue()})";
       }
       
       if (instance != null && instance.Type == typeof(string))
       {
-        return $"Expected {instance} (value: {ExpressionHelper.EvaluateExpression(instance)}) to{(notContains ? " not " : " ")}contain {expectedValueString}.";
+        return $"Expected {instance} (value: {instance.ToValue()}) to{(notContains ? " not " : " ")}contain {expectedValueString}.";
       }
 
       return $"Expected {instance} to{(notContains ? " not " : " ")}contain {expectedValueString}.";

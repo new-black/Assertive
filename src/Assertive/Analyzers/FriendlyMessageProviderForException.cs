@@ -6,6 +6,8 @@ namespace Assertive.Analyzers
 {
   internal class FriendlyMessageProviderForException
   {
+    private readonly AssertionFailureContext _context;
+
     private readonly IExceptionHandlerPattern[] _patterns = 
     {
       new NullReferencePattern(),
@@ -13,7 +15,12 @@ namespace Assertive.Analyzers
       new LinqElementCountPattern(),
       new IndexOutOfRangeExceptionPattern(), 
     };
-    
+
+    public FriendlyMessageProviderForException(AssertionFailureContext context)
+    {
+      _context = context;
+    }
+
     public FailedAnalyzedAssertion AnalyzeException(FailedAssertion part)
     {
       HandledException? handledException = null;
@@ -41,7 +48,7 @@ namespace Assertive.Analyzers
         failedAssertionMessage = $@"Assertion threw {exception.GetType().FullName}: {exception.Message}";
       }
 
-      return new FailedAnalyzedAssertion(part, FriendlyMessageFormatter.GetString(failedAssertionMessage), 
+      return new FailedAnalyzedAssertion(part, FriendlyMessageFormatter.GetString(failedAssertionMessage, _context.EvaluatedExpressions), 
         handledExceptionPattern, 
         handledException?.CauseOfException);
     }

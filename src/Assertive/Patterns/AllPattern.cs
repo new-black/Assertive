@@ -70,7 +70,7 @@ namespace Assertive.Patterns
               Expression.Lambda<Func<bool>>(
                 ExpressionHelper.ReplaceParameter(filter.Body, filter.Parameters[0], namedConstant));
             
-            var analyzer = new AssertionFailureAnalyzer(newExpression, null);
+            var analyzer = new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(newExpression, null, null), null));
 
             var failures = analyzer.AnalyzeAssertionFailures();
 

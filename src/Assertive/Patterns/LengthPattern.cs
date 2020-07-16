@@ -109,19 +109,19 @@ namespace Assertive.Patterns
       if (assertion.Expression.NodeType == ExpressionType.NotEqual)
       {
           actualCountString =
-            $"but they were equal";
+            $"";
       }
       else
       {
-        actualCountString = $"but the actual {countLabel} was {actualLength}";
+        actualCountString = $" but the actual {countLabel} was {actualLength}";
       }
 
       if (binaryExpression.Right.NodeType == ExpressionType.Constant)
       {
-        return $"Expected {operand}{filterString} to have a {countLabel} {comparison} {binaryExpression.Right} {actualCountString}.";
+        return $"Expected {operand}{filterString} to have a {countLabel} {comparison} {binaryExpression.Right}{actualCountString}.";
       }
       
-      return $"Expected {operand}{filterString} to have a {countLabel} {comparison} {binaryExpression.Right} (value: {ExpressionHelper.EvaluateExpression(binaryExpression.Right)}) {actualCountString}.";
+      return $"Expected {operand}{filterString} to have a {countLabel} {comparison} {binaryExpression.Right} (value: {binaryExpression.Right.ToValue()}){actualCountString}.";
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();

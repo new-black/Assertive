@@ -6,8 +6,9 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Assertive.Analyzers;
 using Assertive.Expressions;
+using Assertive.Helpers;
 using Assertive.Interfaces;
-using static Assertive.Helpers.EnumerableHelper;
+
 using static Assertive.Expressions.ExpressionStringBuilder;
 
 namespace Assertive.ExceptionPatterns
@@ -37,13 +38,13 @@ namespace Assertive.ExceptionPatterns
         { 
           var filter = filtered && linqVisitor.Error == LinqElementCountErrorTypes.TooMany ? (LambdaExpression)linqVisitor.CauseOfLinqException.Arguments[1] : null;
 
-          var (items, hasMoreItems) = GetItems(filter, linqVisitor.CauseOfLinqException, instanceOfMethodCallExpression);
+          var items = GetItems(filter, linqVisitor.CauseOfLinqException, instanceOfMethodCallExpression);
 
           if (items != null)
           {
             message = $@"{message}
 
-Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodCallExpression)}: {EnumerableToString(items, hasMoreItems)}";
+Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodCallExpression)}: {Serializer.Serialize(items)}";
           }
         }
 
@@ -53,33 +54,30 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
       return null;
     }
 
-    private (List<object>? items, bool hasMoreItems) GetItems(LambdaExpression? filterExpression, MethodCallExpression causeOfException, Expression instanceOfMethodCallExpression)
+    private List<object>? GetItems(LambdaExpression? filterExpression, MethodCallExpression causeOfException, Expression instanceOfMethodCallExpression)
     {
       var instance = ExpressionHelper.EvaluateExpression(instanceOfMethodCallExpression);
 
       if (!(instance is IEnumerable enumerable))
       {
-        return (null, false);
+        return null;
       }
 
       var items = new List<object>();
-
-      bool hasMoreItems = false;
 
       var filter = filterExpression?.Compile(true);
 
       foreach (var i in enumerable)
       {
-        void AddItem()
+        bool AddItem()
         {
-          if (items.Count == 10)
+          items.Add(i);
+          if (items.Count > 10)
           {
-            hasMoreItems = true;
+            return false;
           }
-          else
-          {
-            items.Add(i);
-          }
+
+          return true;
         }
 
         if (filter != null)
@@ -87,16 +85,22 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
           var result = (bool)filter.DynamicInvoke(i);
           if (result)
           {
-            AddItem();
+            if (!AddItem())
+            {
+              break;
+            }
           }
         }
         else
         {
-          AddItem();
+          if (!AddItem())
+          {
+            break;
+          }
         }
       }
 
-      return (items, hasMoreItems);
+      return items;
     }
 
     private static string GetMethod(MethodCallExpression methodCallExpression)

@@ -35,16 +35,16 @@ namespace Assertive.Patterns
 
       var instance = GetInstanceOfMethodCall(methodCallExpression);
 
-      if (ExpressionHelper.IsConstantExpression(arg))
+      if (IsConstantExpression(arg))
       {
         return $@"Expected {instance} to{(startsWith ? " " : " not ")}{method} {arg}.
 
-Value of {instance}: {EvaluateExpression(instance)}";  
+Value of {instance}: {instance.ToValue()}";  
       }
       
-      return $@"Expected {instance} to{(startsWith ? " " : " not ")}{method} {arg} (value: {EvaluateExpression(arg)}).
+      return $@"Expected {instance} to{(startsWith ? " " : " not ")}{method} {arg} (value: {arg.ToValue()}).
 
-Value of {instance}: {EvaluateExpression(instance)}";   
+Value of {instance}: {instance.ToValue()}";   
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();

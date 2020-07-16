@@ -6,22 +6,20 @@ namespace Assertive.Analyzers
 {
   internal class AssertionFailureAnalyzer
   {
-    private readonly Expression<Func<bool>> _assertion;
-    private readonly Exception? _assertionException;
+    private readonly AssertionFailureContext _context;
 
-    public AssertionFailureAnalyzer(Expression<Func<bool>> assertion, Exception? assertionException)
+    public AssertionFailureAnalyzer(AssertionFailureContext context)
     {
-      _assertion = assertion;
-      _assertionException = assertionException;
+      _context = context;
     }
 
     public List<FailedAnalyzedAssertion> AnalyzeAssertionFailures()
     {
-      var treeProvider = new AssertionTreeProvider(_assertion);
+      var treeProvider = new AssertionTreeProvider(_context.Assertion.Expression);
 
       var tree = treeProvider.GetTree();
       
-      var executor = new AssertionTreeExecutor(tree, _assertionException);
+      var executor = new AssertionTreeExecutor(tree, _context.AssertionException);
 
       var failedParts = executor.Execute();
       
@@ -33,7 +31,7 @@ namespace Assertive.Analyzers
         {
           if (part.Exception == null)
           {
-            var friendlyMessageProvider = new FriendlyMessageProvider(part);
+            var friendlyMessageProvider = new FriendlyMessageProvider(_context, part);
 
             var friendlyMessage = friendlyMessageProvider.TryGetFriendlyMessage();
 
@@ -43,7 +41,7 @@ namespace Assertive.Analyzers
           }
           else
           {
-            failedAssertions.Add(new FriendlyMessageProviderForException().AnalyzeException(part));
+            failedAssertions.Add(new FriendlyMessageProviderForException(_context).AnalyzeException(part));
           }
         }
         catch

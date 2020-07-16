@@ -14,7 +14,7 @@ namespace Assertive.Analyzers
       _assertion = assertion;
     }
 
-    private string FormatExceptionMessage(FailedAnalyzedAssertion failedAssertion, Exception? originalException)
+    private string FormatExceptionMessage(AssertionFailureContext context, FailedAnalyzedAssertion failedAssertion, Exception? originalException)
     {
       var assertionExpression = ExpressionToString(failedAssertion.Assertion.Expression);
 
@@ -35,14 +35,14 @@ Assertion: {assertionExpression}";
       {
         result += $@"
 
-Message: {Serializer.Serialize(_assertion.Message, 0, null)}";
+Message: {(_assertion.Message is string s ? s : Serializer.Serialize(_assertion.Message))}";
       }
 
       if (_assertion.Context != null)
       {
         result += $@"
 
-Context: {ExpressionToString(_assertion.Context.Body)} = {Serializer.Serialize(EvaluateExpression(_assertion.Context.Body), 0, null)}
+Context: {ExpressionToString(_assertion.Context.Body)} = {Serializer.Serialize(EvaluateExpression(_assertion.Context.Body))}
 ";
       }
 
@@ -62,6 +62,18 @@ Exception: {originalException.Message}
 StackTrace: {originalException.StackTrace}";
       }
 
+      var locals = LocalsProvider.LocalsToString(failedAssertion.Assertion.Expression, context.EvaluatedExpressions);
+
+      if (locals != null)
+      {
+        result += $@"
+
+Locals:
+
+{locals}
+";
+      }
+
       result += Environment.NewLine;
 
       return result;
@@ -69,11 +81,13 @@ StackTrace: {originalException.StackTrace}";
 
     internal Exception GetException(Exception? assertionException = null)
     {
-      var failureAnalyzer = new AssertionFailureAnalyzer(_assertion.Expression, assertionException);
+      var context = new AssertionFailureContext(_assertion, assertionException);
+      
+      var failureAnalyzer = new AssertionFailureAnalyzer(context);
       
       var failedAssertions = failureAnalyzer.AnalyzeAssertionFailures();
 
-      var message = string.Join(Environment.NewLine + Environment.NewLine, failedAssertions.Select(f => FormatExceptionMessage(f, assertionException)));
+      var message = string.Join(Environment.NewLine + Environment.NewLine, failedAssertions.Select(f => FormatExceptionMessage(context, f, assertionException)));
 
       return ExceptionHelper.GetException(message);
     }

@@ -42,12 +42,12 @@ namespace Assertive.Patterns
       if (b.Right.NodeType == ExpressionType.Constant)
       {
         return
-          $"Expected {b.Left} to be {comparison} {b.Right}, but {b.Left} was {EvaluateExpression(b.Left)}.";
+          $"Expected {b.Left} to be {comparison} {b.Right}, but {b.Left} was {b.Left.ToValue()}.";
       }
       else
       {
         return
-          $"Expected {b.Left} to be {comparison} {b.Right}, but {b.Left} was {EvaluateExpression(b.Left)} while {b.Right} was {EvaluateExpression(b.Right)}.";
+          $"Expected {b.Left} to be {comparison} {b.Right}, but {b.Left} was {b.Left.ToValue()} while {b.Right} was {b.Right.ToValue()}.";
       }
     }
 

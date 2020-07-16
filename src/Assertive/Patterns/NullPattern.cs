@@ -22,7 +22,7 @@ namespace Assertive.Patterns
       {
         if (b.NodeType == ExpressionType.Equal)
         {
-          return $"Expected {b.Left} to be null but it was {ExpressionHelper.EvaluateExpression(b.Left)} instead.";
+          return $"Expected {b.Left} to be null but it was {b.Left.ToValue()} instead.";
         }
         else
         {

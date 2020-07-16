@@ -17,8 +17,52 @@ namespace Assertive.Test
 
 [1]: 2 <> 3
 
-Value of seq1: [1,2,3]
-Value of seq2: [1,3,3]");
+Value of seq1: [ 1, 2, 3 ]
+Value of seq2: [ 1, 3, 3 ]");
+    }
+
+    private class MyClass : IEquatable<MyClass>
+    {
+      public MyClass(int id)
+      {
+        ID = id;
+      }
+      public int ID { get; set; }
+
+      public bool Equals(MyClass other)
+      {
+        if (ReferenceEquals(null, other)) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return ID == other.ID;
+      }
+
+      public override bool Equals(object obj)
+      {
+        if (ReferenceEquals(null, obj)) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj.GetType() != this.GetType()) return false;
+        return Equals((MyClass)obj);
+      }
+
+      public override int GetHashCode()
+      {
+        return ID;
+      }
+    }
+
+    [Fact]
+    public void SequenceEquals_for_Equatable_class()
+    {
+      var seq1 = new[] { new MyClass(1), new MyClass(2), new MyClass(3) };
+      var seq2 = new[] { new MyClass(1), new MyClass(3), new MyClass(2) };
+      
+      ShouldFail(() => seq1.SequenceEqual(seq2), @"Expected seq1 to be equal to seq2, but there were 2 differences:
+
+[1]: { ID = 2 } <> { ID = 3 },
+[2]: { ID = 3 } <> { ID = 2 }
+
+Value of seq1: [ { ID = 1 }, { ID = 2 }, { ID = 3 } ]
+Value of seq2: [ { ID = 1 }, { ID = 3 }, { ID = 2 } ]");
     }
     
     [Fact]
@@ -34,8 +78,8 @@ Value of seq2: [1,3,3]");
 [2]: ""value"" <> null,
 [3]: (no value) <> ""something""
 
-Value of seq1: [""foo"",""bar"",""value""]
-Value of seq2: [""bar"",""foo"",null,""something""]");
+Value of seq1: [ ""foo"", ""bar"", ""value"" ]
+Value of seq2: [ ""bar"", ""foo"", null, ""something"" ]");
     }
     
     [Fact]
@@ -48,8 +92,8 @@ Value of seq2: [""bar"",""foo"",null,""something""]");
 
 [2]: ""c"" <> ""D""
 
-Value of seq1: [""a"",""B"",""c""]
-Value of seq2: [""A"",""b"",""D""]");
+Value of seq1: [ ""a"", ""B"", ""c"" ]
+Value of seq2: [ ""A"", ""b"", ""D"" ]");
     }
     
     [Fact]
@@ -62,8 +106,8 @@ Value of seq2: [""A"",""b"",""D""]");
 
 [0]: 99 <> 13
 
-Value of seq1: [99,1,2,3,4,5,6,7,8,9,...]
-Value of seq2: [13,1,2,3,4,5,6,7,8,9,...]");
+Value of seq1: [ 99, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... ]
+Value of seq2: [ 13, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... ]");
     }
     
     [Fact]
@@ -106,8 +150,8 @@ Value of seq2: [13,1,2,3,4,5,6,7,8,9,...]");
 [0]: [1, a] <> [2, c],
 [1]: [2, b] <> [3, d]
 
-Value of dict1: [[1, a],[2, b]]
-Value of dict2: [[2, c],[3, d]]");
+Value of dict1: [ [1, a], [2, b] ]
+Value of dict2: [ [2, c], [3, d] ]");
     }
   }
 }

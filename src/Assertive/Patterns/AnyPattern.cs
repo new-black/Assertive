@@ -57,7 +57,17 @@ namespace Assertive.Patterns
       }
       
       
-      return $"Expected {collection} to {(notAny ? "not " : "")}contain {(notAny ? "any " : "")}items{filterString}{actualCountString}.";
+      FormattableString result = $"Expected {collection} to {(notAny ? "not " : "")}contain {(notAny ? "any " : "")}items{filterString}{actualCountString}.";
+
+      if (notAny)
+      {
+        result = $@"{result}
+
+Value of {collection}:
+";
+      }
+
+      return result;
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();

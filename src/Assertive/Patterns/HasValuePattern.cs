@@ -28,7 +28,7 @@ namespace Assertive.Patterns
       if (assertion.IsNegated)
       {
         return
-          $"Expected {memberExpression.Expression} to not have a value but its value was {EvaluateExpression(memberExpression.Expression)}.";
+          $"Expected {memberExpression.Expression} to not have a value but its value was {memberExpression.Expression.ToValue()}.";
       }
 
       return $"Expected {memberExpression.Expression} to have a value.";

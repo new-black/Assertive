@@ -10,6 +10,11 @@ namespace Assertive.Expressions
 {
   internal static class ExpressionHelper
   {
+    public static ExpressionValue ToValue(this Expression expression)
+    {
+      return new ExpressionValue(expression);
+    }
+    
     public static object? EvaluateExpression(Expression expression)
     {
       var lambda = Expression.Lambda(expression).Compile(true);
@@ -22,11 +27,10 @@ namespace Assertive.Expressions
                         && !unaryExpression.Type.IsEnum
                         && Enum.IsDefined(unaryExpression.Operand.Type.GetUnderlyingType(), value))
       {
-        return unaryExpression.Operand.Type.GetUnderlyingType().Name + "." +
-               Enum.ToObject(unaryExpression.Operand.Type.GetUnderlyingType(), value);
+        return new ExpressionEnumValue(unaryExpression.Operand.Type.GetUnderlyingType(), value);
       }
 
-      return StringQuoter.Quote(value);
+      return value;
     }
 
     public static Expression GetInstanceOfMethodCall(MethodCallExpression methodCallExpression)

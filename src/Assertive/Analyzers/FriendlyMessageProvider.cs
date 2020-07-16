@@ -1,16 +1,20 @@
-﻿using Assertive.Interfaces;
+﻿using System.Collections.Generic;
+using System.Linq.Expressions;
+using Assertive.Interfaces;
 using Assertive.Patterns;
 
 namespace Assertive.Analyzers
 {
   internal class FriendlyMessageProvider
   {
+    private readonly AssertionFailureContext _context;
     private readonly FailedAssertion _part;
 
     private static readonly IFriendlyMessagePattern _fallbackPattern = new FallbackPattern();
 
-    public FriendlyMessageProvider(FailedAssertion part)
+    public FriendlyMessageProvider(AssertionFailureContext context, FailedAssertion part)
     {
+      _context = context;
       _part = part;
     }
 
@@ -29,9 +33,10 @@ namespace Assertive.Analyzers
               return message;
             }
           }
+          
+          var formattedMessage = FriendlyMessageFormatter.GetString(pattern.TryGetFriendlyMessage(_part), _context.EvaluatedExpressions);
 
-          return new FriendlyMessage(FriendlyMessageFormatter.GetString(pattern.TryGetFriendlyMessage(_part)),
-            pattern);
+          return new FriendlyMessage(formattedMessage, pattern);
         }
       }
       catch

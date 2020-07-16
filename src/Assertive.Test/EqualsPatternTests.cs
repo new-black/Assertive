@@ -100,7 +100,7 @@ namespace Assertive.Test
       var a = "A";
       var b = "B";
 
-      var failures = new AssertionFailureAnalyzer(() => a == b, null).AnalyzeAssertionFailures();
+      var failures = new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => a == b, null, null), null)).AnalyzeAssertionFailures();
       Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is EqualsPattern);
     }
 
@@ -114,7 +114,7 @@ namespace Assertive.Test
       };
 
       ShouldFail(() => a.Equals(b),
-        "Expected a to equal b but a was { A = null, B = null } while b was { A = this is a string, B = null }.");
+        @"Expected a to equal b but a was { } while b was { A = ""this is a string"" }.");
     }
 
     [Fact]
@@ -171,7 +171,7 @@ namespace Assertive.Test
       
       ShouldFail(() => success == false, "Expected success to equal false but success was null.");
     }
-
+    
     private MyEnum DoIt(MyEnum x)
     {
       return x;

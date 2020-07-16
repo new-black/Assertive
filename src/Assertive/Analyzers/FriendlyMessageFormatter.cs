@@ -10,7 +10,7 @@ namespace Assertive.Analyzers
 {
   internal class FriendlyMessageFormatter
   {
-    public static string? GetString(FormattableString? formattableString)
+    public static string? GetString(FormattableString? formattableString, HashSet<Expression> evaluatedExpressions)
     {
       if (formattableString == null) return null;
 
@@ -26,19 +26,29 @@ namespace Assertive.Analyzers
         }
         else if (a is FormattableString innerFormattableString)
         {
-          arguments[i] = GetString(innerFormattableString);
+          arguments[i] = GetString(innerFormattableString, evaluatedExpressions);
         }
         else if (a is IEnumerable<FormattableString> formattableStrings)
         {
-          arguments[i] = string.Join(Environment.NewLine, formattableStrings.Select(GetString));
+          arguments[i] = string.Join(Environment.NewLine, formattableStrings.Select(f => GetString(f, evaluatedExpressions)));
         }
         else if (a is null)
         {
           arguments[i] = "null";
         }
+        else if (a is ExpressionValue expressionValue)
+        {
+          var value = ExpressionHelper.EvaluateExpression(expressionValue.Expression);
+          evaluatedExpressions.Add(expressionValue.Expression);
+          arguments[i] = Serializer.Serialize(value);
+        }
+        else if (a is string s)
+        {
+          arguments[i] = s;
+        }
         else
         {
-          arguments[i] = Serializer.Serialize(arguments[i], 0, null);
+          arguments[i] = Serializer.Serialize(arguments[i]);
         }
       }
 

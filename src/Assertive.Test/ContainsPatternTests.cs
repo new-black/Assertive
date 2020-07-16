@@ -47,7 +47,7 @@ namespace Assertive.Test
         "a", "b", "c"
       };
 
-      var failures = new AssertionFailureAnalyzer(() => list.Contains("d"), null).AnalyzeAssertionFailures();
+      var failures = new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => list.Contains("d"), null, null), null)).AnalyzeAssertionFailures();
       Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is ContainsPattern);
     }
   }

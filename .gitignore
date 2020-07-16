@@ -4,3 +4,4 @@ src/Assertive.Test/obj/*
 .vs/
 src/Assertive/bin/*
 src/Assertive/obj/*
+src/Assertive.sln.DotSettings.user

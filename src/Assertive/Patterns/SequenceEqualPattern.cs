@@ -7,8 +7,6 @@ using Assertive.Analyzers;
 using Assertive.Expressions;
 using Assertive.Helpers;
 using Assertive.Interfaces;
-using static Assertive.Helpers.EnumerableHelper;
-using static Assertive.Helpers.StringQuoter;
 
 namespace Assertive.Patterns
 {
@@ -174,7 +172,7 @@ namespace Assertive.Patterns
         }
 
         var differencesString = differences.Select(d =>
-            $"[{d.Index}]: {(d.HasValueSequence1 ? Quote(d.ValueSequence1) ?? "null" : "(no value)")} <> {(d.HasValueSequence2 ? Quote(d.ValueSequence2) ?? "null" : "(no value)")}")
+            $"[{d.Index}]: {(d.HasValueSequence1 ? Serializer.Serialize(d.ValueSequence1) ?? "null" : "(no value)")} <> {(d.HasValueSequence2 ? Serializer.Serialize(d.ValueSequence2) ?? "null" : "(no value)")}")
           .ToList();
 
         result =
@@ -189,8 +187,8 @@ namespace Assertive.Patterns
 
       return $@"{result}
 
-Value of {collection1Expression}: {EnumerableToString(collection1)}
-Value of {collection2Expression}: {EnumerableToString(collection2)}";
+Value of {collection1Expression}: {collection1}
+Value of {collection2Expression}: {collection2}";
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();

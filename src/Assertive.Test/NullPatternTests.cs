@@ -1,4 +1,5 @@
 using System;
+using System.Linq.Expressions;
 using Assertive.Analyzers;
 using Assertive.Patterns;
 using Xunit;
@@ -31,13 +32,18 @@ namespace Assertive.Test
       ShouldFail(() => notNullString == default, @"Expected notNullString to be null but it was ""a string"" instead.");
       ShouldFail(() => notNullString == default(string), @"Expected notNullString to be null but it was ""a string"" instead.");
     }
+
+    private static AssertionFailureContext CreateContext(Expression<Func<bool>> assertion)
+    {
+      return new AssertionFailureContext(new Assertion(assertion, null, null), null);
+    }
     
     [Fact]
     public void NullPattern_is_not_triggered_for_default_expression_on_struct()
     {
       DateTime a = DateTime.UtcNow;
       
-      var failures = new AssertionFailureAnalyzer(() => a == default(DateTime), null).AnalyzeAssertionFailures();
+      var failures = new AssertionFailureAnalyzer(CreateContext(() => a == default)).AnalyzeAssertionFailures();
       Assert(() => failures.Count == 1 && !(failures[0].FriendlyMessagePattern is NullPattern));
     }
     
@@ -46,7 +52,7 @@ namespace Assertive.Test
     {
       string notNullString = "a string";
       
-      var failures = new AssertionFailureAnalyzer(() => notNullString == null, null).AnalyzeAssertionFailures();
+      var failures = new AssertionFailureAnalyzer(CreateContext(() => notNullString == null)).AnalyzeAssertionFailures();
       Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is NullPattern);
     }
   }

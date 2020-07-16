@@ -21,14 +21,9 @@ namespace Assertive.Helpers
 
     public static string Serialize(object? o)
     {
-      return Serialize(o, 0, null, false);
-    }
-    
-    public static string Serialize(object? o, int indentation, Stack<object>? recursionGuard, bool quoteStrings = false)
-    {
       try
       {
-        return SerializeImpl(o, indentation, recursionGuard, quoteStrings);
+        return SerializeImpl(o, 0, null);
       }
       catch
       {
@@ -36,7 +31,12 @@ namespace Assertive.Helpers
       }
     }
 
-    private static string SerializeImpl(object? o, int indentation, Stack<object>? recursionGuard, bool quoteStrings)
+    private class Ellipsis
+    {
+      public override string ToString() => "...";
+    }
+
+    private static string SerializeImpl(object? o, int indentation, Stack<object>? recursionGuard)
     {
       if (o is null)
       {
@@ -45,14 +45,7 @@ namespace Assertive.Helpers
 
       if (o is string s)
       {
-        if (quoteStrings)
-        {
-          return "\"" + s + "\"";
-        }
-        else
-        {
-          return s;
-        }
+        return "\"" + s + "\"";
       }
 
       var type = o.GetType();
@@ -84,9 +77,15 @@ namespace Assertive.Helpers
       if (TypeHelper.IsEnumerable(type))
       {
         var items = new List<object>();
-        
+
         foreach (var v in (IEnumerable)o)
         {
+          if (items.Count == 10)
+          {
+            items.Add(new Ellipsis());
+            break;
+          }
+
           items.Add(v);
         }
 
@@ -96,8 +95,8 @@ namespace Assertive.Helpers
         for (var i = 0; i < items.Count; i++)
         {
           var item = items[i];
-          
-          sb.Append(IndentString(SerializeImpl(item, indentation, recursionGuard, quoteStrings)));
+
+          sb.Append(IndentString(SerializeImpl(item, indentation, recursionGuard)));
 
           if (i == items.Count - 1)
           {
@@ -108,7 +107,7 @@ namespace Assertive.Helpers
             sb.AppendLine(",");
           }
         }
-        
+
         indentation--;
         sb.Append(IndentString("]"));
       }
@@ -130,6 +129,8 @@ namespace Assertive.Helpers
         sb.AppendLine("{");
         indentation++;
 
+        bool firstPropertyWritten = false;
+
         for (var i = 0; i < properties.Length; i++)
         {
           var p = properties[i];
@@ -141,18 +142,24 @@ namespace Assertive.Helpers
 
           var value = p.GetValue(o);
 
-          sb.Append(IndentString($"{p.Name} = {SerializeImpl(value, indentation, recursionGuard, quoteStrings)}"));
-
-          if (i == properties.Length - 1)
+          if (value == null)
           {
-            sb.AppendLine();
+            continue;
           }
-          else
+
+          if (firstPropertyWritten)
           {
             sb.AppendLine(",");
           }
-        }
+          else
+          {
+            firstPropertyWritten = true;
+          }
 
+          sb.Append(IndentString($"{p.Name} = {SerializeImpl(value, indentation, recursionGuard)}"));
+        }
+        
+        sb.AppendLine();
         indentation--;
         sb.Append(IndentString("}"));
       }
@@ -161,7 +168,7 @@ namespace Assertive.Helpers
 
       var result = sb.ToString();
 
-      if (result.Length < 100)
+      if (result.Length < 150)
       {
         result = string.Join(" ", string.Join(" ", result.Split(_newLineSplitChars, StringSplitOptions.None))
           .Split(_spaceSplitChars, StringSplitOptions.RemoveEmptyEntries));
