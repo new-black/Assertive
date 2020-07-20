@@ -9,7 +9,7 @@ namespace Assertive.Patterns
   {
     public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return failedAssertion.ExpressionPossiblyNegated is MemberExpression;
+      return failedAssertion.ExpressionWithoutNegation is MemberExpression;
     }
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)

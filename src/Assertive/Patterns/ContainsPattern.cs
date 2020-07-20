@@ -12,7 +12,7 @@ namespace Assertive.Patterns
   {
     public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return IsContainsMethodCall(failedAssertion.ExpressionPossiblyNegated);
+      return IsContainsMethodCall(failedAssertion.ExpressionWithoutNegation);
     }
     
     private static bool IsContainsMethodCall(Expression expression)
@@ -25,7 +25,7 @@ namespace Assertive.Patterns
     {
       var notContains = assertion.IsNegated;
 
-      var callExpression = (MethodCallExpression)assertion.ExpressionPossiblyNegated;
+      var callExpression = (MethodCallExpression)assertion.ExpressionWithoutNegation;
 
       var instance = callExpression.Object;
 

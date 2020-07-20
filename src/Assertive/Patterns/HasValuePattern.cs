@@ -11,7 +11,7 @@ namespace Assertive.Patterns
   {
     public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return IsHasValueAccess(failedAssertion.ExpressionPossiblyNegated);
+      return IsHasValueAccess(failedAssertion.ExpressionWithoutNegation);
     }
 
     private static bool IsHasValueAccess(Expression expression)
@@ -23,7 +23,7 @@ namespace Assertive.Patterns
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      var memberExpression = (MemberExpression)assertion.ExpressionPossiblyNegated;
+      var memberExpression = (MemberExpression)assertion.ExpressionWithoutNegation;
 
       if (assertion.IsNegated)
       {

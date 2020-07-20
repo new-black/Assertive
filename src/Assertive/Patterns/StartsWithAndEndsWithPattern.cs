@@ -11,7 +11,7 @@ namespace Assertive.Patterns
   {
     public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return IsStartsOrEndsWithCall(failedAssertion.ExpressionPossiblyNegated);
+      return IsStartsOrEndsWithCall(failedAssertion.ExpressionWithoutNegation);
     }
 
     private static bool IsStartsOrEndsWithCall(Expression expression)
@@ -26,7 +26,7 @@ namespace Assertive.Patterns
     {
       var startsWith = IsStartsOrEndsWithCall(assertion.Expression);
 
-      var methodCallExpression = (MethodCallExpression)assertion.ExpressionPossiblyNegated;
+      var methodCallExpression = (MethodCallExpression)assertion.ExpressionWithoutNegation;
 
       var method = methodCallExpression.Method.Name == nameof(string.StartsWith) 
         ? "start with" : "end with";

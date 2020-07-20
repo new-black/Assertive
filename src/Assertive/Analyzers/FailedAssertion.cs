@@ -21,7 +21,10 @@ namespace Assertive.Analyzers
     public Expression? NegatedExpression { get; }
     public bool IsNegated => NegatedExpression != null;
 
-    public Expression ExpressionPossiblyNegated => NegatedExpression ?? Expression;
+    /// <summary>
+    /// If the complete assertion is negated (`!name.Contains("bob")`) then this is the expression without that negation (so: `name.Contains("bob")`).
+    /// </summary>
+    public Expression ExpressionWithoutNegation => NegatedExpression ?? Expression;
   }
 }
 

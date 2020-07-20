@@ -11,7 +11,7 @@ namespace Assertive.Patterns
   {
     public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return IsAnyMethodCall(failedAssertion.ExpressionPossiblyNegated);
+      return IsAnyMethodCall(failedAssertion.ExpressionWithoutNegation);
     }
 
     private static bool IsAnyMethodCall(Expression expression)

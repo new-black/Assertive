@@ -9,14 +9,14 @@ namespace Assertive.Patterns
   {
     public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return failedAssertion.ExpressionPossiblyNegated is MethodCallExpression methodCallExpression
+      return failedAssertion.ExpressionWithoutNegation is MethodCallExpression methodCallExpression
              && methodCallExpression.Method.Name == nameof(ReferenceEquals)
              && methodCallExpression.Arguments.Count == 2;
     }
 
     public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      var methodCall = (MethodCallExpression)assertion.ExpressionPossiblyNegated;
+      var methodCall = (MethodCallExpression)assertion.ExpressionWithoutNegation;
 
       var arg1 = methodCall.Arguments[0];
       var arg2 = methodCall.Arguments[1];
