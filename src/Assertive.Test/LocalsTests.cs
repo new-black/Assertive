@@ -22,7 +22,7 @@ namespace Assertive.Test
       };
 
       var value = "4";
-      
+
       ShouldEqual(() => list.Any(l => l == value), @"- list = [ ""1"", ""2"", ""3"" ]
 - value = ""4""");
 
@@ -30,10 +30,41 @@ namespace Assertive.Test
 
       var length = 2;
       var ending = "4";
-      
-      ShouldEqual(() => list.Count(l => l.Length == length && l.EndsWith(ending)) == 1, @"- list = [ ""1"", ""2"", ""3"" ]
+
+      ShouldEqual(() => list.Count(l => l.Length == length && l.EndsWith(ending)) == 1,
+        @"- list = [ ""1"", ""2"", ""3"" ]
 - length = 2
 - ending = ""4""");
+    }
+
+    private class Customer
+    {
+      public int ID { get; set; }
+      public string FirstName { get; set; }
+    }
+
+    [Fact]
+    public void Locals_with_complex_objects()
+    {
+      var customers = new List<Customer>()
+      {
+        new Customer { ID = 1, FirstName = "John" },
+        new Customer() { ID = 2, FirstName = "Bob" },
+        new Customer() { ID = 3, FirstName = "Alice " }
+      };
+
+      var expectedCustomers = 2;
+
+      ShouldFail(() => customers.Count() == expectedCustomers,
+        @"Expected customers to have a count equal to expectedCustomers (value: 2) but the actual count was 3.
+
+Assertion: customers.Count() == expectedCustomers
+
+Locals:
+
+- customers = [ { ID = 1, FirstName = ""John"" }, { ID = 2, FirstName = ""Bob"" }, { ID = 3, FirstName = ""Alice "" } ]
+
+", true);
     }
 
     [Fact]
@@ -41,18 +72,18 @@ namespace Assertive.Test
     {
       var a = "abc";
       var b = "def";
-      
+
       ShouldFail(() => a == b, @"Expected a to equal b but a was ""abc"" while b was ""def"".
 
 Assertion: a == b
 ", true);
     }
-    
+
     [Fact]
     public void Only_locals_that_have_not_already_been_outputted_are_rendered()
     {
       var list = Enumerable.Range(0, 8);
-      
+
       ShouldFail(() => list.Count() == 6, @"Expected list to have a count equal to 6 but the actual count was 8.
 
 Assertion: list.Count() == 6
@@ -67,7 +98,7 @@ Locals:
     private void ShouldEqual(Expression<Func<bool>> assertion, string expected)
     {
       var result = LocalsProvider.LocalsToString(assertion, new HashSet<Expression>());
-      
+
       Assert.That(() => result == expected);
     }
   }
