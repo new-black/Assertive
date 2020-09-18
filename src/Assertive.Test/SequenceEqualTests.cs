@@ -147,11 +147,10 @@ Value of seq2: [ 13, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... ]");
 
       ShouldFail(() => dict1.SequenceEqual(dict2), @"Expected dict1 to be equal to dict2, but there were 2 differences:
 
-[0]: [1, a] <> [2, c],
-[1]: [2, b] <> [3, d]
+[0]: [1] = ""a"" <> [2] = ""c"",
+[1]: [2] = ""b"" <> [3] = ""d""
 
-Value of dict1: [ [1, a], [2, b] ]
-Value of dict2: [ [2, c], [3, d] ]");
+Value of dict1: [ [1] = ""a"", [2] = ""b"" ]");
     }
   }
 }
