@@ -27,6 +27,16 @@ Assert(() => payment.Amount == 50);
 
 [As the null check isn't necessary.](#nullreferenceexceptions)
 
+It the assertion fails you will get this output in your test runner:
+
+> Expected payment.Amount to equal 50 but payment.Amount was 51.
+>
+> Assertion: payment.Amount == 50
+>
+> Locals:
+>
+> - payment = { Amount = 51, Date = 2020-02-03T13:15:12.0000000, Customer = "John Doe" }
+
 ## How is this different from using Assert.IsTrue?
 
 While `Assert.IsTrue(a == b)` would have the same result for a passing test, it will give you an opaque error message about false not being true or something along those lines when the test fails. 
