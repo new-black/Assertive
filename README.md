@@ -27,7 +27,7 @@ Assert(() => payment.Amount == 50);
 
 [As the null check isn't necessary.](#nullreferenceexceptions)
 
-It the assertion fails you will get this output in your test runner:
+If the assertion fails you will get this output in your test runner:
 
 > Expected payment.Amount to equal 50 but payment.Amount was 51.
 >
