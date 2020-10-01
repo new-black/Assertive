@@ -97,7 +97,7 @@ Likewise, it's possible to use a bitwise AND (`&`) to force evaluation of both s
 
 ### Exception handling
 
-Assertive has special handling of certain common exceptions that occur when writing tests, providing immediate feedback on what caused the exception without having to attach the debugger.
+Assertive has special handling of certain common exceptions that occur when writing tests, providing immediate feedback on what caused the exception without having to attach the debugger or dig through stacktraces.
 
 #### NullReferenceExceptions
 
