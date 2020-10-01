@@ -27,7 +27,8 @@ namespace Assertive.Test
       var tree = GetAssertionParts(() => list.Count > 0 && list.Count < 10);
       
       Assert(() => tree.Type == AssertionNodeType.AndAlso 
-                   && tree.Left.Type == AssertionNodeType.Leaf && tree.Right.Type == AssertionNodeType.Leaf);
+                   && tree.Left != null
+                   && tree.Left.Type == AssertionNodeType.Leaf && tree.Right != null && tree.Right.Type == AssertionNodeType.Leaf);
     }
     
     [Fact]
@@ -38,11 +39,15 @@ namespace Assertive.Test
       var tree = GetAssertionParts(() => list.Count > 0 
                                          && list.Count < 10 
                                          && !list.Contains(1));
-      
+
       Assert(() => tree.Type == AssertionNodeType.AndAlso
+                   && tree.Left != null
                    && tree.Left.Type == AssertionNodeType.AndAlso
+                   && tree.Left.Left != null
                    && tree.Left.Left.Type == AssertionNodeType.Leaf
+                   && tree.Left.Right != null
                    && tree.Left.Right.Type == AssertionNodeType.Leaf
+                   && tree.Right != null
                    && tree.Right.Type == AssertionNodeType.Leaf 
                    );
     }

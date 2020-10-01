@@ -21,6 +21,17 @@ namespace Assertive.Test
     }
     
     [Fact]
+    public void NullPattern_tests_using_is_object()
+    {
+      string nullString = null;
+
+      string notNullString = "a string";
+      
+      ShouldFail(() => nullString is object, "Expected nullString to not be null.");
+      ShouldFail(() => !(notNullString is object), @"Expected notNullString to be null but it was ""a string"" instead.");
+    }
+    
+    [Fact]
     public void IsDefault_tests()
     {
       string nullString = null;

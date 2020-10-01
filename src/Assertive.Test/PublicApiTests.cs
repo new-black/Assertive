@@ -52,18 +52,18 @@ namespace Assertive.Test
     [Fact]
     public void AssertThrows_works_if_an_exception_is_really_thrown()
     {
-      string value = null;
+      string? value = null;
       
-      A.Throws(() => value.Length);
-      A.Throws(() => value.Length == 10);
-      A.Throws<NullReferenceException>(() => value.Length);
-      A.Throws<NullReferenceException>(() => value.Length == 10);
+      A.Throws(() => value!.Length);
+      A.Throws(() => value!.Length == 10);
+      A.Throws<NullReferenceException>(() => value!.Length);
+      A.Throws<NullReferenceException>(() => value!.Length == 10);
       A.Throws<InvalidOperationException>(() => Explode());
       A.Throws(() => Explode());
-      Throws(() => value.Length);
-      Throws(() => value.Length == 10);
-      Throws<NullReferenceException>(() => value.Length);
-      Throws<NullReferenceException>(() => value.Length == 10);
+      Throws(() => value!.Length);
+      Throws(() => value!.Length == 10);
+      Throws<NullReferenceException>(() => value!.Length);
+      Throws<NullReferenceException>(() => value!.Length == 10);
       Throws<InvalidOperationException>(() => Explode());
       Throws(() => Explode());
     }
