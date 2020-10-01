@@ -79,5 +79,91 @@ namespace Assertive.Helpers
       return typeof(object);
 
     }
+    
+    public static string TypeNameToString(Type t)
+    {
+      if (t == typeof(bool))
+      {
+        return "bool";
+      }
+
+      if (t == typeof(byte))
+      {
+        return "byte";
+      }
+
+      if (t == typeof(sbyte))
+      {
+        return "sbyte";
+      }
+
+      if (t == typeof(char))
+      {
+        return "char";
+      }
+
+      if (t == typeof(decimal))
+      {
+        return "decimal";
+      }
+
+      if (t == typeof(double))
+      {
+        return "double";
+      }
+
+      if (t == typeof(float))
+      {
+        return "float";
+      }
+
+      if (t == typeof(int))
+      {
+        return "int";
+      }
+
+      if (t == typeof(uint))
+      {
+        return "uint";
+      }
+
+      if (t == typeof(long))
+      {
+        return "long";
+      }
+
+      if (t == typeof(ulong))
+      {
+        return "ulong";
+      }
+
+      if (t == typeof(object))
+      {
+        return "object";
+      }
+
+      if (t == typeof(short))
+      {
+        return "short";
+      }
+
+      if (t == typeof(ushort))
+      {
+        return "ushort";
+      }
+
+      if (t == typeof(string))
+      {
+        return "string";
+      }
+
+      if (IsNullableValueType(t))
+      {
+        return TypeNameToString(Nullable.GetUnderlyingType(t)) + "?";
+      }
+
+      return t.Name;
+    }
+
   }
 }

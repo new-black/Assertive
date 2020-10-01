@@ -476,7 +476,7 @@ namespace Assertive.Expressions
       }
       else if (node.Method.IsStatic && node.Method.IsPublic)
       {
-        Out(TypeNameToString(node.Method.DeclaringType));
+        Out(TypeHelper.TypeNameToString(node.Method.DeclaringType));
 
         if (!isIndexer)
         {
@@ -510,7 +510,7 @@ namespace Assertive.Expressions
     {
       string ArrayElementType(Type t)
       {
-        if (!t.IsArray) return TypeNameToString(t);
+        if (!t.IsArray) return TypeHelper.TypeNameToString(t);
 
         var elementType = t.GetElementType();
 
@@ -520,7 +520,7 @@ namespace Assertive.Expressions
         }
         else
         {
-          return TypeNameToString(elementType);
+          return TypeHelper.TypeNameToString(elementType);
         }
       }
 
@@ -569,7 +569,7 @@ namespace Assertive.Expressions
         }
         else
         {
-          return TypeNameToString(t);
+          return TypeHelper.TypeNameToString(t);
         }
       }
 
@@ -620,91 +620,6 @@ namespace Assertive.Expressions
       return node;
     }
 
-    private string TypeNameToString(Type t)
-    {
-      if (t == typeof(bool))
-      {
-        return "bool";
-      }
-
-      if (t == typeof(byte))
-      {
-        return "byte";
-      }
-
-      if (t == typeof(sbyte))
-      {
-        return "sbyte";
-      }
-
-      if (t == typeof(char))
-      {
-        return "char";
-      }
-
-      if (t == typeof(decimal))
-      {
-        return "decimal";
-      }
-
-      if (t == typeof(double))
-      {
-        return "double";
-      }
-
-      if (t == typeof(float))
-      {
-        return "float";
-      }
-
-      if (t == typeof(int))
-      {
-        return "int";
-      }
-
-      if (t == typeof(uint))
-      {
-        return "uint";
-      }
-
-      if (t == typeof(long))
-      {
-        return "long";
-      }
-
-      if (t == typeof(ulong))
-      {
-        return "ulong";
-      }
-
-      if (t == typeof(object))
-      {
-        return "object";
-      }
-
-      if (t == typeof(short))
-      {
-        return "short";
-      }
-
-      if (t == typeof(ushort))
-      {
-        return "ushort";
-      }
-
-      if (t == typeof(string))
-      {
-        return "string";
-      }
-
-      if (IsNullableValueType(t))
-      {
-        return TypeNameToString(Nullable.GetUnderlyingType(t)) + "?";
-      }
-
-      return t.Name;
-    }
-
     private static bool IsNullableValueType(Type type)
     {
       return (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>));
@@ -720,7 +635,7 @@ namespace Assertive.Expressions
       else
       {
         Out('(');
-        Out(TypeNameToString(node.Type));
+        Out(TypeHelper.TypeNameToString(node.Type));
         Out(')');
         return Visit(node.Operand);
       }
@@ -824,7 +739,7 @@ namespace Assertive.Expressions
           break;
         case ExpressionType.TypeAs:
           Out(" as ");
-          Out(TypeNameToString(node.Type));
+          Out(TypeHelper.TypeNameToString(node.Type));
           Out(')');
           break;
         case ExpressionType.ConvertChecked:
@@ -846,7 +761,7 @@ namespace Assertive.Expressions
     protected override Expression VisitDefault(DefaultExpression node)
     {
       Out("default(");
-      Out(TypeNameToString(node.Type));
+      Out(TypeHelper.TypeNameToString(node.Type));
       Out(')');
       return node;
     }

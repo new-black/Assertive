@@ -54,13 +54,14 @@ Assertive has a number of built-in patterns that it recognizes, which currently 
 - Boolean check (`Assert(() => success)`)
 - Equality comparison (`Assert(() => a == b)`)
 - Numerical comparisons (`Assert(() => a >= b)`)
-- Null checks (`Assert(() => value != null)` or `Assert(() => creditBalance.HasValue)`)
+- Null checks (`Assert(() => value != null)` or `Assert(() => creditBalance.HasValue)` or `Assert(() => value is object)`)
 - Size and length checks (`Assert(() => customers.Count(c => c.Age > 50) > 0))` or `Assert(() => name.Length < 50)`)
 - Collection existence checks (`Assert(() => customers.Any(c => c.Age <= 40))` or `Assert(() => customers.All(c => c.IsVerified))`)
 - Collection contains checks (`Assert(() => result.Contains("test"))`)
 - Collection equality comparison (`Assert(() => seq1.SequenceEqual(seq2))`)
 - String contains/starts with/ends with checks (`Assert(() => name.StartsWith("John"))`)
 - Reference equality checks (`Assert(() => ReferenceEquals(a, b))`)
+- Type checks (`Assert(() => value is string)`)
 
 When there is no matching pattern for your assertion, it will simply report the assertion that failed plus whatever useful information can be distilled from the assertion.
 
