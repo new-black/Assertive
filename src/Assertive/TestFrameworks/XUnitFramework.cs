@@ -5,16 +5,14 @@ namespace Assertive.TestFrameworks
 {
   internal class XUnitFramework : ITestFramework
   {
-    public bool IsAvailable
+    private Type? _exceptionType = null;
+    
+    public Type? ExceptionType
     {
       get
       {
-        ExceptionType = TestFrameworkHelper.TryGetExceptionType("xunit.assert", "Xunit.Sdk.XunitException");
-
-        return ExceptionType != null;
+        return _exceptionType ??= TestFrameworkHelper.TryGetExceptionType("xunit.assert", "Xunit.Sdk.XunitException", "xunit");
       }
     }
-
-    public Type? ExceptionType { get; private set; } = null;
   }
 }

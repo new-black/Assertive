@@ -5,16 +5,14 @@ namespace Assertive.TestFrameworks
 {
   internal class MSTestFramework : ITestFramework
   {
-    public bool IsAvailable
+    private Type? _exceptionType = null;
+    
+    public Type? ExceptionType
     {
       get
       {
-        ExceptionType = TestFrameworkHelper.TryGetExceptionType("Microsoft.VisualStudio.TestPlatform.TestFramework", "Microsoft.VisualStudio.TestTools.UnitTesting.AssertFailedException");
-
-        return ExceptionType != null;
+        return _exceptionType ??= TestFrameworkHelper.TryGetExceptionType("Microsoft.VisualStudio.TestPlatform.TestFramework", "Microsoft.VisualStudio.TestTools.UnitTesting.AssertFailedException");
       }
     }
-
-    public Type? ExceptionType { get; private set; } = null;
   }
 }

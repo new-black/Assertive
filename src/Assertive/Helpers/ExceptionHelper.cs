@@ -24,7 +24,7 @@ namespace Assertive.Helpers
     {
       foreach (var framework in _testFrameworks)
       {
-        if (framework.IsAvailable)
+        if (framework.ExceptionType != null)
         {
           return framework;
         }
@@ -41,7 +41,7 @@ namespace Assertive.Helpers
         _initialized = true;
       }
 
-      if (_activeTestFramework != null)
+      if (_activeTestFramework != null && _activeTestFramework.ExceptionType != null)
       {
         return (Exception)Activator.CreateInstance(_activeTestFramework.ExceptionType, message);
       }
