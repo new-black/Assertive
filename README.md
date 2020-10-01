@@ -249,7 +249,7 @@ It will work fine with any other test framework as well, but the exception that 
 ## Limitations
 
 - Assertive is entirely based on the .NET Expression API which has some limitations in the syntax that it supports. Most notable is a lack of support for `await`, `dynamic`, tuple literals and the `?.` operator. 
-- For accurate messages on failing tests it's important that the assertions themselves are side-effect free and don't modify state, as Assertive works by evaluating expressions multiple times in case of a failed assertion. If the assertion modifies state then that state will modified multiple times.
+- For accurate messages on failing tests it's important that the assertions themselves are side-effect free and don't modify state, as Assertive works by evaluating expressions multiple times in case of a failed assertion. If the assertion modifies state then that state will be modified multiple times.
 
 
 
