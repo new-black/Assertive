@@ -69,7 +69,7 @@ When there is no matching pattern for your assertion, it will simply report the 
 
 ### Multiple assertions
 
-It's possible to use multiple related assertions in the same statement, which makes for clearer and shorter code.
+It's possible to write multiple related assertions in the same statement, which makes for clearer and shorter code.
 
 For example: 
 
