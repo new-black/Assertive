@@ -25,7 +25,7 @@ Or even just:
 Assert(() => payment.Amount == 50);
 ```
 
-[As the null check isn't necessary.](#nullreferenceexceptions)
+As the null check [isn't necessary.](#nullreferenceexceptions)
 
 If the assertion fails you will get this output in your test runner:
 
