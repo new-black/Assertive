@@ -15,7 +15,7 @@ namespace Assertive.Patterns
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
     {
       return assertion.IsNegated ? 
-        $"Expected {((UnaryExpression)assertion.Expression).Operand} to be false." 
+        $"Expected {assertion.NegatedExpression} to be false." 
         : (FormattableString)$"Expected {assertion.Expression} to be true.";
     }
 

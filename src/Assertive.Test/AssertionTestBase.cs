@@ -1,5 +1,6 @@
 using System;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace Assertive.Test
 {
@@ -21,7 +22,41 @@ namespace Assertive.Test
 
       Xunit.Assert.True(throws);
     }
+    
+    protected async Task ShouldThrow(Expression<Func<Task>> assertion, string expectedMessage)
+    {
+      bool throws = false;
 
+      try
+      {
+        await Assert.Throws(assertion);
+      }
+      catch (Exception ex)
+      {
+        throws = true;
+        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
+      }
+
+      Xunit.Assert.True(throws);
+    }
+    
+    protected async Task ShouldThrow<T>(Expression<Func<Task>> assertion, string expectedMessage) where T : Exception
+    {
+      bool throws = false;
+
+      try
+      {
+        await Assert.Throws<T>(assertion);
+      }
+      catch (Exception ex)
+      {
+        throws = true;
+        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
+      }
+
+      Xunit.Assert.True(throws);
+    }
+    
     protected void ShouldThrow<T>(Expression<Func<object>> assertion, string expectedMessage) where T : Exception
     {
       bool throws = false;

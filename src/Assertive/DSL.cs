@@ -1,5 +1,6 @@
 using System;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace Assertive
 {
@@ -78,6 +79,26 @@ namespace Assertive
     public static void Throws<TException>(Expression<Func<object>> expression) where TException : Exception
     {
       var exception = AssertImpl.Throws(expression, typeof(TException));
+
+      if (exception != null)
+      {
+        throw exception;
+      }
+    }
+
+    public static async Task Throws<TException>(Expression<Func<Task>> expression) where TException : Exception
+    {
+      var exception = await AssertImpl.Throws(expression, typeof(TException));
+
+      if (exception != null)
+      {
+        throw exception;
+      }
+    }
+    
+    public static async Task Throws(Expression<Func<Task>> expression)
+    {
+      var exception = await AssertImpl.Throws(expression);
 
       if (exception != null)
       {
