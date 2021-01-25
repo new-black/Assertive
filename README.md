@@ -41,7 +41,7 @@ If the assertion fails you will get this output in your test runner:
 
 While `Assert.IsTrue(a == b)` would have the same result for a passing test, it will give you an opaque error message about false not being true or something along those lines when the test fails. 
 
-But because Assertive accepts an expression it will analyze the expression and give an error like this:
+Because Assertive accepts an expression it will analyze the expression and output an error message like this:
 
 ```
 Expected a to equal b but a was 20 while b was 24.
@@ -151,7 +151,7 @@ Assert(() => names.Single(n => n == "Bob"))
 
 Message if `names` is empty:
 
-> InvalidOperationException caused by calling Single on list which contains no elements.
+> InvalidOperationException caused by calling Single on names which contains no elements.
 
 However if `names` has more than one element:
 
@@ -248,7 +248,7 @@ It will work fine with any other test framework as well, but the exception that 
 
 ## Limitations
 
-- Assertive is entirely based on the .NET Expression API which has some limitations in the syntax that it supports. Most notable is a lack of support for `await`, `dynamic`, tuple literals and the `?.` operator. 
+- Assertive is entirely based on the .NET Expression API which has some limitations in the syntax that is supported inside an expression. Most notable is a lack of support for `await`, `dynamic`, tuple literals and the `?.` operator. 
 - For accurate messages on failing tests it's important that the assertions themselves are side-effect free and don't modify state, as Assertive works by evaluating expressions multiple times in case of a failed assertion. If the assertion modifies state then that state will be modified multiple times.
 
 
