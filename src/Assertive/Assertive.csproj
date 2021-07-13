@@ -12,7 +12,7 @@
     <Description>Better and more readable test assertions through the power of C# expressions.</Description>
   </PropertyGroup>
   <PropertyGroup>
-    <LangVersion>8</LangVersion>
+    <LangVersion>9</LangVersion>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
