@@ -34,7 +34,6 @@ namespace Assertive.Test
       Assert.Throws<IndexOutOfRangeException>(() => array[1]);
       Assert.Throws<FormatException>(() => int.Parse("abc"));
       await Assert.Throws<InvalidOperationException>(() => ThrowAsyncException());
-      await Assert.Throws<InvalidOperationException>(() => ThrowAsyncException_ValueTask());
     }
 
     [Fact]
@@ -66,20 +65,6 @@ namespace Assertive.Test
       await ShouldThrow<NullReferenceException>(() => ThrowAsyncException(), @"Expected ThrowAsyncException() to throw an exception of type System.NullReferenceException, but it threw an exception of type System.InvalidOperationException instead.");
     }
 
-    private async ValueTask ThrowAsyncException_ValueTask()
-    {
-      await Task.Delay(30);
-      
-      throw new InvalidOperationException("an exception");
-    }
-
-    private async ValueTask<int> ThrowAsyncException_ValueTaskInt()
-    {
-      await Task.Delay(30);
-      
-      throw new InvalidOperationException("an exception");
-    }
-    
     private async Task ThrowAsyncException()
     {
       await Task.Delay(30);

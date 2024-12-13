@@ -21,14 +21,11 @@ namespace Assertive.Patterns
 
     private static bool IsArrayLength(Expression expression) => expression.NodeType == ExpressionType.ArrayLength;
 
-    private static bool IsListCount(Expression expression) => expression is MemberExpression memberExpression
-                                                              && memberExpression.Member.Name == "Count";
+    private static bool IsListCount(Expression expression) => expression is MemberExpression { Member.Name: "Count" };
 
-    private static bool IsCountMethod(Expression expression) => expression is MethodCallExpression methodCallExpression
-                                                                && methodCallExpression.Method.Name == "Count";
+    private static bool IsCountMethod(Expression expression) => expression is MethodCallExpression { Method.Name: "Count" };
 
-    private static bool IsStringLength(Expression expression) => expression is MemberExpression memberExpression
-                                                                 && memberExpression.Member.Name == "Length";
+    private static bool IsStringLength(Expression expression) => expression is MemberExpression { Member.Name: "Length" };
     
     private static bool IsLengthAccess(Expression expression)
     {
@@ -71,7 +68,7 @@ namespace Assertive.Patterns
         comparison = string.Empty;
       }
 
-      Expression operand;
+      Expression? operand;
 
       Expression? filter = null;
 
@@ -124,6 +121,6 @@ namespace Assertive.Patterns
       return $"Expected {operand}{filterString} to have a {countLabel} {comparison} {binaryExpression.Right} (value: {binaryExpression.Right.ToValue()}){actualCountString}.";
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns { get; } = [];
   }
 }

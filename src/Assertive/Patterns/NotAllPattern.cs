@@ -24,6 +24,6 @@ namespace Assertive.Patterns
       return $"Did not expect all items of {collectionExpression} to match the filter {filter.Body}.";
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns { get; } = [];
   }
 }

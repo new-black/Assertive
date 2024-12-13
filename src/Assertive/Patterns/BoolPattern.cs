@@ -19,9 +19,9 @@ namespace Assertive.Patterns
         : (FormattableString)$"Expected {assertion.Expression} to be true.";
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = 
-    {
-      new HasValuePattern(),
-    };
+    public IFriendlyMessagePattern[] SubPatterns { get; } =
+    [
+      new HasValuePattern()
+    ];
   }
 }

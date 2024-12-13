@@ -54,7 +54,7 @@ namespace Assertive.Test
       };
 
       var expectedCustomers = 2;
-
+      
       ShouldFail(() => customers.Count() == expectedCustomers,
         @"Expected customers to have a count equal to expectedCustomers (value: 2) but the actual count was 3.
 
@@ -76,6 +76,25 @@ Locals:
       ShouldFail(() => a == b, @"Expected a to equal b but a was ""abc"" while b was ""def"".
 
 Assertion: a == b
+", true);
+    }
+    
+    
+    [Fact]
+    public void Using_a_local_multiple_times_does_not_render_it_multiple_times()
+    {
+      var list = Enumerable.Range(0, 8).ToList();
+      var expected = 25;
+
+      ShouldFail(() => list[list.Count - 1] == expected * 2, @"Expected list[list.Count - 1] to equal expected * 2 but list[list.Count - 1] was 7 while expected * 2 was 50.
+
+Assertion: list[list.Count - 1] == expected * 2
+
+Locals:
+
+- list = [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+- expected = 25
+
 ", true);
     }
 

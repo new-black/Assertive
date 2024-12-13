@@ -8,13 +8,13 @@ namespace Assertive.Analyzers
   {
     private readonly AssertionFailureContext _context;
 
-    private readonly IExceptionHandlerPattern[] _patterns = 
-    {
+    private readonly IExceptionHandlerPattern[] _patterns =
+    [
       new NullReferencePattern(),
       new ArgumentNullParamSourcePattern(),
       new LinqElementCountPattern(),
-      new IndexOutOfRangeExceptionPattern(), 
-    };
+      new IndexOutOfRangeExceptionPattern()
+    ];
 
     public FriendlyMessageProviderForException(AssertionFailureContext context)
     {

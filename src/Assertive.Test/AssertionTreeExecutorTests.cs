@@ -180,7 +180,7 @@ namespace Assertive.Test
       }
       else
       {
-        return Array.Empty<FailedAssertion>();
+        return [];
       }
     }
 

@@ -18,7 +18,7 @@ namespace Assertive.Patterns
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } =
-    {
+    [
       new BoolPattern(),
       new ComparisonPattern(),
       new ContainsPattern(),
@@ -30,6 +30,6 @@ namespace Assertive.Patterns
       new ReferenceEqualsPattern(),
       new IsPattern(),
       new NullPattern()
-    };
+    ];
   }
 }

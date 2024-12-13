@@ -24,6 +24,10 @@ namespace Assertive.Analyzers
         {
           arguments[i] = ExpressionHelper.ExpressionToString(expression);
         }
+        else if (a is UnquotedExpression unquotedExpression)
+        {
+          arguments[i] = ExpressionHelper.ExpressionToString(unquotedExpression.Expression, allowQuotation: false);
+        }
         else if (a is FormattableString innerFormattableString)
         {
           arguments[i] = GetString(innerFormattableString, evaluatedExpressions);

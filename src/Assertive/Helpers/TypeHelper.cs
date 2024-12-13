@@ -27,7 +27,7 @@ namespace Assertive.Helpers
     {
       if (IsNullableValueType(type))
       {
-        return Nullable.GetUnderlyingType(type);
+        return Nullable.GetUnderlyingType(type)!;
       }
       return type;
     }
@@ -80,8 +80,9 @@ namespace Assertive.Helpers
 
     }
     
-    public static string TypeNameToString(Type t)
+    public static string TypeNameToString(Type? t)
     {
+      if (t == null) return "";
       if (t == typeof(bool))
       {
         return "bool";

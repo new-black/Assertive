@@ -38,7 +38,7 @@ namespace Assertive.Expressions
 
     #region The printing code
 
-    private void Out(string s)
+    private void Out(string? s)
     {
       _out.Append(s);
     }
@@ -77,7 +77,7 @@ namespace Assertive.Expressions
       return node;
     }
 
-    private void VisitExpressions<T>(char open, ReadOnlyCollection<T> expressions, char close, string seperator = ", ")
+    private void VisitExpressions<T>(char open, ReadOnlyCollection<T>? expressions, char close, string seperator = ", ")
       where T : Expression
     {
       Out(open);
@@ -232,7 +232,7 @@ namespace Assertive.Expressions
     {
       if (node.Value != null)
       {
-        string sValue = node.Value.ToString();
+        string? sValue = node.Value?.ToString();
         if (node.Value is string)
         {
           Out('\"');
@@ -249,7 +249,7 @@ namespace Assertive.Expressions
         {
           if (node.Value is bool)
           {
-            sValue = sValue.ToLower();
+            sValue = sValue?.ToLower();
           }
 
           Out(sValue);
@@ -269,7 +269,7 @@ namespace Assertive.Expressions
       var instance = node.Expression;
       var member = node.Member;
 
-      if (member is FieldInfo fieldInfo && fieldInfo.IsPrivate)
+      if (member is FieldInfo { IsPrivate: true })
       {
         isLocal = true;
       }
@@ -304,7 +304,7 @@ namespace Assertive.Expressions
       else if (!isLocal)
       {
         // For static members, include the type name
-        Out(member.DeclaringType.Name);
+        Out(member.DeclaringType?.Name);
       }
 
       if (!isLocal)
@@ -453,7 +453,7 @@ namespace Assertive.Expressions
     protected override Expression VisitMethodCall(MethodCallExpression node)
     {
       int start = 0;
-      Expression ob = node.Object;
+      Expression? ob = node.Object;
 
       if (node.Method.GetCustomAttribute(typeof(ExtensionAttribute)) != null)
       {
@@ -474,7 +474,7 @@ namespace Assertive.Expressions
           }
         }
       }
-      else if (node.Method.IsStatic && node.Method.IsPublic)
+      else if (node.Method is { IsStatic: true, IsPublic: true })
       {
         Out(TypeHelper.TypeNameToString(node.Method.DeclaringType));
 
@@ -514,7 +514,7 @@ namespace Assertive.Expressions
 
         var elementType = t.GetElementType();
 
-        if (elementType.IsArray)
+        if (elementType?.IsArray == true)
         {
           return ArrayElementType(elementType);
         }
@@ -526,10 +526,10 @@ namespace Assertive.Expressions
 
       void Multidimensional(Type t)
       {
-        if (t.IsArray && t.GetElementType().IsArray)
+        if (t.IsArray && t.GetElementType()!.IsArray)
         {
           Out("[]");
-          Multidimensional(t.GetElementType());
+          Multidimensional(t.GetElementType()!);
         }
       }
       
@@ -579,7 +579,7 @@ namespace Assertive.Expressions
       }
 
       Out(isAnonymous ? "{ " : "(");
-      ReadOnlyCollection<MemberInfo> members = node.Members;
+      ReadOnlyCollection<MemberInfo>? members = node.Members;
       for (int i = 0; i < node.Arguments.Count; i++)
       {
         if (i > 0)
@@ -625,7 +625,7 @@ namespace Assertive.Expressions
       return (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>));
     }
 
-    private Expression VisitConvert(UnaryExpression node)
+    private Expression? VisitConvert(UnaryExpression node)
     {
       if ((node.Type.IsNullableValueType()
            && node.Type.GetUnderlyingType() == node.Operand.Type) || node.Type == typeof(object))
@@ -646,7 +646,7 @@ namespace Assertive.Expressions
     {
       if (node.NodeType == ExpressionType.Convert)
       {
-        return VisitConvert(node);
+        return VisitConvert(node) ?? node;
       }
 
       var parentheses = false;
@@ -775,7 +775,7 @@ namespace Assertive.Expressions
       else
       {
         Debug.Assert(node.Indexer != null);
-        Out(node.Indexer!.DeclaringType.Name);
+        Out(node.Indexer!.DeclaringType!.Name);
       }
 
       if (node.Indexer != null)
@@ -800,7 +800,7 @@ namespace Assertive.Expressions
     protected override Expression VisitExtension(Expression node)
     {
       // Prefer an overridden ToString, if available.
-      MethodInfo toString = node.GetType().GetMethod("ToString", Type.EmptyTypes);
+      MethodInfo toString = node.GetType().GetMethod("ToString", Type.EmptyTypes)!;
       if (toString.DeclaringType != typeof(Expression) && !toString.IsStatic)
       {
         Out(node.ToString());
@@ -815,7 +815,7 @@ namespace Assertive.Expressions
       return node;
     }
 
-    public override Expression Visit(Expression node)
+    public override Expression? Visit(Expression? node)
     {
       if (node is NamedConstantExpression namedConstantExpression)
       {

@@ -20,7 +20,7 @@ namespace Assertive.Analyzers
 
   internal class LocalsExpressionVisitor : ExpressionVisitor
   {
-    public List<AssertionLocal> Locals { get; } = new List<AssertionLocal>();
+    public Dictionary<string, AssertionLocal> Locals { get; } = new  Dictionary<string, AssertionLocal>();
 
     protected override Expression VisitMember(MemberExpression node)
     {
@@ -28,7 +28,7 @@ namespace Assertive.Analyzers
       var instance = node.Expression;
       var member = node.Member;
 
-      if (member is FieldInfo fieldInfo && fieldInfo.IsPrivate)
+      if (member is FieldInfo { IsPrivate: true })
       {
         isLocal = true;
       }
@@ -88,9 +88,9 @@ namespace Assertive.Analyzers
         }
       }
 
-      if (isLocal)
+      if (isLocal && memberName != null && !Locals.ContainsKey(memberName))
       {
-        Locals.Add(new AssertionLocal(memberName, node));
+        Locals.Add(memberName, new AssertionLocal(memberName, node));
       }
 
       return node;

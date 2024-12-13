@@ -19,10 +19,10 @@ namespace Assertive.Patterns
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } =
-    {
+    [
       new LengthPattern(),
       new EqualityPattern(),
       new LessThanOrGreaterThanPattern()
-    };
+    ];
   }
 }

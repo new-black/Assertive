@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Assertive.Helpers;
 using Xunit;
 using static Assertive.DSL;
@@ -14,6 +15,12 @@ namespace Assertive.Test
       public string Throws => throw new Exception();
     }
 
+    public class HasThrowingProperty
+    {
+      public int ID { get; set; } = 10;
+      public string Description => throw new Exception("exception");
+    }
+
     [Fact]
     public void Exception_inside_serialization_doesnt_throw()
     {
@@ -21,9 +28,19 @@ namespace Assertive.Test
 
       var result = Serializer.Serialize(obj);
 
-      Assert(() => result == "<exception serializing>");
+      Assert(() => result == "{ Throws = <exception serializing = Exception> }");
     }
 
+    [Fact]
+    public void Only_throwing_properties_are_not_serialized()
+    {
+      var obj = new HasThrowingProperty();
+
+      var result = Serializer.Serialize(obj);
+
+      Assert(() => result == "{ ID = 10, Description = <exception serializing = Exception> }");
+    }
+    
     private class ClassWithEnumerable
     {
       public IEnumerable<int> Items => Enumerable.Range(0, 5);
@@ -60,10 +77,7 @@ namespace Assertive.Test
       var obj = new RecursiveReference();
 
       obj.Self = obj;
-      obj.Selfs = new List<RecursiveReference>()
-      {
-        obj
-      };
+      obj.Selfs = [obj];
 
       var result = Serializer.Serialize(obj);
 
@@ -206,8 +220,8 @@ namespace Assertive.Test
         },
         DictWithArray = new Dictionary<int, string[]>()
         {
-          [1234] = new[] { "abc" },
-          [45678] = new[] { "def" },
+          [1234] = ["abc"],
+          [45678] = ["def"],
         }
       };
       
@@ -221,8 +235,8 @@ namespace Assertive.Test
     {
       var dict = new Dictionary<string, string[]>()
       {
-        ["abc"] = new[] { "1234" },
-        ["def"] = new[] { "4567" }
+        ["abc"] = ["1234"],
+        ["def"] = ["4567"]
       };
 
       var result = Serializer.Serialize(dict);
@@ -234,6 +248,55 @@ namespace Assertive.Test
     public void Doubles_are_serialized_correctly()
     {
       Assert(() => Serializer.Serialize(52.438) == "52.438");
+    }
+
+    public struct MyStruct
+    {
+      public int A;
+      public int B;
+      public int C;
+    }
+
+    [Fact]
+    public void Structs_with_only_fields_are_serialized_correctly()
+    {
+      var s = new MyStruct()
+      {
+        A = 1,
+        B = 2,
+        C = 3
+      };
+      
+      var result = Serializer.Serialize(s);
+
+      Assert(() => result == "{ A = 1, B = 2, C = 3 }");
+    }
+
+    [Fact]
+    public void Byte_array_is_serialized_as_base64()
+    {
+      var d = new BinaryData()
+      {
+        Data = Encoding.UTF8.GetBytes("hello world"),
+      };
+      
+      var result = Serializer.Serialize(d);
+
+      Assert(() => result == "{ Data = aGVsbG8gd29ybGQ= }");
+
+      d.Data = Encoding.UTF8.GetBytes(
+        "hello worldhello worldhello worldhello worldhello worldhello worldhello worldhello worldhello worldhello worldhello world");
+      result = Serializer.Serialize(d);
+
+      Assert(() => result == @"{
+ Data = aGVsbG8gd29ybGRoZWxsbyB3b3JsZGhlbGxvIHdvcmxkaGVsbG8gd29ybGRoZWxsbyB3b3JsZGhlbGxvIHdvcmxkaGVsbG8gd29ybGRoZWxsbyB3b3JsZGhlbGxvIHdvcmxkaGVsbG8gd29ybGRoZWxsbyB3b3JsZA==...
+}");
+
+    }
+
+    public class BinaryData
+    {
+      public byte[] Data { get; set; }
     }
   }
 }

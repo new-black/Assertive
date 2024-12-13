@@ -6,7 +6,9 @@ namespace Assertive.Expressions
 {
   internal class ExpressionRewriter : ExpressionVisitor
   {
-    protected override Expression VisitUnary(UnaryExpression node)
+#pragma warning disable CS8764 // Nullability of return type doesn't match overridden member (possibly because of nullability attributes).
+    protected override Expression? VisitUnary(UnaryExpression node)
+#pragma warning restore CS8764 // Nullability of return type doesn't match overridden member (possibly because of nullability attributes).
     {
       if (IsConversionOfEnum(node))
       {
@@ -22,7 +24,7 @@ namespace Assertive.Expressions
       var right = node.Right;
       bool updated = false;
       Type? enumType = null;
-
+    
       if (IsConversionOfEnum(left))
       {
         var unaryExpression = (UnaryExpression)left;
@@ -30,7 +32,7 @@ namespace Assertive.Expressions
         enumType = unaryExpression.Operand.Type.GetUnderlyingType();
         updated = true;
       }
-
+    
       if (IsConversionOfEnum(right))
       {
         var unaryExpression = (UnaryExpression)right;
@@ -38,18 +40,17 @@ namespace Assertive.Expressions
         enumType = unaryExpression.Operand.Type.GetUnderlyingType();
         updated = true;
       }
-
-      if (updated && right is ConstantExpression c
-                  && !c.Type.IsEnum
-                  && Enum.IsDefined(enumType, c.Value))
+    
+      if (updated && right is ConstantExpression { Type.IsEnum: false } c 
+                  && enumType != null && c.Value != null && Enum.IsDefined(enumType, c.Value))
       {
         right = Expression.Constant(Enum.ToObject(enumType, c.Value));
       }
-
-      if (updated && left.Type != right.Type)
+    
+      if (updated && left != null && right != null && left.Type != right.Type)
       {
         updated = false;
-
+    
         if (left.Type.IsNullableValueType()
             && !right.Type.IsNullableValueType()
             && left.Type.GetUnderlyingType() == right.Type.GetUnderlyingType())
@@ -66,8 +67,8 @@ namespace Assertive.Expressions
           updated = true;
         }
       }
-
-      if (updated)
+    
+      if (updated && left != null && right != null)
       {
         return Expression.MakeBinary(node.NodeType, left, right);
       }
@@ -77,7 +78,7 @@ namespace Assertive.Expressions
       }
     }
 
-    public override Expression Visit(Expression node)
+    public override Expression? Visit(Expression? node)
     {
       if (node is NamedConstantExpression namedConstantExpression)
       {

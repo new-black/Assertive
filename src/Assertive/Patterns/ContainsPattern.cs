@@ -17,8 +17,7 @@ namespace Assertive.Patterns
     
     private static bool IsContainsMethodCall(Expression expression)
     {
-      return expression is MethodCallExpression methodCallExpression
-             && methodCallExpression.Method.Name == nameof(Enumerable.Contains);
+      return expression is MethodCallExpression { Method.Name: nameof(Enumerable.Contains) };
     }
     
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
@@ -57,6 +56,6 @@ namespace Assertive.Patterns
       return $"Expected {instance} to{(notContains ? " not " : " ")}contain {expectedValueString}.";
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns { get; } = [];
   }
 }

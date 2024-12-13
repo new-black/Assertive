@@ -48,6 +48,14 @@ namespace Assertive.Test
       B = 1
     }
 
+    [Fact(Skip = "This does not currently work.")]
+    public void Can_use_binary_AND_on_enums()
+    {
+      var a = MyEnum.A;
+      
+      ShouldEqual(() => (a & MyEnum.B) == MyEnum.B, "");
+    }
+
     private void ShouldEqual(Expression<Func<bool>> assertion, string toString)
     {
       var rewriter = new ExpressionRewriter();

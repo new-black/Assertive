@@ -11,11 +11,11 @@ namespace Assertive.Helpers
     }
 
     private static readonly ITestFramework[] _testFrameworks =
-    {
+    [
       new XUnitFramework(),
       new MSTestFramework(), 
-      new NUnitTestFramework(), 
-    };
+      new NUnitTestFramework()
+    ];
 
     private static ITestFramework? _activeTestFramework = null;
     private static bool _initialized = false;
@@ -41,9 +41,9 @@ namespace Assertive.Helpers
         _initialized = true;
       }
 
-      if (_activeTestFramework != null && _activeTestFramework.ExceptionType != null)
+      if (_activeTestFramework is { ExceptionType: not null })
       {
-        return (Exception)Activator.CreateInstance(_activeTestFramework.ExceptionType, message);
+        return (Exception)Activator.CreateInstance(_activeTestFramework.ExceptionType, message)!;
       }
 
       return new AssertiveException(message);

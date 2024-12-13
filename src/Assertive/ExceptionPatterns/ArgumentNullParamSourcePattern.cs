@@ -68,8 +68,7 @@ namespace Assertive.ExceptionPatterns
 
           return false;
         }
-        catch (TargetInvocationException ex) when (ex.InnerException is ArgumentNullException argumentNullException
-                                                   && argumentNullException.ParamName == "source")
+        catch (TargetInvocationException ex) when (ex.InnerException is ArgumentNullException { ParamName: "source" })
         {
           return true;
         }

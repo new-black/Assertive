@@ -14,10 +14,8 @@ namespace Assertive.Patterns
   {
     public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return failedAssertion.Expression is MethodCallExpression methodCallExpression
-             && methodCallExpression.Method.Name == nameof(Enumerable.SequenceEqual)
-             && methodCallExpression.Arguments.Count >= 2
-             && ExpressionHelper.GetInstanceOfMethodCall(methodCallExpression).Type.IsType<IEnumerable>()
+      return failedAssertion.Expression is MethodCallExpression { Method.Name: nameof(Enumerable.SequenceEqual), Arguments.Count: >= 2 } methodCallExpression 
+             && ExpressionHelper.GetInstanceOfMethodCall(methodCallExpression)?.Type.IsType<IEnumerable>() == true 
              && methodCallExpression.Arguments[1].Type.IsType<IEnumerable>();
     }
 
@@ -31,14 +29,15 @@ namespace Assertive.Patterns
       public bool HasValueSequence2;
     }
 
-    private object? GetDefaultComparer(Type enumerableType)
+    private object? GetDefaultComparer(Type? enumerableType)
     {
+      if (enumerableType == null) return null;
       var defaultComparerType = typeof(EqualityComparer<>).MakeGenericType(enumerableType);
 
       return defaultComparerType.GetProperty(nameof(EqualityComparer<int>.Default))?.GetValue(null);
     }
 
-    private Func<object?, object?, bool>? GetComparerFunc(MethodCallExpression methodCallExpression, Type enumerableType)
+    private Func<object?, object?, bool>? GetComparerFunc(MethodCallExpression methodCallExpression, Type? enumerableType)
     {
       Func<object?, object?, bool>? equals = null;
 
@@ -77,11 +76,11 @@ namespace Assertive.Patterns
 
           if (comparerInterface != null)
           {
-            var method = comparerInterface.GetMethod(nameof(IEqualityComparer<int>.Equals), new[] { enumerableType, enumerableType });
+            var method = comparerInterface.GetMethod(nameof(IEqualityComparer<int>.Equals), [enumerableType, enumerableType]);
 
             if (method != null)
             {
-              equals = (x, y) => (bool)method.Invoke(comparer, new[] { x, y });
+              equals = (x, y) => method.Invoke(comparer, [x, y]) is true;
             }
           }
         }
@@ -96,12 +95,12 @@ namespace Assertive.Patterns
       var collection1Expression = ExpressionHelper.GetInstanceOfMethodCall(methodCallExpression);
       var collection2Expression = methodCallExpression.Arguments[1];
 
-      var collection1 = ((IEnumerable)ExpressionHelper.EvaluateExpression(collection1Expression)!).Cast<object>();
+      var collection1 = collection1Expression != null ? ((IEnumerable)ExpressionHelper.EvaluateExpression(collection1Expression)!).Cast<object>() : [];
       var collection2 = ((IEnumerable)ExpressionHelper.EvaluateExpression(collection2Expression)!).Cast<object>();
       
       var differences = new List<Difference>();
 
-      var enumerableType = TypeHelper.GetTypeInsideEnumerable(collection1Expression.Type);
+      var enumerableType = collection1Expression != null ? TypeHelper.GetTypeInsideEnumerable(collection1Expression.Type) : null;
 
       if (enumerableType == null)
       {
@@ -191,6 +190,6 @@ Value of {collection1Expression}: {collection1}
 Value of {collection2Expression}: {collection2}";
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns { get; } = [];
   }
 }

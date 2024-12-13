@@ -38,7 +38,7 @@ namespace Assertive.ExceptionPatterns
         { 
           var filter = filtered && linqVisitor.Error == LinqElementCountErrorTypes.TooMany ? (LambdaExpression)linqVisitor.CauseOfLinqException.Arguments[1] : null;
 
-          var items = GetItems(filter, linqVisitor.CauseOfLinqException, instanceOfMethodCallExpression);
+          var items = instanceOfMethodCallExpression != null ? GetItems(filter, linqVisitor.CauseOfLinqException, instanceOfMethodCallExpression) : [];
 
           if (items != null)
           {
@@ -58,12 +58,12 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
     {
       var instance = ExpressionHelper.EvaluateExpression(instanceOfMethodCallExpression);
 
-      if (!(instance is IEnumerable enumerable))
+      if (instance is not IEnumerable enumerable)
       {
         return null;
       }
 
-      var items = new List<object>();
+      var items = new TruncatedList(enumerable is ICollection collection ? collection.Count : null);
 
       var filter = filterExpression?.Compile(true);
 
@@ -82,8 +82,7 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
 
         if (filter != null)
         {
-          var result = (bool)filter.DynamicInvoke(i);
-          if (result)
+          if (filter.DynamicInvoke(i) is true)
           {
             if (!AddItem())
             {
@@ -115,7 +114,7 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
 
     private static FormattableString GetReasonMessage(MethodCallExpression methodCallExpression,
       LinqElementCountErrorTypes? error,
-      int? actualCount, bool filtered, Expression instanceOfMethodCall)
+      int? actualCount, bool filtered, Expression? instanceOfMethodCall)
     {
       return error switch
       {
@@ -135,13 +134,13 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
 
     private class LinqElementCountVisitor : ExpressionVisitor
     {
-      private readonly HashSet<string> _methodNames = new HashSet<string>()
-      {
+      private readonly HashSet<string> _methodNames =
+      [
         nameof(Enumerable.Single),
         nameof(Enumerable.SingleOrDefault),
         nameof(Enumerable.First),
         nameof(Enumerable.FirstOrDefault)
-      };
+      ];
 
       protected override Expression VisitMethodCall(MethodCallExpression node)
       {
@@ -175,17 +174,15 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
       {
         var instanceExpression = ExpressionHelper.GetInstanceOfMethodCall(node);
 
-        var count = ExpressionHelper.GetCollectionItemCount(instanceExpression, node);
+        var count = instanceExpression != null ? ExpressionHelper.GetCollectionItemCount(instanceExpression, node) : 0;
 
-        if (count == 0 && (node.Method.Name == nameof(Enumerable.Single)
-                           || node.Method.Name == nameof(Enumerable.First)))
+        if (count == 0 && node.Method.Name is nameof(Enumerable.Single) or nameof(Enumerable.First))
         {
           CauseOfLinqException = node;
           ActualCount = count;
           Error = LinqElementCountErrorTypes.TooFew;
         }
-        else if (count > 1 && (node.Method.Name == nameof(Enumerable.Single)
-                               || node.Method.Name == nameof(Enumerable.SingleOrDefault)))
+        else if (count > 1 && node.Method.Name is nameof(Enumerable.Single) or nameof(Enumerable.SingleOrDefault))
         {
           CauseOfLinqException = node;
           ActualCount = count;

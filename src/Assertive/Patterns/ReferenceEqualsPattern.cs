@@ -9,9 +9,7 @@ namespace Assertive.Patterns
   {
     public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return failedAssertion.ExpressionWithoutNegation is MethodCallExpression methodCallExpression
-             && methodCallExpression.Method.Name == nameof(ReferenceEquals)
-             && methodCallExpression.Arguments.Count == 2;
+      return failedAssertion.ExpressionWithoutNegation is MethodCallExpression { Method.Name: nameof(ReferenceEquals), Arguments.Count: 2 };
     }
 
     public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
@@ -26,6 +24,6 @@ namespace Assertive.Patterns
       return result;
     }
 
-    public IFriendlyMessagePattern[] SubPatterns => Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns => [];
   }
 }

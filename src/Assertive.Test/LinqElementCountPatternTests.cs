@@ -45,7 +45,7 @@ Value of list.Single(l => l > 1): [ 2, 3 ]
     }
     
     [Fact]
-    public void Single_on_large_collection_is_caught()
+    public void Single_on_large_enumerable_is_caught()
     {
       var list = Enumerable.Range(0, 1000);
       
@@ -53,6 +53,18 @@ Value of list.Single(l => l > 1): [ 2, 3 ]
         @"InvalidOperationException caused by calling Single on list which contains more than one element. Actual element count: 1000.
 
 Value of list: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... ]
+");
+    }
+    
+    [Fact]
+    public void Single_on_large_list_is_caught()
+    {
+      var list = Enumerable.Range(0, 1000).ToList();
+      
+      ShouldFail(() => list.Single() == 10, 
+        @"InvalidOperationException caused by calling Single on list which contains more than one element. Actual element count: 1000.
+
+Value of list: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... (990 more items) ]
 ");
     }
     

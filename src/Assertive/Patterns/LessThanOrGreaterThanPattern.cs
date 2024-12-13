@@ -10,10 +10,7 @@ namespace Assertive.Patterns
   {
     public static bool IsNumericalComparison(Expression expression)
     {
-      return expression.NodeType == ExpressionType.GreaterThan
-             || expression.NodeType == ExpressionType.GreaterThanOrEqual
-             || expression.NodeType == ExpressionType.LessThan
-             || expression.NodeType == ExpressionType.LessThanOrEqual;
+      return expression.NodeType is ExpressionType.GreaterThan or ExpressionType.GreaterThanOrEqual or ExpressionType.LessThan or ExpressionType.LessThanOrEqual;
     }
     
     public bool IsMatch(FailedAssertion failedAssertion)
@@ -51,6 +48,6 @@ namespace Assertive.Patterns
       }
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns { get; } = [];
   }
 }

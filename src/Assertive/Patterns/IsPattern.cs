@@ -12,8 +12,7 @@ namespace Assertive.Patterns
   {
     public bool IsMatch(FailedAssertion failedAssertion)
     {
-      return failedAssertion.ExpressionWithoutNegation is TypeBinaryExpression t
-             && t.NodeType == ExpressionType.TypeIs
+      return failedAssertion.ExpressionWithoutNegation is TypeBinaryExpression { NodeType: ExpressionType.TypeIs } t 
              && t.TypeOperand != typeof(object);
     }
 
@@ -35,6 +34,6 @@ namespace Assertive.Patterns
         : (FormattableString)$"Expected {typeAssertion.Expression} to not be of type {expectedType}.";
     }
 
-    public IFriendlyMessagePattern[] SubPatterns => Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns => [];
   }
 }

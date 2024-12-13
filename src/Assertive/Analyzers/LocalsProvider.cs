@@ -28,7 +28,7 @@ namespace Assertive.Analyzers
 
         var localsToString = new List<string>();
 
-        foreach (var local in locals)
+        foreach (var local in locals.Values)
         {
           if (evaluatedExpressions.Contains(local.Expression))
           {

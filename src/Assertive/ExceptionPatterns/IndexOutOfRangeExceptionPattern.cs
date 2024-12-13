@@ -9,8 +9,7 @@ namespace Assertive.ExceptionPatterns
 {
   internal class IndexOutOfRangeExceptionPattern : IExceptionHandlerPattern
   {
-    public bool IsMatch(Exception exception) => exception is IndexOutOfRangeException
-                                                || exception is ArgumentOutOfRangeException;
+    public bool IsMatch(Exception exception) => exception is IndexOutOfRangeException or ArgumentOutOfRangeException;
 
     public HandledException? Handle(FailedAssertion assertion)
     {
@@ -26,7 +25,7 @@ namespace Assertive.ExceptionPatterns
       }
 
       Expression indexExpression;
-      Expression operand;
+      Expression? operand;
       int? actualLength;
       string lengthString;
 
@@ -40,13 +39,11 @@ namespace Assertive.ExceptionPatterns
         lengthString = "length";
       }
       else if (assertion.Exception is ArgumentOutOfRangeException &&
-               causeOfException is MethodCallExpression methodCallExpression &&
-               methodCallExpression.Method.Name == "get_Item"
-               && methodCallExpression.Arguments.Count == 1)
+               causeOfException is MethodCallExpression { Method.Name: "get_Item", Arguments.Count: 1 } methodCallExpression)
       {
         indexExpression = methodCallExpression.Arguments[0];
         operand = methodCallExpression.Object;
-        actualLength = ExpressionHelper.GetCollectionItemCount(operand);
+        actualLength = operand != null ? ExpressionHelper.GetCollectionItemCount(operand) : null;
         lengthString = "count";
       }
       else
@@ -110,8 +107,7 @@ namespace Assertive.ExceptionPatterns
 
           return false;
         }
-        catch (TargetInvocationException ex) when (ex.InnerException is IndexOutOfRangeException 
-                                                   || ex.InnerException is ArgumentOutOfRangeException)
+        catch (TargetInvocationException ex) when (ex.InnerException is IndexOutOfRangeException or ArgumentOutOfRangeException)
         {
           return true;
         }

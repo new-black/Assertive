@@ -16,9 +16,8 @@ namespace Assertive.Patterns
 
     private static bool IsHasValueAccess(Expression expression)
     {
-      return expression is MemberExpression memberExpression
-             && memberExpression.Member.Name == "HasValue"
-             && memberExpression.Expression.Type.IsNullableValueType();
+      return expression is MemberExpression { Member.Name: "HasValue" } memberExpression 
+             && memberExpression.Expression?.Type.IsNullableValueType() == true;
     }
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
@@ -28,12 +27,12 @@ namespace Assertive.Patterns
       if (assertion.IsNegated)
       {
         return
-          $"Expected {memberExpression.Expression} to not have a value but its value was {memberExpression.Expression.ToValue()}.";
+          $"Expected {memberExpression.Expression} to not have a value but its value was {memberExpression.Expression?.ToValue()}.";
       }
 
       return $"Expected {memberExpression.Expression} to have a value.";
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns { get; } = [];
   }
 }

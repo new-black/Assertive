@@ -10,11 +10,9 @@
     <PackageProjectUrl>https://github.com/new-black/Assertive</PackageProjectUrl>
     <RepositoryUrl>https://github.com/new-black/Assertive</RepositoryUrl>
     <Description>Better and more readable test assertions through the power of C# expressions.</Description>
-  </PropertyGroup>
-  <PropertyGroup>
-    <LangVersion>9</LangVersion>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>12</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <None Include="LICENSE.txt" Pack="true" PackagePath="LICENSE.txt" />

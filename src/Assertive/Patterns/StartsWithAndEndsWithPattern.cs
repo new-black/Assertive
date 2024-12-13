@@ -16,9 +16,7 @@ namespace Assertive.Patterns
 
     private static bool IsStartsOrEndsWithCall(Expression expression)
     {
-      return expression is MethodCallExpression methodCallExpression
-             && (methodCallExpression.Method.Name == nameof(string.StartsWith) || methodCallExpression.Method.Name == nameof(string.EndsWith))
-             && methodCallExpression.Arguments.Count >= 1
+      return expression is MethodCallExpression { Method.Name: nameof(string.StartsWith) or nameof(string.EndsWith), Arguments.Count: >= 1 } methodCallExpression 
              && methodCallExpression.Arguments[0].Type == typeof(string);
     }
 
@@ -39,14 +37,14 @@ namespace Assertive.Patterns
       {
         return $@"Expected {instance} to{(startsWith ? " " : " not ")}{method} {arg}.
 
-Value of {instance}: {instance.ToValue()}";  
+Value of {instance}: {instance?.ToValue()}";  
       }
       
       return $@"Expected {instance} to{(startsWith ? " " : " not ")}{method} {arg} (value: {arg.ToValue()}).
 
-Value of {instance}: {instance.ToValue()}";   
+Value of {instance}: {instance?.ToValue()}";   
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns { get; } = [];
   }
 }
