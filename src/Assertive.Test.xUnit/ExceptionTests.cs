@@ -1,3 +1,4 @@
+using Assertive.TestFrameworks;
 using Xunit.Sdk;
 
 namespace Assertive.Test.xUnit;
@@ -7,6 +8,7 @@ public class UnitTest1
   [Fact]
   public void Assert_that_throws_correct_exception_type()
   {
+    
     bool throws = false;
     
     try

@@ -17,33 +17,13 @@ namespace Assertive.Helpers
       new NUnitTestFramework()
     ];
 
-    private static ITestFramework? _activeTestFramework = null;
-    private static bool _initialized = false;
-
-    private static ITestFramework? GetActiveTestFramework()
-    {
-      foreach (var framework in _testFrameworks)
-      {
-        if (framework.ExceptionType != null)
-        {
-          return framework;
-        }
-      }
-
-      return null;
-    }
-
     internal static Exception GetException(string message)
     {
-      if (!_initialized)
-      {
-        _activeTestFramework = GetActiveTestFramework();
-        _initialized = true;
-      }
+      var activeTestFramework = ITestFramework.GetActiveTestFramework();
 
-      if (_activeTestFramework is { ExceptionType: not null })
+      if (activeTestFramework is { ExceptionType: not null })
       {
-        return (Exception)Activator.CreateInstance(_activeTestFramework.ExceptionType, message)!;
+        return (Exception)Activator.CreateInstance(activeTestFramework.ExceptionType, message)!;
       }
 
       return new AssertiveException(message);

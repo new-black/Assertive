@@ -6,7 +6,7 @@ namespace Assertive.Helpers
 {
   internal static class TestFrameworkHelper
   {
-    public static Type? TryGetExceptionType(string assemblyName, string typeName, string? assemblyPrefix = null)
+    public static Type? TryGetType(string assemblyName, string typeName, string? assemblyPrefix = null)
     {
       var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 

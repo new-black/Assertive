@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace Assertive
@@ -105,6 +106,11 @@ namespace Assertive
       {
         throw exception;
       }
+    }
+
+    public static void Check(object snapshot, [CallerArgumentExpression(nameof(snapshot))] string expression = "", [CallerFilePath] string sourceFile = "")
+    {
+      AssertImpl.Check(snapshot, expression, sourceFile);
     }
   }
 }

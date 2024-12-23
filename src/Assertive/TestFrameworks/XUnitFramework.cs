@@ -11,8 +11,13 @@ namespace Assertive.TestFrameworks
     {
       get
       {
-        return _exceptionType ??= TestFrameworkHelper.TryGetExceptionType("xunit.assert", "Xunit.Sdk.XunitException", "xunit");
+        return _exceptionType ??= TestFrameworkHelper.TryGetType("xunit.assert", "Xunit.Sdk.XunitException", "xunit");
       }
+    }
+
+    public CurrentTestInfo? GetCurrentTestInfo()
+    {
+      throw new NotImplementedException();
     }
   }
 }

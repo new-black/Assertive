@@ -1,4 +1,7 @@
 using System;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization.Metadata;
+using System.Threading.Tasks;
 
 namespace Assertive.Config
 {
@@ -24,6 +27,24 @@ namespace Assertive.Config
         _expressionQuotationPattern = value;
       }
     }
+
+    public class CheckSettingsContainer
+    {
+      public Func<JsonPropertyInfo, Exception, object> ExceptionRenderer { get; set; } = (info, exception) => "Exception: " + exception.Message;
+      public Func<JsonPropertyInfo, object, object?, object?>? ValueRenderer { get; set; }
+      public Func<JsonPropertyInfo, object, object?, bool>? ShouldIgnore { get; set; }
+      public Func<string, JsonNode?, ExtraneousPropertiesOptions>? ExtraneousPropertiesOption { get; set; }
+      public Action<string, string>? LaunchDiffTool { get; set; }
+    }
+
+    public enum ExtraneousPropertiesOptions
+    {
+      Disallow,
+      Ignore,
+      AutomaticUpdate
+    }
+    
+    public static CheckSettingsContainer CheckSettings { get; } = new ();
 
     private static string? _expressionQuotationPattern;
   }
