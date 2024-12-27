@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 
@@ -28,13 +32,46 @@ namespace Assertive.Config
       }
     }
 
-    public class CheckSettingsContainer
+    public class CompareSnapshotsConfiguration
     {
       public Func<JsonPropertyInfo, Exception, object> ExceptionRenderer { get; set; } = (info, exception) => "Exception: " + exception.Message;
-      public Func<JsonPropertyInfo, object, object?, object?>? ValueRenderer { get; set; }
+      public Func<JsonPropertyInfo, object?, object?>? ValueRenderer { get; set; } 
       public Func<JsonPropertyInfo, object, object?, bool>? ShouldIgnore { get; set; }
       public Func<string, JsonNode?, ExtraneousPropertiesOptions>? ExtraneousPropertiesOption { get; set; }
       public Action<string, string>? LaunchDiffTool { get; set; }
+      public bool ExcludeNullValues { get; set; } = false;
+      public string PlaceholderPrefix { get; set; } = "@@";
+
+      internal Dictionary<string, (Func<string?, bool>, string)> PlaceholderValidators { get; } = new();
+
+      public void RegisterPlaceholderValidator(string placeholder, Func<string?, bool> validator, string invalidValueMessage)
+      {
+        PlaceholderValidators[placeholder] = (validator, invalidValueMessage);
+      }
+
+      public NormalizationConfiguration Normalization { get; } = new ();
+
+      public class NormalizationConfiguration
+      {
+        public bool NormalizeDateTime { get; set; } = true;
+        public bool NormalizeGuid { get; set; } = true;
+      }
+
+      internal JsonSerializerOptions JsonSerializerOptions { get; }
+
+      public CompareSnapshotsConfiguration()
+      {
+        JsonSerializerOptions = new JsonSerializerOptions()
+        {
+          TypeInfoResolver = new TypeInfoResolver(this),
+          IncludeFields = true,
+          WriteIndented = true,
+          ReferenceHandler = ReferenceHandler.IgnoreCycles,
+          AllowTrailingCommas = true,
+          Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+          ReadCommentHandling = JsonCommentHandling.Skip
+        };
+      }
     }
 
     public enum ExtraneousPropertiesOptions
@@ -44,7 +81,7 @@ namespace Assertive.Config
       AutomaticUpdate
     }
     
-    public static CheckSettingsContainer CheckSettings { get; } = new ();
+    public static CompareSnapshotsConfiguration Snapshots { get; } = new ();
 
     private static string? _expressionQuotationPattern;
   }

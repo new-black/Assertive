@@ -2,14 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 using Assertive.Analyzers;
 using Assertive.Config;
@@ -134,7 +134,7 @@ namespace Assertive
     {
       var invalidChars = Path.GetInvalidFileNameChars();
 
-      var split = fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries);
+      var split = fileName.Replace("\"", "").Split(invalidChars, StringSplitOptions.RemoveEmptyEntries);
 
       return string.Join("_", split);
     }
@@ -147,15 +147,27 @@ namespace Assertive
 
     private class AssertionState
     {
-      public Dictionary<string, int> ExpressionCounter = new();
-      public int GetCounter(string expression) => ExpressionCounter.TryGetValue(expression, out var count) ? count : 0;
+      public readonly Dictionary<string, int> ExpressionCounter = new();
+      public int GetCounter(string expression) => ExpressionCounter.GetValueOrDefault(expression, 0);
     }
 
-    private static ConditionalWeakTable<object, AssertionState> _assertionStates = new();
+    private static readonly ConditionalWeakTable<object, AssertionState> _assertionStates = new();
 
-    private static string GetFileName(CurrentTestInfo currentTestInfo, string expression, AssertionState assertionState, SnapshotType type)
+    private static string GetFileName(CurrentTestInfo currentTestInfo, string expression, AssertionState assertionState,
+      AssertSnapshotOptions? options, SnapshotType type)
     {
-      return EscapeFileName($"{currentTestInfo.ClassName}_{currentTestInfo.Name}_{expression}_{assertionState.GetCounter(expression)}.{(type == SnapshotType.Actual ? "actual" : "expected")}.json");
+      string Identifier()
+      {
+        if (options?.SnapshotIdentifier != null)
+        {
+          return options.SnapshotIdentifier;
+        }
+
+        return $"{expression}_{assertionState.GetCounter(expression)}";
+      }
+
+      return EscapeFileName(
+        $"{currentTestInfo.ClassName}_{currentTestInfo.Name}_{Identifier()}.{(type == SnapshotType.Actual ? "actual" : "expected")}.json");
     }
 
     private static AssertionState UpdateState(CurrentTestInfo currentTestInfo, string expression)
@@ -167,18 +179,15 @@ namespace Assertive
           state = new AssertionState();
           _assertionStates.Add(currentTestInfo.State, state);
         }
-        
-        if (!state.ExpressionCounter.TryGetValue(expression, out var count))
-        {
-          count = 0;
-        }
-        
+
+        var count = state.ExpressionCounter.GetValueOrDefault(expression, 0);
+
         state.ExpressionCounter[expression] = count + 1;
         return state;
       }
     }
 
-    public static Exception? Check(object actualObject, string expression, string sourceFile)
+    public static Exception? Check(object actualObject, AssertSnapshotOptions options, string expression, string sourceFile)
     {
       var testFramework = ITestFramework.GetActiveTestFramework();
 
@@ -187,7 +196,7 @@ namespace Assertive
       var currentTestInfo = testFramework.GetCurrentTestInfo();
 
       if (currentTestInfo == null) return ExceptionHelper.GetException("Could not detect the currently running test.");
-      
+
       var assertionState = UpdateState(currentTestInfo, expression);
 
       var sourceFileInfo = new FileInfo(sourceFile);
@@ -195,7 +204,8 @@ namespace Assertive
       var sourceFileDirectory = sourceFileInfo.Directory;
 
       var expectedFileInfo =
-        new FileInfo(Path.Combine(sourceFileDirectory!.FullName, GetFileName(currentTestInfo, expression, assertionState, SnapshotType.Expected)));
+        new FileInfo(Path.Combine(sourceFileDirectory!.FullName,
+          GetFileName(currentTestInfo, expression, assertionState, options, SnapshotType.Expected)));
 
       JsonNode expectedNode = new JsonObject();
       bool expectedExists = false;
@@ -205,7 +215,7 @@ namespace Assertive
         try
         {
           using var fileStream = expectedFileInfo.OpenRead();
-          expectedNode = JsonSerializer.Deserialize<JsonNode>(fileStream, _options) ?? new JsonObject();
+          expectedNode = JsonSerializer.Deserialize<JsonNode>(fileStream, options.Configuration.JsonSerializerOptions) ?? new JsonObject();
           expectedExists = true;
         }
         catch (JsonException) { }
@@ -216,9 +226,9 @@ namespace Assertive
         expectedNode = new JsonObject();
       }
 
-      var actualNode = JsonSerializer.SerializeToNode(actualObject, _options);
+      var actualNode = JsonSerializer.SerializeToNode(actualObject, options.Configuration.JsonSerializerOptions);
 
-      var context = new CheckSnapshotContext { HasExistingExpected = expectedExists, UpdatedExpected = false };
+      var context = new CheckSnapshotContext { HasExistingExpected = expectedExists, UpdatedExpected = false, Configuration = options.Configuration };
 
       Recurse(context, expectedNode, actualNode, null);
 
@@ -228,10 +238,10 @@ namespace Assertive
         sb.AppendLine("Check failed:");
         sb.AppendLine();
         sb.AppendLine("Expected:");
-        sb.AppendLine(expectedExists ? expectedNode.ToJsonString(_options) : "No expected value found");
+        sb.AppendLine(expectedExists ? expectedNode.ToJsonString(options.Configuration.JsonSerializerOptions) : "No expected value found");
         sb.AppendLine();
         sb.AppendLine("Actual:");
-        sb.AppendLine(actualNode?.ToJsonString(_options));
+        sb.AppendLine(actualNode?.ToJsonString(options.Configuration.JsonSerializerOptions));
         sb.AppendLine();
         sb.AppendLine("Errors:");
         foreach (var error in context.Errors)
@@ -239,26 +249,26 @@ namespace Assertive
           sb.AppendLine($"- {error.Error}");
         }
 
-        if (Configuration.CheckSettings.LaunchDiffTool != null)
+        if (Configuration.Snapshots.LaunchDiffTool != null)
         {
           var tempDirectory = Path.GetTempPath();
-          var actualTempFile = Path.Combine(tempDirectory, GetFileName(currentTestInfo, expression, assertionState, SnapshotType.Actual));
+          var actualTempFile = Path.Combine(tempDirectory, GetFileName(currentTestInfo, expression, assertionState, options, SnapshotType.Actual));
 
-          File.WriteAllText(actualTempFile, actualNode?.ToJsonString(_options) ?? string.Empty);
+          File.WriteAllText(actualTempFile, actualNode?.ToJsonString(options.Configuration.JsonSerializerOptions) ?? string.Empty);
 
           if (!expectedFileInfo.Exists)
           {
             File.WriteAllText(expectedFileInfo.FullName, "");
           }
 
-          Configuration.CheckSettings.LaunchDiffTool(actualTempFile, expectedFileInfo.FullName);
+          Configuration.Snapshots.LaunchDiffTool(actualTempFile, expectedFileInfo.FullName);
         }
 
         return ExceptionHelper.GetException(sb.ToString());
       }
       else if (context.UpdatedExpected)
       {
-        File.WriteAllText(expectedFileInfo.FullName, expectedNode.ToJsonString(_options));
+        File.WriteAllText(expectedFileInfo.FullName, expectedNode.ToJsonString(options.Configuration.JsonSerializerOptions));
       }
 
       return null;
@@ -268,7 +278,9 @@ namespace Assertive
     {
       public List<CheckError> Errors { get; } = [];
       public required bool UpdatedExpected { get; set; }
-      public required bool HasExistingExpected { get; set; }
+      public required bool HasExistingExpected { get; init; }
+      public required Configuration.CompareSnapshotsConfiguration Configuration { get; init; }
+      public Dictionary<(string, int), string> CountedPlaceholderValues { get; } = new();
     }
 
     private static void Recurse(CheckSnapshotContext context, JsonNode? expected, JsonNode? actual, string? propertyName)
@@ -286,10 +298,15 @@ namespace Assertive
 
       if (expected.GetValueKind() != actual.GetValueKind())
       {
-        context.Errors.Add(new(propertyName != null
-          ? $"{propertyName} is {actual.GetValueKind()}, expected {expected.GetValueKind()}"
-          : $"Expected {expected.GetValueKind()}, got {actual.GetValueKind()}"));
-        return;
+        if (!(expected.GetValueKind() == JsonValueKind.String &&
+              actual.GetValueKind() is JsonValueKind.Number or JsonValueKind.False or JsonValueKind.True))
+        {
+          context.Errors.Add(new(propertyName != null
+            ? $"{propertyName} is {actual.GetValueKind()}, expected {expected.GetValueKind()}"
+            : $"Expected {expected.GetValueKind()}, got {actual.GetValueKind()}"));
+
+          return;
+        }
       }
 
       if (expected is JsonObject jsonObject)
@@ -306,24 +323,71 @@ namespace Assertive
       }
     }
 
-    private static void CheckValue(CheckSnapshotContext context, JsonValue jsonValue, JsonValue actual)
+    private static void CheckValue(CheckSnapshotContext context, JsonValue expected, JsonValue actual)
     {
-      if (!JsonNode.DeepEquals(jsonValue, actual))
+      if (!JsonNode.DeepEquals(expected, actual))
       {
-        context.Errors.Add(new($"Expected: {jsonValue}, got: {actual}"));
+        var emitComparisonError = true;
+
+        if (expected.GetValueKind() == JsonValueKind.String && expected.GetValue<string>() is { } value)
+        {
+          if (value.StartsWith(context.Configuration.PlaceholderPrefix))
+          {
+            var counted = value.IndexOf('#', startIndex: context.Configuration.PlaceholderPrefix.Length);
+            int? count = null;
+            if (counted > 0 && int.TryParse(value[(counted + 1)..], out var c))
+            {
+              count = c;
+              value = value[..counted];
+            }
+
+            var withoutPrefix = value[context.Configuration.PlaceholderPrefix.Length..];
+            var validator = context.Configuration.PlaceholderValidators.GetValueOrDefault(withoutPrefix);
+            var actualValue = actual.GetValueKind() == JsonValueKind.String ? actual.GetValue<string>() : actual.ToJsonString();
+
+            if (count.HasValue)
+            {
+              if (!context.CountedPlaceholderValues.TryGetValue((value, count.Value), out var previouslyEncounteredActualValue))
+              {
+                previouslyEncounteredActualValue = actualValue;
+                context.CountedPlaceholderValues[(value, count.Value)] = actualValue;
+              }
+
+              if (actualValue != previouslyEncounteredActualValue)
+              {
+                context.Errors.Add(new($"Expected '{expected.GetValue<string>()}' to be {previouslyEncounteredActualValue} but it was {actualValue}"));
+              }
+            }
+
+            if (validator != default && !validator.Item1(actualValue))
+            {
+              context.Errors.Add(new($"Value '{actualValue}' is invalid: {validator.Item2}"));
+              emitComparisonError = false;
+            }
+            else
+            {
+              emitComparisonError = false;
+            }
+          }
+        }
+
+        if (emitComparisonError)
+        {
+          context.Errors.Add(new($"Expected: {expected}, got: {actual}"));
+        }
       }
     }
 
-    private static void CheckArray(CheckSnapshotContext context, JsonArray jsonArray, JsonArray actual)
+    private static void CheckArray(CheckSnapshotContext context, JsonArray expected, JsonArray actual)
     {
-      if (jsonArray.Count != actual.Count)
+      if (expected.Count != actual.Count)
       {
-        context.Errors.Add(new($"Expected array length: {jsonArray.Count}, got: {actual.Count}"));
+        context.Errors.Add(new($"Expected array length: {expected.Count}, got: {actual.Count}"));
       }
 
-      for (var i = 0; i < jsonArray.Count; i++)
+      for (var i = 0; i < expected.Count; i++)
       {
-        Recurse(context, jsonArray[i], actual[i], null);
+        Recurse(context, expected[i], actual[i], null);
       }
     }
 
@@ -339,19 +403,18 @@ namespace Assertive
         Recurse(context, property.Value, actualValue, property.Key);
       }
 
-      if (Configuration.CheckSettings.ExtraneousPropertiesOption != null)
+      foreach (var property in actual)
       {
-        foreach (var property in actual)
+        if (!expected.TryGetPropertyValue(property.Key, out _))
         {
-          if (!expected.TryGetPropertyValue(property.Key, out _))
-          {
-            var handleExtraneousProperties = Configuration.CheckSettings.ExtraneousPropertiesOption(property.Key, property.Value);
+          var handleExtraneousProperties = Configuration.Snapshots.ExtraneousPropertiesOption?.Invoke(property.Key, property.Value) ?? Configuration.ExtraneousPropertiesOptions.Disallow;
 
-            if (handleExtraneousProperties == Configuration.ExtraneousPropertiesOptions.Disallow || !context.HasExistingExpected)
-            {
-              context.Errors.Add(new($"Unexpected property: {property.Key}"));
-            }
-            else switch (handleExtraneousProperties)
+          if (handleExtraneousProperties == Configuration.ExtraneousPropertiesOptions.Disallow || !context.HasExistingExpected)
+          {
+            context.Errors.Add(new($"Unexpected property: {property.Key}"));
+          }
+          else
+            switch (handleExtraneousProperties)
             {
               case Configuration.ExtraneousPropertiesOptions.Ignore:
                 break;
@@ -362,60 +425,7 @@ namespace Assertive
               default:
                 throw new ArgumentOutOfRangeException();
             }
-          }
         }
-      }
-    }
-
-    private static readonly JsonSerializerOptions _options = new()
-    {
-      TypeInfoResolver = new TypeInfoResolver(),
-      IncludeFields = true,
-      WriteIndented = true,
-      ReferenceHandler = ReferenceHandler.IgnoreCycles,
-      AllowTrailingCommas = true,
-      //ReadCommentHandling = JsonCommentHandling.Allow
-    };
-
-    private class TypeInfoResolver : IJsonTypeInfoResolver
-    {
-      private readonly IJsonTypeInfoResolver _defaultResolver;
-
-      public TypeInfoResolver()
-      {
-        _defaultResolver = new DefaultJsonTypeInfoResolver();
-      }
-
-      public JsonTypeInfo? GetTypeInfo(Type type, JsonSerializerOptions options)
-      {
-        var typeInfo = _defaultResolver.GetTypeInfo(type, options);
-        if (typeInfo != null)
-        {
-          foreach (var property in typeInfo.Properties)
-          {
-            var originalGetter = property.Get;
-
-            property.Get = (obj) =>
-            {
-              try
-              {
-                var value = originalGetter!(obj);
-                return Configuration.CheckSettings.ValueRenderer?.Invoke(property, obj, value) ?? value;
-              }
-              catch (Exception ex)
-              {
-                return Configuration.CheckSettings.ExceptionRenderer(property, ex);
-              }
-            };
-
-            if (Configuration.CheckSettings.ShouldIgnore != null)
-            {
-              property.ShouldSerialize = (obj, value) => !Configuration.CheckSettings.ShouldIgnore(property, obj, value);
-            }
-          }
-        }
-
-        return typeInfo;
       }
     }
   }

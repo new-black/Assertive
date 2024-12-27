@@ -108,9 +108,9 @@ namespace Assertive
       }
     }
 
-    public static void Check(object snapshot, [CallerArgumentExpression(nameof(snapshot))] string expression = "", [CallerFilePath] string sourceFile = "")
+    public static void Check(object snapshot, AssertSnapshotOptions? options = null, [CallerArgumentExpression(nameof(snapshot))] string expression = "", [CallerFilePath] string sourceFile = "")
     {
-      AssertImpl.Check(snapshot, expression, sourceFile);
+      AssertImpl.Check(snapshot, options ?? AssertSnapshotOptions.Default, expression, sourceFile);
     }
   }
 }

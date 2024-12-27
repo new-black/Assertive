@@ -47,9 +47,9 @@ namespace Assertive
       }
     }
     
-    public static void Assert(object snapshot,  [CallerArgumentExpression(nameof(snapshot))] string expression = "", [CallerFilePath] string sourceFile = "")
+    public static void Assert(object snapshot, AssertSnapshotOptions? options = null, [CallerArgumentExpression(nameof(snapshot))] string expression = "", [CallerFilePath] string sourceFile = "")
     {
-      var exception = AssertImpl.Check(snapshot, expression, sourceFile);
+      var exception = AssertImpl.Check(snapshot, options ?? AssertSnapshotOptions.Default, expression, sourceFile);
 
       if (exception != null)
       {
