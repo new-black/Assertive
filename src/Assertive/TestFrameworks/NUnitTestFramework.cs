@@ -1,4 +1,5 @@
 using System;
+using System.Reflection.Emit;
 using Assertive.Helpers;
 
 namespace Assertive.TestFrameworks
@@ -31,7 +32,8 @@ namespace Assertive.TestFrameworks
 
       return new CurrentTestInfo()
       {
-        Name = test.Name,
+        Method = test.Method.MethodInfo,
+        Name = test.MethodName,
         ClassName = test.ClassName,
         Arguments = test.Arguments,
         State = test

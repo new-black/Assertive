@@ -166,8 +166,20 @@ namespace Assertive
         return $"{expression}_{assertionState.GetCounter(expression)}";
       }
 
+      string TestName()
+      {
+        if(currentTestInfo.Arguments == null || currentTestInfo.Arguments.Length == 0)
+        {
+          return currentTestInfo.Name;
+        }
+        
+        var arguments = currentTestInfo.Arguments.Select(a => a?.ToString() ?? "null").ToArray();
+        
+        return $"{currentTestInfo.Name}({string.Join(", ", arguments)})";
+      }
+
       return EscapeFileName(
-        $"{currentTestInfo.ClassName}_{currentTestInfo.Name}_{Identifier()}.{(type == SnapshotType.Actual ? "actual" : "expected")}.json");
+        $"{currentTestInfo.ClassName}.{TestName()}#{Identifier()}.{(type == SnapshotType.Actual ? "actual" : "expected")}.json");
     }
 
     private static AssertionState UpdateState(CurrentTestInfo currentTestInfo, string expression)
@@ -203,8 +215,18 @@ namespace Assertive
 
       var sourceFileDirectory = sourceFileInfo.Directory;
 
+      string GetExpectedFileDirectory()
+      {
+        if (options.Configuration.ExpectedFileDirectoryResolver == null)
+        {
+          return sourceFileDirectory!.FullName;
+        }
+
+        return options.Configuration.ExpectedFileDirectoryResolver(currentTestInfo.Method, sourceFileInfo);
+      }
+
       var expectedFileInfo =
-        new FileInfo(Path.Combine(sourceFileDirectory!.FullName,
+        new FileInfo(Path.Combine(GetExpectedFileDirectory(),
           GetFileName(currentTestInfo, expression, assertionState, options, SnapshotType.Expected)));
 
       JsonNode expectedNode = new JsonObject();
@@ -225,7 +247,7 @@ namespace Assertive
         expectedExists = false;
         expectedNode = new JsonObject();
       }
-
+      
       var actualNode = JsonSerializer.SerializeToNode(actualObject, options.Configuration.JsonSerializerOptions);
 
       var context = new CheckSnapshotContext { HasExistingExpected = expectedExists, UpdatedExpected = false, Configuration = options.Configuration };
@@ -258,6 +280,11 @@ namespace Assertive
 
           if (!expectedFileInfo.Exists)
           {
+            if (expectedFileInfo.DirectoryName != null && !Directory.Exists(expectedFileInfo.DirectoryName))
+            {
+              Directory.CreateDirectory(expectedFileInfo.DirectoryName);
+            }
+            
             File.WriteAllText(expectedFileInfo.FullName, "");
           }
 
@@ -407,7 +434,7 @@ namespace Assertive
       {
         if (!expected.TryGetPropertyValue(property.Key, out _))
         {
-          var handleExtraneousProperties = Configuration.Snapshots.ExtraneousPropertiesOption?.Invoke(property.Key, property.Value) ?? Configuration.ExtraneousPropertiesOptions.Disallow;
+          var handleExtraneousProperties = Configuration.Snapshots.ExtraneousProperties?.Invoke(property.Key, property.Value) ?? Configuration.ExtraneousPropertiesOptions.Disallow;
 
           if (handleExtraneousProperties == Configuration.ExtraneousPropertiesOptions.Disallow || !context.HasExistingExpected)
           {

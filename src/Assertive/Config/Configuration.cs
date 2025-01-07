@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
+using Assertive.TestFrameworks;
 
 namespace Assertive.Config
 {
@@ -32,15 +35,17 @@ namespace Assertive.Config
       }
     }
 
-    public class CompareSnapshotsConfiguration
+    public record CompareSnapshotsConfiguration
     {
-      public Func<JsonPropertyInfo, Exception, object> ExceptionRenderer { get; set; } = (info, exception) => "Exception: " + exception.Message;
+      public Func<JsonPropertyInfo, Exception, object> ExceptionRenderer { get; set; } = (info, exception) => exception.Message;
       public Func<JsonPropertyInfo, object?, object?>? ValueRenderer { get; set; } 
       public Func<JsonPropertyInfo, object, object?, bool>? ShouldIgnore { get; set; }
-      public Func<string, JsonNode?, ExtraneousPropertiesOptions>? ExtraneousPropertiesOption { get; set; }
+      public Func<string, JsonNode?, ExtraneousPropertiesOptions>? ExtraneousProperties { get; set; }
       public Action<string, string>? LaunchDiffTool { get; set; }
       public bool ExcludeNullValues { get; set; } = false;
       public string PlaceholderPrefix { get; set; } = "@@";
+      
+      public Func<MethodInfo, FileInfo, string>? ExpectedFileDirectoryResolver { get; set; }
 
       internal Dictionary<string, (Func<string?, bool>, string)> PlaceholderValidators { get; } = new();
 

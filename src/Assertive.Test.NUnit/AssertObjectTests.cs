@@ -29,7 +29,7 @@ public class AssertObjectTests
       DiffRunner.Launch(temp, target);
     };
 
-    Configuration.Snapshots.ExtraneousPropertiesOption = (_, _) => Configuration.ExtraneousPropertiesOptions.AutomaticUpdate;
+    Configuration.Snapshots.ExtraneousProperties = (_, _) => Configuration.ExtraneousPropertiesOptions.AutomaticUpdate;
     Configuration.Snapshots.ExcludeNullValues = true;
 
     Configuration.Snapshots.ValueRenderer = (prop, _) =>
@@ -58,7 +58,7 @@ public class AssertObjectTests
       DiffRunner.Launch(temp, target);
     };
 
-    Configuration.Snapshots.ExtraneousPropertiesOption = (_, _) => Configuration.ExtraneousPropertiesOptions.AutomaticUpdate;
+    Configuration.Snapshots.ExtraneousProperties = (_, _) => Configuration.ExtraneousPropertiesOptions.AutomaticUpdate;
     var val1 = Random.Shared.NextInt64();
     var val2 = Random.Shared.NextInt64();
     var obj = new
@@ -68,7 +68,7 @@ public class AssertObjectTests
       ProductID3 = val1,
     };
     
-    Assert(obj);
+    Assert(obj, Configuration.Snapshots with { ExcludeNullValues = true });
   }
   
   //

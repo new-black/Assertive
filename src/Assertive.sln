@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assertive.Test.NUnit", "Ass
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assertive.Test.MSTest", "Assertive.Test.MSTest\Assertive.Test.MSTest.csproj", "{0CB63BA5-8BDF-483B-9F62-D2CE8EC04F99}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assertive.xUnit", "Assertive.xUnit\Assertive.xUnit.csproj", "{5E708F9A-0531-457E-8D2B-A83A95594629}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{0CB63BA5-8BDF-483B-9F62-D2CE8EC04F99}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0CB63BA5-8BDF-483B-9F62-D2CE8EC04F99}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0CB63BA5-8BDF-483B-9F62-D2CE8EC04F99}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5E708F9A-0531-457E-8D2B-A83A95594629}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5E708F9A-0531-457E-8D2B-A83A95594629}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5E708F9A-0531-457E-8D2B-A83A95594629}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5E708F9A-0531-457E-8D2B-A83A95594629}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

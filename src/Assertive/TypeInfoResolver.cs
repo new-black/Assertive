@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using System.Threading;
 using Assertive.Config;
 using Assertive.Helpers;
 
@@ -18,12 +22,44 @@ internal class TypeInfoResolver : IJsonTypeInfoResolver
     _defaultResolver = new DefaultJsonTypeInfoResolver();
   }
 
+  public class Errors
+  {
+    public Stack<Dictionary<string, object>> Exceptions { get; } = new();
+    public Dictionary<string, object> Current => Exceptions.Peek();
+  }
+
+  private class DefaultValueProvider<T>
+  {
+    public static T? Value => default;
+  }
+
+  private static readonly AsyncLocal<Errors?> _error = new(); 
+  
   public JsonTypeInfo? GetTypeInfo(Type type, JsonSerializerOptions options)
   {
     var typeInfo = _defaultResolver.GetTypeInfo(type, options);
     if (typeInfo != null)
     {
-      foreach (var property in typeInfo.Properties)
+      if (typeInfo.Kind == JsonTypeInfoKind.Object)
+      {
+        var errors = typeInfo.CreateJsonPropertyInfo(typeof(Dictionary<string, object>), "$Exceptions");
+        errors.IsExtensionData = true;
+        errors.ShouldSerialize = (_, value) => _error.Value?.Current?.Count > 0;
+        errors.Get = (_) => _error.Value?.Current;
+        typeInfo.Properties.Add(errors);
+        typeInfo.OnSerializing = (obj) =>
+        {
+          _error.Value ??= new Errors();
+          _error.Value.Exceptions.Push(new Dictionary<string, object>());
+        };
+        typeInfo.OnSerialized = (obj) => _error.Value?.Exceptions.Pop();
+      }
+
+      var properties = typeInfo.Properties.ToList();
+      
+      typeInfo.Properties.Clear();
+      
+      foreach (var property in properties)
       {
         var originalGetter = property.Get;
         var propertyTypeInfo = _defaultResolver.GetTypeInfo(property.PropertyType, options);
@@ -53,7 +89,13 @@ internal class TypeInfoResolver : IJsonTypeInfoResolver
             }
             catch (Exception ex)
             {
-              return _configuration.ExceptionRenderer(property, ex);
+              _error.Value!.Current[property.Name + "#Exception"] = _configuration.ExceptionRenderer(property, ex);
+              if (property.PropertyType.IsValueType)
+              {
+                return typeof(DefaultValueProvider<>).MakeGenericType(property.PropertyType).InvokeMember("Value", BindingFlags.Public | BindingFlags.Static | BindingFlags.GetProperty, null, null, null);
+              }
+
+              return null;
             }
           };
         }
