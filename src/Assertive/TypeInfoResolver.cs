@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
@@ -22,19 +23,6 @@ internal class TypeInfoResolver : IJsonTypeInfoResolver
     _defaultResolver = new DefaultJsonTypeInfoResolver();
   }
 
-  public class Errors
-  {
-    public Stack<Dictionary<string, object>> Exceptions { get; } = new();
-    public Dictionary<string, object> Current => Exceptions.Peek();
-  }
-
-  private class DefaultValueProvider<T>
-  {
-    public static T? Value => default;
-  }
-
-  private static readonly AsyncLocal<Errors?> _error = new(); 
-  
   public JsonTypeInfo? GetTypeInfo(Type type, JsonSerializerOptions options)
   {
     var typeInfo = _defaultResolver.GetTypeInfo(type, options);
@@ -42,82 +30,69 @@ internal class TypeInfoResolver : IJsonTypeInfoResolver
     {
       if (typeInfo.Kind == JsonTypeInfoKind.Object)
       {
-        var errors = typeInfo.CreateJsonPropertyInfo(typeof(Dictionary<string, object>), "$Exceptions");
-        errors.IsExtensionData = true;
-        errors.ShouldSerialize = (_, value) => _error.Value?.Current?.Count > 0;
-        errors.Get = (_) => _error.Value?.Current;
-        typeInfo.Properties.Add(errors);
-        typeInfo.OnSerializing = (obj) =>
-        {
-          _error.Value ??= new Errors();
-          _error.Value.Exceptions.Push(new Dictionary<string, object>());
-        };
-        typeInfo.OnSerialized = (obj) => _error.Value?.Exceptions.Pop();
-      }
+        var properties = typeInfo.Properties.ToList();
 
-      var properties = typeInfo.Properties.ToList();
-      
-      typeInfo.Properties.Clear();
-      
-      foreach (var property in properties)
-      {
-        var originalGetter = property.Get;
-        var propertyTypeInfo = _defaultResolver.GetTypeInfo(property.PropertyType, options);
+        typeInfo.Properties.Clear();
 
-        if (_configuration.Normalization.NormalizeGuid && property.PropertyType.GetUnderlyingType().IsType<Guid>())
+        foreach (var existingProperty in properties)
         {
-          //property.Get => (obj) =>
-        }
-        else if (_configuration.Normalization.NormalizeDateTime && (property.PropertyType.GetUnderlyingType().IsType<DateTime>() ||
-                                                                    property.PropertyType.GetUnderlyingType()
-                                                                      .IsType<DateTimeOffset>())) { }
-        else
-        {
-          if (propertyTypeInfo is { Kind: JsonTypeInfoKind.None })
+          var newProperty = typeInfo.CreateJsonPropertyInfo(typeof(object), existingProperty.Name);
+          typeInfo.Properties.Add(newProperty);
+          
+          if (_configuration.Normalization.NormalizeGuid && existingProperty.PropertyType.GetUnderlyingType().IsType<Guid>())
           {
-            var converter = (JsonConverter)Activator.CreateInstance(typeof(PrimitiveAsStringConverter<>).MakeGenericType(property.PropertyType),
-              _configuration.ValueRenderer, property,
-              propertyTypeInfo.Converter)!;
-            property.CustomConverter = converter;
+            newProperty.Get = CreateGetter(existingProperty, (_, _, _) => "{Guid}");
           }
-
-          property.Get = (obj) =>
+          else if (_configuration.Normalization.NormalizeDateTime && (existingProperty.PropertyType.GetUnderlyingType().IsType<DateTime>() ||
+                                                                      existingProperty.PropertyType.GetUnderlyingType()
+                                                                        .IsType<DateTimeOffset>()))
           {
-            try
-            {
-              return originalGetter!(obj);
-            }
-            catch (Exception ex)
-            {
-              _error.Value!.Current[property.Name + "#Exception"] = _configuration.ExceptionRenderer(property, ex);
-              if (property.PropertyType.IsValueType)
-              {
-                return typeof(DefaultValueProvider<>).MakeGenericType(property.PropertyType).InvokeMember("Value", BindingFlags.Public | BindingFlags.Static | BindingFlags.GetProperty, null, null, null);
-              }
-
-              return null;
-            }
-          };
-        }
-
-        if (_configuration.ShouldIgnore != null)
-        {
-          if (_configuration.ExcludeNullValues)
-          {
-            property.ShouldSerialize = (obj, value) => value != null && !_configuration.ShouldIgnore(property, obj, value);
+            var typeName = existingProperty.PropertyType.GetUnderlyingType().Name;
+            newProperty.Get = CreateGetter(existingProperty, (_, _, _) => $"{{{typeName}}}");
           }
           else
           {
-            property.ShouldSerialize = (obj, value) => !_configuration.ShouldIgnore(property, obj, value);
+            newProperty.Get = CreateGetter(existingProperty, _configuration.ValueRenderer);
           }
-        }
-        else if(_configuration.ExcludeNullValues)
-        {
-          property.ShouldSerialize = (_, value) => value != null;
+
+          if (_configuration.ShouldIgnore != null)
+          {
+            if (_configuration.ExcludeNullValues)
+            {
+              newProperty.ShouldSerialize = (obj, value) => value != null && !_configuration.ShouldIgnore(existingProperty, obj, value);
+            }
+            else
+            {
+              newProperty.ShouldSerialize = (obj, value) => !_configuration.ShouldIgnore(existingProperty, obj, value);
+            }
+          }
+          else if (_configuration.ExcludeNullValues)
+          {
+            newProperty.ShouldSerialize = (_, value) => value != null;
+          }
         }
       }
     }
 
     return typeInfo;
+  }
+
+  private Func<object, object?>? CreateGetter(JsonPropertyInfo existingProperty, Func<JsonPropertyInfo, object?, object?, object?>? valueRenderer)
+  {
+    var originalGetter = existingProperty.Get;
+    
+    return (obj) =>
+    {
+      try
+      {
+        var value = originalGetter!(obj);
+
+        return valueRenderer != null ? valueRenderer(existingProperty, obj, value) : value;
+      }
+      catch (Exception ex)
+      {
+        return _configuration.ExceptionRenderer(existingProperty, obj, ex);
+      }
+    };
   }
 }

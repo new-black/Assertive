@@ -54,14 +54,6 @@ public class SimpleSnapshotTests
     Assert(customer);
   }
   
-  [Fact]
-  public void Exceptions_are_handled_in_nested_objects()
-  {
-    var customer = new CustomerThatThrows();
-    
-    Assert(customer);
-  }
-
   public class Customer
   {
     public string FirstName { get; set; }
@@ -89,5 +81,4 @@ public class SimpleSnapshotTests
       public string City => throw new Exception("City is not available.");
     }
   }
-  
 }

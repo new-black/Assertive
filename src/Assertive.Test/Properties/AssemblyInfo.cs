@@ -26,6 +26,8 @@ public static class GlobalSetup
 
     DirectoryInfo? baseDir = null;
 
+    //Configuration.Snapshots.AssumeCorrectness = true;
+
     Configuration.Snapshots.ExpectedFileDirectoryResolver = (method, file) =>
     {
       if (baseDir == null)

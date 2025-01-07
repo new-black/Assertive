@@ -32,7 +32,7 @@ public class AssertObjectTests
     Configuration.Snapshots.ExtraneousProperties = (_, _) => Configuration.ExtraneousPropertiesOptions.AutomaticUpdate;
     Configuration.Snapshots.ExcludeNullValues = true;
 
-    Configuration.Snapshots.ValueRenderer = (prop, _) =>
+    Configuration.Snapshots.ValueRenderer = (prop, _, _) =>
     {
       return null;
     };

@@ -254,6 +254,14 @@ namespace Assertive
 
       Recurse(context, expectedNode, actualNode, null);
 
+      if (options.Configuration.AssumeCorrectness && !expectedFileInfo.Exists)
+      {
+        EnsureExpectedDirectory(expectedFileInfo);
+
+        File.WriteAllText(expectedFileInfo.FullName, SerializeActual(options, actualNode));
+        return null;
+      }
+
       if (context.Errors.Count > 0)
       {
         var sb = new StringBuilder();
@@ -266,6 +274,7 @@ namespace Assertive
         sb.AppendLine(actualNode?.ToJsonString(options.Configuration.JsonSerializerOptions));
         sb.AppendLine();
         sb.AppendLine("Errors:");
+        
         foreach (var error in context.Errors)
         {
           sb.AppendLine($"- {error.Error}");
@@ -276,15 +285,12 @@ namespace Assertive
           var tempDirectory = Path.GetTempPath();
           var actualTempFile = Path.Combine(tempDirectory, GetFileName(currentTestInfo, expression, assertionState, options, SnapshotType.Actual));
 
-          File.WriteAllText(actualTempFile, actualNode?.ToJsonString(options.Configuration.JsonSerializerOptions) ?? string.Empty);
+          File.WriteAllText(actualTempFile, SerializeActual(options, actualNode));
 
           if (!expectedFileInfo.Exists)
           {
-            if (expectedFileInfo.DirectoryName != null && !Directory.Exists(expectedFileInfo.DirectoryName))
-            {
-              Directory.CreateDirectory(expectedFileInfo.DirectoryName);
-            }
-            
+            EnsureExpectedDirectory(expectedFileInfo);
+
             File.WriteAllText(expectedFileInfo.FullName, "");
           }
 
@@ -299,6 +305,19 @@ namespace Assertive
       }
 
       return null;
+    }
+
+    private static string SerializeActual(AssertSnapshotOptions options, JsonNode? actualNode)
+    {
+      return actualNode?.ToJsonString(options.Configuration.JsonSerializerOptions) ?? string.Empty;
+    }
+
+    private static void EnsureExpectedDirectory(FileInfo expectedFileInfo)
+    {
+      if (expectedFileInfo.DirectoryName != null && !Directory.Exists(expectedFileInfo.DirectoryName))
+      {
+        Directory.CreateDirectory(expectedFileInfo.DirectoryName);
+      }
     }
 
     private class CheckSnapshotContext

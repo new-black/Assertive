@@ -37,8 +37,8 @@ namespace Assertive.Config
 
     public record CompareSnapshotsConfiguration
     {
-      public Func<JsonPropertyInfo, Exception, object> ExceptionRenderer { get; set; } = (info, exception) => exception.Message;
-      public Func<JsonPropertyInfo, object?, object?>? ValueRenderer { get; set; } 
+      public Func<JsonPropertyInfo, object, Exception, object> ExceptionRenderer { get; set; } = (info, obj, exception) => exception.Message;
+      public Func<JsonPropertyInfo, object?, object?, object?>? ValueRenderer { get; set; } 
       public Func<JsonPropertyInfo, object, object?, bool>? ShouldIgnore { get; set; }
       public Func<string, JsonNode?, ExtraneousPropertiesOptions>? ExtraneousProperties { get; set; }
       public Action<string, string>? LaunchDiffTool { get; set; }
@@ -63,6 +63,7 @@ namespace Assertive.Config
       }
 
       internal JsonSerializerOptions JsonSerializerOptions { get; }
+      public bool AssumeCorrectness { get; set; }
 
       public CompareSnapshotsConfiguration()
       {
