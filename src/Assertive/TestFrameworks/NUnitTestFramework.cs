@@ -1,5 +1,4 @@
 using System;
-using System.Reflection.Emit;
 using Assertive.Helpers;
 
 namespace Assertive.TestFrameworks

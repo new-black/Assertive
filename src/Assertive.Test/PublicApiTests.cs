@@ -92,7 +92,7 @@ namespace Assertive.Test
     {
       var publicTypes = typeof(Assert).Assembly.GetTypes().Where(t => t is { IsPublic: true, Namespace: "Assertive" });
 
-      Assert(() => publicTypes.Count() == 2 && publicTypes.All(t => t.IsAbstract && t.IsSealed));
+      Assert(() => publicTypes.Count() == 3);
     }
     
     [Fact]

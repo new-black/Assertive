@@ -21,7 +21,7 @@ public static class GlobalSetup
       DiffRunner.Launch(temp, target);
     };
 
-    Configuration.Snapshots.ExtraneousProperties = (_, _) => Configuration.ExtraneousPropertiesOptions.AutomaticUpdate;
+    //Configuration.Snapshots.ExtraneousProperties = (_, _) => Configuration.ExtraneousPropertiesOptions.AutomaticUpdate;
     Configuration.Snapshots.ExcludeNullValues = true;
 
     DirectoryInfo? baseDir = null;

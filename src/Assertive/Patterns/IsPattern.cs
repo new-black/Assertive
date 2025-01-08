@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
 using Assertive.Expressions;

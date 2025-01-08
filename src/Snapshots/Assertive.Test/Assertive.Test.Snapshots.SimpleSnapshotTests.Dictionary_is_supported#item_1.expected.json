@@ -1,0 +1,11 @@
+{
+  "Dict": {
+    "Key1": "Value1",
+    "Key2": 42,
+    "Key3": {
+      "FirstName": "John",
+      "LastName": "Doe",
+      "Age": 42
+    }
+  }
+}

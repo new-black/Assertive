@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq.Expressions;
-using Assertive.Interfaces;
+﻿using Assertive.Interfaces;
 using Assertive.Patterns;
 
 namespace Assertive.Analyzers

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Xunit;
 using static Assertive.DSL;
 
@@ -54,6 +55,57 @@ public class SimpleSnapshotTests
     Assert(customer);
   }
   
+  [Fact]
+  public void Recursion_is_handled_safely()
+  {
+    var parent = new TreeNode { ID = 1 };
+    var child = new TreeNode { ID = 2, Parent = parent };
+    parent.Children.Add(child);
+    var grandchild = new TreeNode { ID = 3, Parent = child };
+    child.Children.Add(grandchild);
+    
+    Assert(parent);
+  }
+  
+  [Fact]
+  public void Self_reference_recursion_is_handled_safely()
+  {
+    var item = new SelfReference() { Name = "Test"};
+
+    item.Self = item;
+    
+    Assert(item);
+  }
+  
+  [Fact]
+  public void Dictionary_is_supported()
+  {
+    var item = new
+    {
+      Dict = new Dictionary<string, object>()
+      {
+        { "Key1", "Value1" },
+        { "Key2", 42 },
+        { "Key3", new Customer { FirstName = "John", LastName = "Doe", Age = 42 } }
+      }
+    };
+
+    Assert(item);
+  }
+  
+  [Fact]
+  public void Enumerables_are_supported()
+  {
+    var item = new
+    {
+      List = new List<string> { "One", "Two", "Three" },
+      Array = new[] { 1, 2, 3 },
+      Set = new HashSet<int> { 1, 2, 3 }
+    };
+
+    Assert(item);
+  }
+  
   public class Customer
   {
     public string FirstName { get; set; }
@@ -80,5 +132,18 @@ public class SimpleSnapshotTests
       public string Street => throw new Exception("Street is not available.");
       public string City => throw new Exception("City is not available.");
     }
+  }
+
+  public class TreeNode
+  {
+    public int ID { get; set; }
+    public TreeNode? Parent { get; set; }
+    public List<TreeNode> Children { get; } = new();
+  }
+
+  public class SelfReference
+  {
+    public string Name { get; set; }
+    public SelfReference Self { get; set; }
   }
 }
