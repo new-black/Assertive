@@ -17,8 +17,7 @@ namespace Assertive.Patterns
 
     private static bool IsEqualityOperator(Expression expression)
     {
-      return expression.NodeType == ExpressionType.Equal
-             || expression.NodeType == ExpressionType.NotEqual;
+      return expression.NodeType is ExpressionType.Equal or ExpressionType.NotEqual;
     }
 
     public static bool IsCallToEqualsMethod(Expression expression)
@@ -28,16 +27,13 @@ namespace Assertive.Patterns
 
     public static bool EqualsMethodShouldBeTrue(Expression expression)
     {
-      return expression is MethodCallExpression methodCallExpression
-             && methodCallExpression.Method.Name == "Equals";
+      return expression is MethodCallExpression { Method.Name: "Equals" };
     }
 
     public static bool EqualsMethodShouldBeFalse(Expression expression)
     {
       return expression.NodeType == ExpressionType.Not
-             && expression is UnaryExpression unaryExpression
-             && unaryExpression.Operand is MethodCallExpression methodCallExpression
-             && methodCallExpression.Method.Name == "Equals";
+             && expression is UnaryExpression { Operand: MethodCallExpression { Method.Name: "Equals" } };
     }
 
     public bool IsMatch(FailedAssertion failedAssertion)
@@ -45,7 +41,7 @@ namespace Assertive.Patterns
       return IsEqualityComparison(failedAssertion.Expression);
     }
 
-    public static Expression GetLeftSide(Expression assertion)
+    public static Expression? GetLeftSide(Expression assertion)
     {
       if (IsCallToEqualsMethod(assertion))
       {
@@ -71,7 +67,7 @@ namespace Assertive.Patterns
         var enumType = unaryExpression.Operand.Type.GetUnderlyingType();
         var rightValue = GetConstantExpressionValue(right);
 
-        if (Enum.IsDefined(enumType, rightValue))
+        if (rightValue != null && Enum.IsDefined(enumType, rightValue))
         {
           return Expression.Constant(Enum.ToObject(enumType, rightValue));
         }
@@ -101,11 +97,11 @@ namespace Assertive.Patterns
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } =
-    {
+    [
       new NullPattern(),
       new LengthPattern(),
       new EqualsPattern(),
       new NotEqualsPattern()
-    };
+    ];
   }
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Linq.Expressions;
 using Assertive.Analyzers;
 using Assertive.Interfaces;
 
@@ -19,10 +18,10 @@ namespace Assertive.Patterns
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } =
-    {
+    [
       new LengthPattern(),
       new EqualityPattern(),
       new LessThanOrGreaterThanPattern()
-    };
+    ];
   }
 }

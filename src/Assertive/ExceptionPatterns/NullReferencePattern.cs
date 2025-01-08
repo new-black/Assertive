@@ -26,9 +26,9 @@ namespace Assertive.ExceptionPatterns
           MethodCallExpression methodCallExpression => nullVisitor.ExceptionWasThrownInternally
             ? GetReasonMessageInternalException(methodCallExpression)
             : GetReasonMessage(methodCallExpression),
-          UnaryExpression unaryExpression when unaryExpression.NodeType == ExpressionType.ArrayLength =>
+          UnaryExpression { NodeType: ExpressionType.ArrayLength } unaryExpression =>
           GetReasonMessage(unaryExpression),
-          BinaryExpression binaryExpression when binaryExpression.NodeType == ExpressionType.ArrayIndex =>
+          BinaryExpression { NodeType: ExpressionType.ArrayIndex } binaryExpression =>
           GetReasonMessage(binaryExpression),
           _ => null
         };
@@ -195,17 +195,17 @@ namespace Assertive.ExceptionPatterns
           return result;
         }
 
-        var (value, threwInternally) = EvaluateExpression(node.Expression);
+        var (value, threwInternally) = node.Expression != null ? EvaluateExpression(node.Expression) : (null, false);
 
         if (value == null)
         {
           if (node.Member is PropertyInfo p
               && p.GetGetMethod() != null
-              && !p.GetGetMethod().IsStatic)
+              && !p.GetGetMethod()!.IsStatic)
           {
             CauseOfNullReference = node;
           }
-          else if (node.Member is FieldInfo f && !f.IsStatic)
+          else if (node.Member is FieldInfo { IsStatic: false })
           {
             CauseOfNullReference = node;
           }

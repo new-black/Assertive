@@ -4,6 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Assertive.Config;
 using Assertive.Helpers;
 
 namespace Assertive.Expressions
@@ -13,6 +14,11 @@ namespace Assertive.Expressions
     public static ExpressionValue ToValue(this Expression expression)
     {
       return new ExpressionValue(expression);
+    }
+    
+    public static UnquotedExpression ToUnquoted(this Expression expression)
+    {
+      return new UnquotedExpression(expression);
     }
     
     public static object? EvaluateExpression(Expression expression)
@@ -33,7 +39,7 @@ namespace Assertive.Expressions
       return value;
     }
 
-    public static Expression GetInstanceOfMethodCall(MethodCallExpression methodCallExpression)
+    public static Expression? GetInstanceOfMethodCall(MethodCallExpression methodCallExpression)
     {
       var instance = methodCallExpression.Object;
 
@@ -53,20 +59,20 @@ namespace Assertive.Expressions
         where m.Name == nameof(Enumerable.Count)
               && m.IsGenericMethod
               && m.GetParameters().Length == (useLambdaOverload ? 2 : 1)
-        select m).FirstOrDefault();
+        select m).First();
     }
 
     public static int? GetCollectionItemCount(Expression instanceExpression)
     {
       var instance = EvaluateExpression(instanceExpression);
 
-      if (instance is IEnumerable)
+      if (instance is IEnumerable && TypeHelper.GetTypeInsideEnumerable(instanceExpression.Type) is {} typeInsideEnumerable)
       {
         var parameters = new[] { instanceExpression };
 
         return Expression.Lambda<Func<int>>(Expression.Call(null,
           GetCountMethod(false)
-            .MakeGenericMethod(TypeHelper.GetTypeInsideEnumerable(instanceExpression.Type)),
+            .MakeGenericMethod(typeInsideEnumerable),
           parameters)).Compile(true)();
       }
 
@@ -77,7 +83,7 @@ namespace Assertive.Expressions
     {
       var instance = EvaluateExpression(instanceExpression);
 
-      if (instance is IEnumerable)
+      if (instance is IEnumerable && TypeHelper.GetTypeInsideEnumerable(instanceExpression.Type) is {} typeInsideEnumerable)
       {
         var useLambdaOverload = node.Arguments.Count == 2 && node.Arguments[1] is LambdaExpression;
 
@@ -87,14 +93,14 @@ namespace Assertive.Expressions
 
         return Expression.Lambda<Func<int>>(Expression.Call(null,
           GetCountMethod(useLambdaOverload)
-            .MakeGenericMethod(TypeHelper.GetTypeInsideEnumerable(instanceExpression.Type)),
+            .MakeGenericMethod(typeInsideEnumerable),
           parameters)).Compile(true)();
       }
 
       return null;
     }
 
-    public static object GetConstantExpressionValue(Expression expression)
+    public static object? GetConstantExpressionValue(Expression expression)
     {
       if (expression is ConstantExpression c)
       {
@@ -120,11 +126,25 @@ namespace Assertive.Expressions
                  && (IsConstantExpression(unaryExpression.Operand)));
     }
 
-    public static string ExpressionToString(Expression expression)
+    private static string GetQuotationPattern(Expression expression, bool allowQuotation)
+    {
+      if (IsConstantExpression(expression) || !allowQuotation)
+      {
+        return ExpressionQuotationPatterns.None;
+      }
+      
+      return Configuration.ExpressionQuotationPattern ?? ExpressionQuotationPatterns.None;
+    }
+
+    public static string ExpressionToString(Expression expression, bool allowQuotation = true)
     {
       var rewriter = new ExpressionRewriter();
 
-      return ExpressionStringBuilder.ExpressionToString(rewriter.Visit(expression));
+      var rewritten = rewriter.Visit(expression);
+      
+      var expressionAsString = rewritten != null ? ExpressionStringBuilder.ExpressionToString(rewritten) : "";
+
+      return string.Format(GetQuotationPattern(expression, allowQuotation), expressionAsString);
     }
 
     public static Expression ReplaceParameter(Expression expression, ParameterExpression parameter,

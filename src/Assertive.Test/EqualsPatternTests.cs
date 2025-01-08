@@ -2,6 +2,7 @@ using System;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Assertive.Analyzers;
+using Assertive.Config;
 using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;

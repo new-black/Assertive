@@ -1,5 +1,6 @@
 using System;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace Assertive
@@ -39,6 +40,16 @@ namespace Assertive
     public static void Assert(Expression<Func<bool>> assertion, object message, Expression<Func<object>> context)
     {
       var exception = AssertImpl.That(assertion, message, context);
+
+      if (exception != null)
+      {
+        throw exception;
+      }
+    }
+    
+    public static void Assert(object snapshot, AssertSnapshotOptions? options = null, [CallerArgumentExpression(nameof(snapshot))] string expression = "", [CallerFilePath] string sourceFile = "")
+    {
+      var exception = AssertImpl.Snapshot(snapshot, options ?? AssertSnapshotOptions.Default, expression, sourceFile);
 
       if (exception != null)
       {

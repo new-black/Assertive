@@ -11,8 +11,13 @@ namespace Assertive.TestFrameworks
     {
       get
       {
-        return _exceptionType ??= TestFrameworkHelper.TryGetExceptionType("Microsoft.VisualStudio.TestPlatform.TestFramework", "Microsoft.VisualStudio.TestTools.UnitTesting.AssertFailedException");
+        return _exceptionType ??= TestFrameworkHelper.TryGetType("Microsoft.VisualStudio.TestPlatform.TestFramework", "Microsoft.VisualStudio.TestTools.UnitTesting.AssertFailedException");
       }
+    }
+
+    public CurrentTestInfo? GetCurrentTestInfo()
+    {
+      throw new NotImplementedException();
     }
   }
 }

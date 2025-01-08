@@ -3,12 +3,12 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
 using Assertive.Analyzers;
-using Assertive.Expressions;
 using Assertive.Helpers;
+using static Assertive.Expressions.ExpressionHelper;
 
 namespace Assertive
 {
-  internal class AssertImpl
+  internal partial class AssertImpl
   {
     public static Exception? That(Expression<Func<bool>> assertion, object? message, Expression<Func<object>>? context)
     {
@@ -43,33 +43,33 @@ namespace Assertive
       var threw = false;
 
       var bodyExpression = GetBodyExpression(expression);
-      
+
       try
       {
-        var task = (Task) expression.Compile(true).DynamicInvoke();
+        var task = (Task)expression.Compile(true).DynamicInvoke()!;
 
         await task;
       }
-      catch(Exception ex)
+      catch (Exception ex)
       {
         if (expectedExceptionType != null && !expectedExceptionType.IsInstanceOfType(ex))
         {
           return ExceptionHelper.GetException(
-            $"Expected {ExpressionHelper.ExpressionToString(bodyExpression)} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.GetType().FullName} instead.");
+            $"Expected {ExpressionToString(bodyExpression)} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.GetType().FullName} instead.");
         }
-        
+
         threw = true;
       }
 
       if (!threw)
       {
-        return ExceptionHelper.GetException($"Expected {ExpressionHelper.ExpressionToString(bodyExpression)} to throw an exception, but it did not.");
+        return ExceptionHelper.GetException($"Expected {ExpressionToString(bodyExpression)} to throw an exception, but it did not.");
       }
 
       return null;
     }
 
-    public static Exception? Throws(LambdaExpression expression, 
+    public static Exception? Throws(LambdaExpression expression,
       Type? expectedExceptionType = null)
     {
       var threw = false;
@@ -80,20 +80,20 @@ namespace Assertive
       {
         expression.Compile(true).DynamicInvoke();
       }
-      catch(TargetInvocationException ex)
+      catch (TargetInvocationException ex)
       {
         if (expectedExceptionType != null && !expectedExceptionType.IsInstanceOfType(ex.InnerException))
         {
           return ExceptionHelper.GetException(
-            $"Expected {ExpressionHelper.ExpressionToString(bodyExpression)} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.InnerException.GetType().FullName} instead.");
+            $"Expected {ExpressionToString(bodyExpression)} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.InnerException!.GetType().FullName} instead.");
         }
-        
+
         threw = true;
       }
 
       if (!threw)
       {
-        return ExceptionHelper.GetException($"Expected {ExpressionHelper.ExpressionToString(bodyExpression)} to throw an exception, but it did not.");
+        return ExceptionHelper.GetException($"Expected {ExpressionToString(bodyExpression)} to throw an exception, but it did not.");
       }
 
       return null;

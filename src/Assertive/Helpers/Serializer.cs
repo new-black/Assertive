@@ -11,14 +11,14 @@ namespace Assertive.Helpers
   internal static class Serializer
   {
     private static readonly string[] _newLineSplitChars =
-    {
+    [
       Environment.NewLine
-    };
+    ];
 
     private static readonly string[] _spaceSplitChars =
-    {
+    [
       " "
-    };
+    ];
 
     public static string Serialize(object? o)
     {
@@ -26,15 +26,21 @@ namespace Assertive.Helpers
       {
         return SerializeImpl(o, 0, null);
       }
-      catch
+      catch(Exception ex)
       {
-        return "<exception serializing>";
+        return $"<exception serializing = {ex.InnerException?.GetType().Name ?? ex.GetType().Name}>";
       }
     }
 
     private class Ellipsis
     {
-      public override string ToString() => "...";
+      private int? _remaining;
+
+      public Ellipsis(int? remaining)
+      {
+        _remaining = remaining;
+      }
+      public override string ToString() => _remaining.HasValue ? $"... ({_remaining} more items)" : "...";
     }
 
     private static string SerializeImpl(object? o, int indentation, Stack<object>? recursionGuard)
@@ -46,6 +52,8 @@ namespace Assertive.Helpers
 
       if (o is string s)
       {
+        if (s.StartsWith("<exception serializing")) return s;
+        
         return "\"" + s + "\"";
       }
 
@@ -63,7 +71,20 @@ namespace Assertive.Helpers
 
       if (type.IsPrimitive)
       {
-        return o.ToString();
+        return o.ToString() ?? "";
+      }
+
+      if (o is byte[] bytes)
+      {
+        var more = false;
+        if (bytes.Length > 50)
+        {
+          more = true;
+          var tmp = new byte[50];
+          Array.Copy(bytes, tmp, 50);
+        }
+
+        return Convert.ToBase64String(bytes) + (more ? "..." : "");
       }
       
       if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
@@ -108,7 +129,22 @@ namespace Assertive.Helpers
           {
             if (items.Count == 10)
             {
-              items.Add(new Ellipsis());
+              int? remaining = null;
+
+              if (o is TruncatedList truncatedList)
+              {
+                remaining = truncatedList.OriginalCount - 10;
+              }
+              else if (o is IList list)
+              {
+                remaining = list.Count - 10;
+                if (remaining <= 0)
+                {
+                  remaining = null;
+                }
+              }
+              
+              items.Add(new Ellipsis(remaining));
               break;
             }
 
@@ -142,14 +178,21 @@ namespace Assertive.Helpers
           var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.CanRead).ToArray();
 
+          var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance).ToArray();
+
           var toStringMethod = o.GetType().GetMethod("ToString", Type.EmptyTypes);
+
+          var members = new List<MemberInfo>();
+          
+          members.AddRange(properties);
+          members.AddRange(fields);
 
           if (toStringMethod == null
               || (toStringMethod.DeclaringType != typeof(object)
                   && toStringMethod.DeclaringType != typeof(ValueType))
-              || properties.Length == 0)
+              || members.Count == 0)
           {
-            return o.ToString();
+            return o.ToString() ?? "";
           }
 
           sb.AppendLine("{");
@@ -157,14 +200,32 @@ namespace Assertive.Helpers
 
           bool firstPropertyWritten = false;
 
-          foreach (var p in properties)
+          foreach (var m in members)
           {
-            if (p.GetIndexParameters().Length != 0)
+            var p = m as PropertyInfo;
+            var f = m as FieldInfo;
+            
+            if (p != null && p.GetIndexParameters().Length != 0)
             {
               continue;
             }
 
-            var value = p.GetValue(o);
+            object? value = null;
+            try
+            {
+              if (p != null)
+              {
+                value = p.GetValue(o);
+              }
+              else
+              {
+                value = f!.GetValue(o);
+              }
+            }
+            catch(Exception ex)
+            {
+              value = $"<exception serializing = {ex.InnerException?.GetType().Name ?? ex.GetType().Name}>";
+            }
 
             if (value == null)
             {
@@ -180,7 +241,9 @@ namespace Assertive.Helpers
               firstPropertyWritten = true;
             }
 
-            sb.Append(IndentString($"{p.Name} = {SerializeImpl(value, indentation, recursionGuard)}"));
+            var name = p != null ? p.Name : f!.Name;
+
+            sb.Append(IndentString($"{name} = {SerializeImpl(value, indentation, recursionGuard)}"));
           }
 
           sb.AppendLine();

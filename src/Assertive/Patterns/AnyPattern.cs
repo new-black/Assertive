@@ -16,8 +16,7 @@ namespace Assertive.Patterns
 
     private static bool IsAnyMethodCall(Expression expression)
     {
-      return expression is MethodCallExpression methodCallExpression
-             && methodCallExpression.Method.Name == nameof(Enumerable.Any);
+      return expression is MethodCallExpression { Method.Name: nameof(Enumerable.Any) };
     }
 
     public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
@@ -52,7 +51,7 @@ namespace Assertive.Patterns
       
       if (notAny)
       {
-        var actualCount = ExpressionHelper.GetCollectionItemCount(collection, methodCallExpression);
+        var actualCount = collection != null ? ExpressionHelper.GetCollectionItemCount(collection, methodCallExpression) : 0;
         actualCountString = $" but it actually contained {actualCount} {(actualCount == 1 ? "item" : "items")}";
       }
       
@@ -70,6 +69,6 @@ Value of {collection}:
       return result;
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns { get; } = [];
   }
 }

@@ -88,9 +88,17 @@ namespace Assertive.Test
     }
 
     [Fact]
-    public void Only_two_types_are_exposed_publically()
+    public void Only_two_types_are_exposed_publically_in_the_root_namespace()
     {
-      var publicTypes = typeof(Assert).Assembly.GetTypes().Where(t => t.IsPublic);
+      var publicTypes = typeof(Assert).Assembly.GetTypes().Where(t => t is { IsPublic: true, Namespace: "Assertive" });
+
+      Assert(() => publicTypes.Count() == 3);
+    }
+    
+    [Fact]
+    public void Only_two_types_are_exposed_publically_in_the_configuration_namespace()
+    {
+      var publicTypes = typeof(Assert).Assembly.GetTypes().Where(t => t is { IsPublic: true, Namespace: "Assertive.Config" });
 
       Assert(() => publicTypes.Count() == 2 && publicTypes.All(t => t.IsAbstract && t.IsSealed));
     }

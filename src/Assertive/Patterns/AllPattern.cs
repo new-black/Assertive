@@ -19,11 +19,9 @@ namespace Assertive.Patterns
 
     public static bool IsAllMethodCall(Expression expression)
     {
-      return expression is MethodCallExpression methodCallExpression
-             && methodCallExpression.Method.Name == nameof(Enumerable.All)
-             && methodCallExpression.Arguments.Count >= 2
-             && ExpressionHelper.GetInstanceOfMethodCall(methodCallExpression).Type.IsType<IEnumerable>()
-             && methodCallExpression.Arguments[1] is LambdaExpression lambdaExpression
+      return expression is MethodCallExpression { Method.Name: nameof(Enumerable.All), Arguments.Count: >= 2 } methodCallExpression 
+             && ExpressionHelper.GetInstanceOfMethodCall(methodCallExpression)?.Type.IsType<IEnumerable>() == true 
+             && methodCallExpression.Arguments[1] is LambdaExpression lambdaExpression 
              && lambdaExpression.ReturnType == typeof(bool);
     }
 
@@ -35,7 +33,7 @@ namespace Assertive.Patterns
 
       var filter = (LambdaExpression)methodCallExpression.Arguments[1];
 
-      var collection = ((IEnumerable)ExpressionHelper.EvaluateExpression(collectionExpression)!).Cast<object>();
+      var collection = collectionExpression != null ? ((IEnumerable)ExpressionHelper.EvaluateExpression(collectionExpression)!).Cast<object>() : [];
 
       var compiledFilter = filter.Compile(true);
 
@@ -50,9 +48,7 @@ namespace Assertive.Patterns
       
       foreach (var obj in collection)
       {
-        var isMatch = (bool)compiledFilter.DynamicInvoke(obj);
-
-        if (!isMatch)
+        if (compiledFilter.DynamicInvoke(obj) is false)
         {
           invalidCount++;
 
@@ -80,7 +76,7 @@ namespace Assertive.Patterns
               {
                 subMessages.Add(collectionExpression is MethodCallExpression
                   ? $"[{index}] - {failure.Message}"
-                  : (FormattableString)$"{collectionExpression}[{index}] - {failure.Message}");
+                  : (FormattableString)$"{collectionExpression?.ToUnquoted()}[{index}] - {failure.Message}");
               }
             }
           }
@@ -120,6 +116,6 @@ Messages per item:
 {string.Join("," + Environment.NewLine, items)}{MessagesPerItem()}";
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns { get; } = [];
   }
 }

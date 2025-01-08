@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
 using Assertive.Expressions;
 using Assertive.Helpers;
 
@@ -28,7 +26,7 @@ namespace Assertive.Analyzers
 
         var localsToString = new List<string>();
 
-        foreach (var local in locals)
+        foreach (var local in locals.Values)
         {
           if (evaluatedExpressions.Contains(local.Expression))
           {

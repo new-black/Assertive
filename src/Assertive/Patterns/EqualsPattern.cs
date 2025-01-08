@@ -18,21 +18,21 @@ namespace Assertive.Patterns
     {
       var left = EqualityPattern.GetLeftSide(assertion.Expression);
       
-      var right = EqualityPattern.GetRightSide(assertion.Expression, left);
+      var right = left != null ? EqualityPattern.GetRightSide(assertion.Expression, left) : null;
 
-      if (right.NodeType == ExpressionType.Convert && right.Type == typeof(object))
+      if (right != null && right.NodeType == ExpressionType.Convert && right.Type == typeof(object))
       {
         right = ((UnaryExpression)right).Operand;
       }
 
-      if (IsConstantExpression(right))
+      if (right != null && IsConstantExpression(right))
       {
-        return $"Expected {left} to equal {right} but {left} was {left.ToValue()}.";
+        return $"Expected {left} to equal {right} but {left} was {left?.ToValue()}.";
       }
 
-      return $"Expected {left} to equal {right} but {left} was {left.ToValue()} while {right} was {right.ToValue()}.";
+      return $"Expected {left} to equal {right} but {left} was {left?.ToValue()} while {right} was {right?.ToValue()}.";
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } = Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns { get; } = [];
   }
 }

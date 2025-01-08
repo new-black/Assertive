@@ -2,7 +2,6 @@ using System;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
 using Assertive.Expressions;
-using Assertive.Helpers;
 using Assertive.Interfaces;
 
 namespace Assertive.Patterns
@@ -17,17 +16,15 @@ namespace Assertive.Patterns
 
     private static bool IsObjectCheck(FailedAssertion failedAssertion)
     {
-      return failedAssertion.ExpressionWithoutNegation is TypeBinaryExpression t
-             && t.NodeType == ExpressionType.TypeIs
+      return failedAssertion.ExpressionWithoutNegation is TypeBinaryExpression { NodeType: ExpressionType.TypeIs } t 
              && t.TypeOperand == typeof(object);
     }
 
     private static bool IsNullEqualityCheck(FailedAssertion failedAssertion)
     {
-      return (failedAssertion.Expression.NodeType == ExpressionType.Equal || failedAssertion.Expression.NodeType == ExpressionType.NotEqual)
+      return failedAssertion.Expression.NodeType is ExpressionType.Equal or ExpressionType.NotEqual
              && failedAssertion.Expression is BinaryExpression b
-             && ((b.Right is ConstantExpression c
-                  && c.Value == null) || (b.Right is DefaultExpression && b.Right.Type.IsClass));
+             && (b.Right is ConstantExpression { Value: null } || (b.Right is DefaultExpression && b.Right.Type.IsClass));
     }
 
     public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
@@ -70,6 +67,6 @@ namespace Assertive.Patterns
       return default;
     }
 
-    public IFriendlyMessagePattern[] SubPatterns => Array.Empty<IFriendlyMessagePattern>();
+    public IFriendlyMessagePattern[] SubPatterns => [];
   }
 }
