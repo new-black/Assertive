@@ -95,6 +95,150 @@ Short-circuiting works as you would expect, if the first assertion fails then th
 
 Likewise, it's possible to use a bitwise AND (`&`) to force evaluation of both sides. 
 
+### Snapshot testing
+
+Inspired by the snapshot testing of [Verify](https://github.com/VerifyTests/Verify) Assertive also supports snapshot testing of objects. What this means is that you simply call `Assert(myObject);` (or `Assert.Snapshot` if not using `using static Assertive.DSL`) and a snapshot is made of the object (in JSON format) and is compared to a stored
+snapshot from a previous execution. If they still match, the test passes and otherwise it fails. 
+
+The first time you add a snapshot assertion, no `expected.json` file exists yet for the assertion. If you have a diff tool like WinMerge installed, you can integrate with the excellent [DiffEngine](https://github.com/VerifyTests/DiffEngine) and register it like this:
+
+```csharp
+Configuration.Snapshots.LaunchDiffTool = (actual, expected) =>
+{
+    DiffRunner.Launch(actual, expected);
+};
+```
+
+A window will pop up with the actual file and the expected file (or an empty one if one doesn't exist yet) and if the `actual.json` file matches your expectations, you can copy the contents of the `actual.json` file to `expected.json` and commit it to version control.
+
+#### Configuration
+
+You can change the global configuration of snapshot testing with the `Assertive.Config.Configuration.Snapshots` property. 
+
+You can also create a test specific copy and pass it to `Assert`:
+
+```csharp
+Assert(obj, Configuration.Snapshots with { ExcludeNullValues = true });
+```
+
+#### Expected files
+
+By default, the expected file is created in the same directory as the test itself and has this format:
+
+`<Class>.<Test>#<Expression>_<Counter>.expected.json`
+
+So when you have this test:
+
+```csharp
+public class CustomerTests
+{
+    [Fact]
+    public async Task GetCustomer_works()
+    {
+        var fetchedCustomer = await GetCustomer(1);
+        Assert(fetchedCustomer);
+    }
+}
+```
+
+The file name will end up being:
+
+`CustomerTests.GetCustomer_works#fetchedCustomer_1.expected.json`
+
+If you have multiple assertions on the same `fetchedCustomer` (if you make any modifications for example) then a `_2` file will be created and so on.
+
+In case you want to modify this, you can alter the `<Expression>` part like so:
+
+```csharp
+Assert(fetchedCustomer, "myAssertion");
+```
+
+And the file created will be:
+
+`CustomerTests.GetCustomer_works#myAssertion.expected.json`
+
+#### Normalization
+
+Normalization can be used to change volatile values such as identifiers, Guids, dates and times into constant ones. By default, `Guid` and various built-in date types are normalized. So in the output snapshot, a Guid like `"c8f33fe6-a30e-42ed-8283-b51a5eced158"` will simply become `"{Guid}"`. 
+
+This can be changed with:
+
+```csharp
+Configration.Snapshots.Normalization.NormalizeGuid = false;
+Configration.Snapshots.Normalization.NormalizeDateTime = false;
+```
+
+More advanced configuration is also possible:
+
+```csharp
+Configuration.Snapshots.Normalization.ValueRenderer = (property, obj, value) =>
+{
+    if (property.Name.Contains("Id"))
+    {
+        return "{Id}";
+    }
+
+    return value;
+};
+```
+
+This approach lets you easily stabilize test outputs.
+
+#### Placeholders
+
+Instead of normalizing the `actual.json`, you can also work with placeholders in the `expected.json` (or any mix of the two). 
+
+Say you have this `actual.json`:
+
+```json
+{
+    "ProductId" : "8731580994818888942",
+    "Price" : 34.99
+}
+```
+
+Assuming both are volatile (so changing every test run) you could add a normalizer for all `decimal` properties, or add a very specific exclusion for this test, or you could define the `expected.json` like this:
+
+```json
+{
+    "ProductId" : "@@productid",
+    "Price" : "@@price" 
+}
+```
+
+Anything after `@@` is arbitrary and up to you. As long as `actual` and `expected` both have the property, it will be considered a match. You can configure the placeholder prefix with `Configuration.Snapshots.Normalization.PlaceholderPrefix` and it defaults to `"@@"`. 
+
+##### Advanced placeholders 
+
+Say you have this snapshot:
+
+```json
+{
+    "ProductId" : "8731580994818888942",
+    "BeforePrice" : 34.99,
+    "AfterPrice" : 34.99,
+    "DiscountAmount" : 0
+}
+```
+
+In this imagined scenario, it's important that BeforePrice and AfterPrice are the same, simply replacing both with a constant placeholder would not be good enough. To support this, you can tag each distinct value with a number to indicate two of the same placeholder type should have the same value:
+
+```json
+{
+    "ProductId" : "@@productid",
+    "BeforePrice" : "@@price#1", 
+    "AfterPrice" : "@@price#1",
+    "DiscountAmount" : "@@price#2"
+}
+```
+
+To go even further, you can register a validator for each placeholder type:
+
+```csharp
+Configuration.Snapshots.Normalization.RegisterPlaceholderValidator("price", value => decimal.TryParse(value, out var price) && price > 0, "Price must be a positive number.");
+```
+
+
 ### Exception handling
 
 Assertive has special handling of certain common exceptions that occur when writing tests, providing immediate feedback on what caused the exception without having to attach the debugger or dig through stacktraces.
