@@ -75,7 +75,7 @@ public class PlaceholderTests
     };
 
     var config = Configuration.Snapshots with { };
-    config.RegisterPlaceholderValidator("price", value => decimal.TryParse(value, out var price) && price > 0, "Price must be positive");
+    config.Normalization.RegisterPlaceholderValidator("price", value => decimal.TryParse(value, out var price) && price > 0, "Price must be positive");
     
     Assert(obj, config);
     

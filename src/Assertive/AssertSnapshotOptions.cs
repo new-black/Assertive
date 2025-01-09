@@ -13,4 +13,9 @@ public class AssertSnapshotOptions
   {
     return new AssertSnapshotOptions { Configuration = configuration };
   }
+  
+  public static implicit operator AssertSnapshotOptions(string identifier)
+  {
+    return new AssertSnapshotOptions { SnapshotIdentifier = identifier };
+  }
 }

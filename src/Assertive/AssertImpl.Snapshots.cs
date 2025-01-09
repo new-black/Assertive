@@ -183,6 +183,12 @@ internal partial class AssertImpl
 
         options.Configuration.LaunchDiffTool(actualTempFile, expectedFileInfo.FullName);
       }
+      else if (!expectedFileInfo.Exists)
+      {
+        EnsureExpectedDirectory(expectedFileInfo);
+
+        File.WriteAllText(expectedFileInfo.FullName, "");
+      }
 
       return ExceptionHelper.GetException(sb.ToString());
     }
@@ -264,9 +270,9 @@ internal partial class AssertImpl
 
       if (expected.GetValueKind() == JsonValueKind.String && expected.GetValue<string>() is { } value)
       {
-        if (value.StartsWith(context.Configuration.PlaceholderPrefix))
+        if (value.StartsWith(context.Configuration.Normalization.PlaceholderPrefix))
         {
-          var counted = value.IndexOf('#', startIndex: context.Configuration.PlaceholderPrefix.Length);
+          var counted = value.IndexOf('#', startIndex: context.Configuration.Normalization.PlaceholderPrefix.Length);
           int? count = null;
           if (counted > 0 && int.TryParse(value[(counted + 1)..], out var c))
           {
@@ -274,8 +280,8 @@ internal partial class AssertImpl
             value = value[..counted];
           }
 
-          var withoutPrefix = value[context.Configuration.PlaceholderPrefix.Length..];
-          var validator = context.Configuration.PlaceholderValidators.GetValueOrDefault(withoutPrefix);
+          var withoutPrefix = value[context.Configuration.Normalization.PlaceholderPrefix.Length..];
+          var validator = context.Configuration.Normalization.PlaceholderValidators.GetValueOrDefault(withoutPrefix);
           var actualValue = actual.GetValueKind() == JsonValueKind.String ? actual.GetValue<string>() : actual.ToJsonString();
 
           if (count.HasValue)

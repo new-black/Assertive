@@ -21,6 +21,11 @@ internal class TypeInfoResolver : IJsonTypeInfoResolver
   public JsonTypeInfo? GetTypeInfo(Type type, JsonSerializerOptions options)
   {
     var typeInfo = _defaultResolver.GetTypeInfo(type, options);
+
+    static bool IsDateType(Type t)
+    {
+      return t.IsType<DateTime>() || t.IsType<DateTimeOffset>() || t.IsType<TimeSpan>() || t.IsType<TimeOnly>() || t.IsType<DateOnly>();
+    }
     
     if (typeInfo is { Kind: JsonTypeInfoKind.Object })
     {
@@ -37,16 +42,14 @@ internal class TypeInfoResolver : IJsonTypeInfoResolver
         {
           newProperty.Get = CreateGetter(existingProperty, (_, _, _) => "{Guid}");
         }
-        else if (_configuration.Normalization.NormalizeDateTime && (existingProperty.PropertyType.GetUnderlyingType().IsType<DateTime>() ||
-                                                                    existingProperty.PropertyType.GetUnderlyingType()
-                                                                      .IsType<DateTimeOffset>()))
+        else if (_configuration.Normalization.NormalizeDateTime && (IsDateType(existingProperty.PropertyType.GetUnderlyingType())))
         {
           var typeName = existingProperty.PropertyType.GetUnderlyingType().Name;
           newProperty.Get = CreateGetter(existingProperty, (_, _, _) => $"{{{typeName}}}");
         }
         else
         {
-          newProperty.Get = CreateGetter(existingProperty, _configuration.ValueRenderer);
+          newProperty.Get = CreateGetter(existingProperty, _configuration.Normalization.ValueRenderer);
         }
 
         if (_configuration.ShouldIgnore != null)

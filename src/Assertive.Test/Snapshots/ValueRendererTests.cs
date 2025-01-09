@@ -17,14 +17,17 @@ public class ValueRendererTests
 
     var options = Configuration.Snapshots with
     {
-      ValueRenderer = (property, _, value) =>
+      Normalization = Configuration.Snapshots.Normalization with
       {
-        if (property.Name == "ProductID")
+        ValueRenderer = (property, _, value) =>
         {
-          return "<ProductID>";
-        }
+          if (property.Name == "ProductID")
+          {
+            return "<ProductID>";
+          }
 
-        return value;
+          return value;
+        }
       }
     };
 

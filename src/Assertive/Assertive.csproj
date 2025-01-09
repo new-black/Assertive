@@ -5,7 +5,7 @@
     <AssemblyName>Assertive</AssemblyName>
     <PackageId>Assertive</PackageId>
     <Company>New Black</Company>
-    <PackageVersion>0.12.0</PackageVersion>
+    <PackageVersion>0.13.0</PackageVersion>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageProjectUrl>https://github.com/new-black/Assertive</PackageProjectUrl>
     <RepositoryUrl>https://github.com/new-black/Assertive</RepositoryUrl>
@@ -15,6 +15,6 @@
     <LangVersion>12</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="LICENSE.txt" Pack="true" PackagePath="LICENSE.txt" />
+    <None Include="../LICENSE.txt" Pack="true" PackagePath="LICENSE.txt" />
   </ItemGroup>
 </Project>

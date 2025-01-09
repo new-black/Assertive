@@ -49,11 +49,6 @@ namespace Assertive.Config
       public ExceptionRenderer ExceptionRenderer { get; set; } = (info, obj, exception) => exception.Message;
       
       /// <summary>
-      /// Customize how the value of a property is rendered, defaults to the value itself. 
-      /// </summary>
-      public ValueRenderer? ValueRenderer { get; set; } 
-      
-      /// <summary>
       /// Given a property and its value, returns whether the property should be ignored and omitted from the output, defaults to false.
       /// </summary>
       public ShouldIgnore? ShouldIgnore { get; set; }
@@ -74,28 +69,9 @@ namespace Assertive.Config
       public bool ExcludeNullValues { get; set; } = false;
       
       /// <summary>
-      /// The prefix a properties placeholder should have in the expected snapshot, defaults to "@@".
-      /// Any value with this prefix is considered a placeholder and the expected and actual values are not compared directly.
-      /// </summary>
-      public string PlaceholderPrefix { get; set; } = "@@";
-      
-      /// <summary>
       /// A callback to resolve the directory where the expected snapshot file should be located.
       /// </summary>
       public ExpectedFileDirectoryResolver? ExpectedFileDirectoryResolver { get; set; }
-
-      internal Dictionary<string, (PlaceholderValidator, string)> PlaceholderValidators { get; } = new();
-
-      /// <summary>
-      /// Allows registering a placeholder validator for a specific placeholder that the actual value will be compared against to see if it is valid.
-      /// </summary>
-      /// <param name="placeholder">The placeholder without the prefix.</param>
-      /// <param name="validator">A callback that is called for every encountered placeholder and is passed in the actual value as a string.</param>
-      /// <param name="invalidValueMessage">The message that is returned when the value is not valid.</param>
-      public void RegisterPlaceholderValidator(string placeholder, PlaceholderValidator validator, string invalidValueMessage)
-      {
-        PlaceholderValidators[placeholder] = (validator, invalidValueMessage);
-      }
 
       public NormalizationConfiguration Normalization { get; set; } = new ();
 
@@ -109,6 +85,31 @@ namespace Assertive.Config
         /// Render Guid values as {Guid}, defaults to true.
         /// </summary>
         public bool NormalizeGuid { get; set; } = true;
+        
+        /// <summary>
+        /// Customize how the value of a property is rendered, defaults to the value itself.
+        /// If you don't want to alter the value, return the value passed into the method, returning null will insert null into the output.
+        /// </summary>
+        public ValueRenderer? ValueRenderer { get; set; } 
+
+        /// <summary>
+        /// The prefix a properties placeholder should have in the expected snapshot, defaults to "@@".
+        /// Any value with this prefix is considered a placeholder and the expected and actual values are not compared directly.
+        /// </summary>
+        public string PlaceholderPrefix { get; set; } = "@@";
+        
+        internal Dictionary<string, (PlaceholderValidator, string)> PlaceholderValidators { get; } = new();
+
+        /// <summary>
+        /// Allows registering a placeholder validator for a specific placeholder that the actual value will be compared against to see if it is valid.
+        /// </summary>
+        /// <param name="placeholder">The placeholder without the prefix.</param>
+        /// <param name="validator">A callback that is called for every encountered placeholder and is passed in the actual value as a string.</param>
+        /// <param name="invalidValueMessage">The message that is returned when the value is not valid.</param>
+        public void RegisterPlaceholderValidator(string placeholder, PlaceholderValidator validator, string invalidValueMessage)
+        {
+          PlaceholderValidators[placeholder] = (validator, invalidValueMessage);
+        }
       }
       
       /// <summary>
@@ -128,7 +129,7 @@ namespace Assertive.Config
           Normalization.NormalizeDateTime,
           ExceptionRenderer,
           ExcludeNullValues,
-          ValueRenderer,
+          Normalization.ValueRenderer,
           ShouldIgnore
         };
         
