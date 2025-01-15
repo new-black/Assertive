@@ -281,7 +281,7 @@ internal partial class AssertImpl
           }
 
           var withoutPrefix = value[context.Configuration.Normalization.PlaceholderPrefix.Length..];
-          var validator = context.Configuration.Normalization.PlaceholderValidators.GetValueOrDefault(withoutPrefix);
+          var validator = context.Configuration.Normalization.PlaceholderValidatorsLookup.GetValueOrDefault(withoutPrefix);
           var actualValue = actual.GetValueKind() == JsonValueKind.String ? actual.GetValue<string>() : actual.ToJsonString();
 
           if (count.HasValue)
@@ -298,7 +298,20 @@ internal partial class AssertImpl
             }
           }
 
-          if (validator != default && !validator.Item1(actualValue))
+          bool ExecuteValidator()
+          {
+            try
+            {
+              return validator.Item1(actualValue);
+            }
+            catch (Exception e)
+            {
+              context.Errors.Add(new($"Error while executing placeholder validator for '{withoutPrefix}': {e.Message}"));
+              return false;
+            }
+          }
+
+          if (validator != default && !ExecuteValidator())
           {
             context.Errors.Add(new($"Value '{actualValue}' is invalid: {validator.Item2}"));
             emitComparisonError = false;

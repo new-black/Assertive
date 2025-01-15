@@ -98,7 +98,25 @@ namespace Assertive.Config
         /// </summary>
         public string PlaceholderPrefix { get; set; } = "@@";
         
-        internal Dictionary<string, (PlaceholderValidator, string)> PlaceholderValidators { get; } = new();
+        internal Dictionary<string, (PlaceholderValidator, string)> PlaceholderValidatorsLookup { get; } = new();
+
+        public IEnumerable<PlaceholderValidatorDefinition> PlaceholderValidators
+        {
+          get
+          {
+            foreach (var (placeholder, (validator, invalidValueMessage)) in PlaceholderValidatorsLookup)
+            {
+              yield return new PlaceholderValidatorDefinition(placeholder, validator, invalidValueMessage);
+            }
+          }
+          set
+          {
+            foreach (var (placeholder, validator, invalidValueMessage) in value)
+            {
+              PlaceholderValidatorsLookup[placeholder] = (validator, invalidValueMessage);
+            }
+          }
+        }
 
         /// <summary>
         /// Allows registering a placeholder validator for a specific placeholder that the actual value will be compared against to see if it is valid.
@@ -108,9 +126,11 @@ namespace Assertive.Config
         /// <param name="invalidValueMessage">The message that is returned when the value is not valid.</param>
         public void RegisterPlaceholderValidator(string placeholder, PlaceholderValidator validator, string invalidValueMessage)
         {
-          PlaceholderValidators[placeholder] = (validator, invalidValueMessage);
+          PlaceholderValidatorsLookup[placeholder] = (validator, invalidValueMessage);
         }
       }
+      
+      public record PlaceholderValidatorDefinition(string Placeholder, PlaceholderValidator Validator, string InvalidValueMessage);
       
       /// <summary>
       /// When the expected file does not exist, assume the actual value is correct and create the expected file as the actual value.
