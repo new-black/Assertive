@@ -217,6 +217,7 @@ Say you have this snapshot:
     "ProductId" : "8731580994818888942",
     "BeforePrice" : 34.99,
     "AfterPrice" : 34.99,
+    "TaxAmount" : 3.50,
     "DiscountAmount" : 0
 }
 ```
@@ -228,7 +229,8 @@ In this imagined scenario, it's important that BeforePrice and AfterPrice are th
     "ProductId" : "@@productid",
     "BeforePrice" : "@@price#1", 
     "AfterPrice" : "@@price#1",
-    "DiscountAmount" : "@@price#2"
+    "TaxAmount" : "@@price#2",
+    "DiscountAmount" : 0
 }
 ```
 
