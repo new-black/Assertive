@@ -390,7 +390,7 @@ Assertive is currently compatible with:
 
 It will work fine with any other test framework as well, but the exception that Assertive will throw will not be recognized by those test frameworks and likely not display quite as nicely.
 
-Snapshot testing is currently only supported on NUnit and xUnit. On xUnit it's required to have this attribute somewhere, otherwise it won't be able to detect the currently running test:
+Snapshot testing is currently only supported on NUnit and xUnit. On xUnit it's required to have this attribute somewhere from the Assertive.xUnit package, otherwise it won't be able to detect the currently running test:
 
 ```csharp
 [assembly: EnableAssertiveSnapshots]
