@@ -378,9 +378,7 @@ But note how only `customers` is rendered as the value of `expectedCustomers` is
 
 ### .NET
 
-Assertive targets .NET Standard 2.0 and is compatible with .NET Core 2.0 and up as well as .NET Framework 4.6.1 and up. 
-
-While it should work fine on .NET Framework, Assertive makes heavy use of `LambdaExpression.Compile` which on .NET Core uses an Expression interpreter which is not available for .NET Framework. As such, a call to `Compile` will actually go through the entire JIT native code pipeline which is rather expensive for a function that will only ever be called once (on the order of hundreds of microseconds to milliseconds). 
+Assertive targets .NET 8. 
 
 ### Test frameworks
 
@@ -391,6 +389,12 @@ Assertive is currently compatible with:
 - NUnit 
 
 It will work fine with any other test framework as well, but the exception that Assertive will throw will not be recognized by those test frameworks and likely not display quite as nicely.
+
+Snapshot testing is currently only supported on NUnit and xUnit. On xUnit it's required to have this attribute somewhere, otherwise it won't be able to detect the currently running test:
+
+```csharp
+[assembly: EnableAssertiveSnapshots]
+```
 
 ## Limitations
 
