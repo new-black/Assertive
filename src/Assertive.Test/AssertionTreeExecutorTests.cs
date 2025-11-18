@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
+using Assertive.Expressions;
 using Xunit;
 using static Assertive.DSL;
 
@@ -162,10 +163,10 @@ namespace Assertive.Test
     {
       Exception ex = null;
       bool success = false;
-      
+
       try
       {
-        success = assertions.Compile(true)();
+        success = assertions.Compile(ExpressionHelper.ShouldUseInterpreter(assertions))();
       }
       catch(Exception e)
       {

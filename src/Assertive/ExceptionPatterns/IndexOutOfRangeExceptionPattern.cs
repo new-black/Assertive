@@ -103,7 +103,8 @@ namespace Assertive.ExceptionPatterns
       {
         try
         {
-          Expression.Lambda(node).Compile(true).DynamicInvoke();
+          var lambda = Expression.Lambda(node);
+          lambda.Compile(ExpressionHelper.ShouldUseInterpreter(lambda)).DynamicInvoke();
 
           return false;
         }

@@ -176,7 +176,8 @@ namespace Assertive.ExceptionPatterns
       {
         try
         {
-          var value = Expression.Lambda(node).Compile(true).DynamicInvoke();
+          var lambda = Expression.Lambda(node);
+          var value = lambda.Compile(Expressions.ExpressionHelper.ShouldUseInterpreter(lambda)).DynamicInvoke();
 
           return (value, false);
         }

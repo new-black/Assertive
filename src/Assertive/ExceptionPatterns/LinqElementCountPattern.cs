@@ -65,7 +65,7 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
 
       var items = new TruncatedList(enumerable is ICollection collection ? collection.Count : null);
 
-      var filter = filterExpression?.Compile(true);
+      var filter = filterExpression != null ? filterExpression.Compile(ExpressionHelper.ShouldUseInterpreter(filterExpression)) : null;
 
       foreach (var i in enumerable)
       {
@@ -155,7 +155,8 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
         {
           try
           {
-            Expression.Lambda(node).Compile(true).DynamicInvoke();
+            var lambda = Expression.Lambda(node);
+            lambda.Compile(ExpressionHelper.ShouldUseInterpreter(lambda)).DynamicInvoke();
           }
           catch (TargetInvocationException ex) when (ex.InnerException is InvalidOperationException)
           {

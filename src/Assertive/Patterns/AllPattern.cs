@@ -35,7 +35,7 @@ namespace Assertive.Patterns
 
       var collection = collectionExpression != null ? ((IEnumerable)ExpressionHelper.EvaluateExpression(collectionExpression)!).Cast<object>() : [];
 
-      var compiledFilter = filter.Compile(true);
+      var compiledFilter = filter.Compile(ExpressionHelper.ShouldUseInterpreter(filter));
 
       var invalidMatches = new List<object>();
 

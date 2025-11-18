@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using Assertive.Expressions;
 
 namespace Assertive.Analyzers
 {
@@ -35,7 +36,7 @@ namespace Assertive.Analyzers
     {
       var lambda = Expression.Lambda<Func<bool>>(assertion);
 
-      var compiled = lambda.Compile(true);
+      var compiled = lambda.Compile(ExpressionHelper.ShouldUseInterpreter(lambda));
 
       try
       {

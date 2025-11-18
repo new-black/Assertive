@@ -12,7 +12,7 @@ namespace Assertive
   {
     public static Exception? That(Expression<Func<bool>> assertion, object? message, Expression<Func<object>>? context)
     {
-      var compiledAssertion = assertion.Compile(true);
+      var compiledAssertion = assertion.Compile(ShouldUseInterpreter(assertion));
 
       Exception? exceptionToThrow = null;
 
@@ -46,7 +46,7 @@ namespace Assertive
 
       try
       {
-        var task = (Task)expression.Compile(true).DynamicInvoke()!;
+        var task = (Task)expression.Compile(ShouldUseInterpreter(expression)).DynamicInvoke()!;
 
         await task;
       }
@@ -78,7 +78,7 @@ namespace Assertive
 
       try
       {
-        expression.Compile(true).DynamicInvoke();
+        expression.Compile(ShouldUseInterpreter(expression)).DynamicInvoke();
       }
       catch (TargetInvocationException ex)
       {

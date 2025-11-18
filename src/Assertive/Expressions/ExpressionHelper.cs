@@ -23,9 +23,10 @@ namespace Assertive.Expressions
     
     public static object? EvaluateExpression(Expression expression)
     {
-      var lambda = Expression.Lambda(expression).Compile(true);
+      var lambda = Expression.Lambda(expression);
+      var compiled = lambda.Compile(ShouldUseInterpreter(expression));
 
-      var value = lambda.DynamicInvoke();
+      var value = compiled.DynamicInvoke();
 
       if (value != null && expression.NodeType == ExpressionType.Convert
                         && expression is UnaryExpression unaryExpression
@@ -70,10 +71,11 @@ namespace Assertive.Expressions
       {
         var parameters = new[] { instanceExpression };
 
-        return Expression.Lambda<Func<int>>(Expression.Call(null,
+        var lambda = Expression.Lambda<Func<int>>(Expression.Call(null,
           GetCountMethod(false)
             .MakeGenericMethod(typeInsideEnumerable),
-          parameters)).Compile(true)();
+          parameters));
+        return lambda.Compile(ShouldUseInterpreter(lambda))();
       }
 
       return null;
@@ -91,10 +93,11 @@ namespace Assertive.Expressions
           ? new[] { instanceExpression, node.Arguments[1] }
           : new[] { instanceExpression };
 
-        return Expression.Lambda<Func<int>>(Expression.Call(null,
+        var lambda = Expression.Lambda<Func<int>>(Expression.Call(null,
           GetCountMethod(useLambdaOverload)
             .MakeGenericMethod(typeInsideEnumerable),
-          parameters)).Compile(true)();
+          parameters));
+        return lambda.Compile(ShouldUseInterpreter(lambda))();
       }
 
       return null;
@@ -151,6 +154,38 @@ namespace Assertive.Expressions
       Expression replacement)
     {
       return new ParameterVisitor(parameter, replacement).Visit(expression);
+    }
+
+    /// <summary>
+    /// Determines whether the interpreter should be used for compiling the expression.
+    /// Returns false if the expression contains method calls with ref struct parameters
+    /// to work around a .NET bug where compilation with preferInterpreter=true fails
+    /// for expressions containing ref struct parameters (like Span or ReadOnlySpan).
+    /// </summary>
+    public static bool ShouldUseInterpreter(Expression expression)
+    {
+      return !ContainsRefStructParameters(expression);
+    }
+
+    private static bool ContainsRefStructParameters(Expression expression)
+    {
+      var visitor = new RefStructDetectorVisitor();
+      visitor.Visit(expression);
+      return visitor.HasRefStructParameters;
+    }
+
+    private class RefStructDetectorVisitor : ExpressionVisitor
+    {
+      public bool HasRefStructParameters { get; private set; }
+
+      protected override Expression VisitMethodCall(MethodCallExpression node)
+      {
+        if (node.Method.GetParameters().Any(p => p.ParameterType.IsByRefLike))
+        {
+          HasRefStructParameters = true;
+        }
+        return base.VisitMethodCall(node);
+      }
     }
 
     private class ParameterVisitor : ExpressionVisitor
