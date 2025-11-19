@@ -20,17 +20,24 @@ namespace Assertive.Patterns
              && memberExpression.Expression?.Type.IsNullableValueType() == true;
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var memberExpression = (MemberExpression)assertion.ExpressionWithoutNegation;
 
       if (assertion.IsNegated)
       {
-        return
-          $"Expected {memberExpression.Expression} to not have a value but its value was {memberExpression.Expression?.ToValue()}.";
+        return new ExpectedAndActual()
+        {
+          Expected = $"{memberExpression.Expression} should not have a value.",
+          Actual = $"Value: {memberExpression.Expression?.ToValue()}."
+        };
       }
-
-      return $"Expected {memberExpression.Expression} to have a value.";
+      
+      return new ExpectedAndActual()
+      {
+        Expected = $"{memberExpression.Expression} should have a value.",
+        Actual = $"It was null."
+      };
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = [];

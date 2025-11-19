@@ -89,7 +89,7 @@ namespace Assertive.Patterns
       return equals;
     }
 
-    public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual? TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var methodCallExpression = (MethodCallExpression)assertion.Expression;
       var collection1Expression = ExpressionHelper.GetInstanceOfMethodCall(methodCallExpression);
@@ -108,8 +108,6 @@ namespace Assertive.Patterns
       }
 
       var equals = GetComparerFunc(methodCallExpression, enumerableType);
-
-      FormattableString result;
 
       if (equals != null)
       {
@@ -174,20 +172,28 @@ namespace Assertive.Patterns
             $"[{d.Index}]: {(d.HasValueSequence1 ? Serializer.Serialize(d.ValueSequence1) ?? "null" : "(no value)")} <> {(d.HasValueSequence2 ? Serializer.Serialize(d.ValueSequence2) ?? "null" : "(no value)")}")
           .ToList();
 
-        result =
-          $@"Expected {collection1Expression} to be equal to {collection2Expression}, but there {(differenceCount > 1 ? $"were {differenceCount} differences" : "was 1 difference")}{(hasMoreDifferences ? " (first 10)" : "")}:
+        return new ExpectedAndActual()
+        {
+          Expected = $"{collection1Expression} should equal {collection2Expression}",
+          Actual = $"""
+                    There {(differenceCount > 1 ? $"were {differenceCount} differences" : "was 1 difference")}{(hasMoreDifferences ? " (first 10)" : "")}:
 
-{string.Join("," + Environment.NewLine, differencesString)}";
+                    {string.Join("," + Environment.NewLine, differencesString)} 
+                    """
+        };
       }
       else
       {
-        result = $@"Expected {collection1Expression} to be equal to {collection2Expression} but they were not.";
+        return new ExpectedAndActual()
+        {
+          Expected = $"{collection1Expression} should equal {collection2Expression}",
+          Actual = $"""
+                    Value of {collection1Expression}: {collection1}
+
+                    Value of {collection2Expression}: {collection2}
+                    """
+        };
       }
-
-      return $@"{result}
-
-Value of {collection1Expression}: {collection1}
-Value of {collection2Expression}: {collection2}";
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = [];

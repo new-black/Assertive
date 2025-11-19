@@ -15,7 +15,7 @@ namespace Assertive.Patterns
              && t.TypeOperand != typeof(object);
     }
 
-    public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual? TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var typeAssertion = ((TypeBinaryExpression)assertion.ExpressionWithoutNegation);
 
@@ -25,12 +25,22 @@ namespace Assertive.Patterns
       
       if (result == null)
       {
-        return $"Expected {typeAssertion.Expression} to be of type {expectedType} but it was null.";
+        return new ExpectedAndActual()
+        {
+          Expected = $"{typeAssertion.Expression} should {(assertion.IsNegated ? "not " : "")}be of type {expectedType}.",
+          Actual = $"It was null."
+        };
       }
-
-      return !assertion.IsNegated ? 
-        $"Expected {typeAssertion.Expression} to be of type {expectedType} but its actual type was {TypeHelper.TypeNameToString(result.GetType())}." 
-        : (FormattableString)$"Expected {typeAssertion.Expression} to not be of type {expectedType}.";
+      
+      return !assertion.IsNegated ? new ExpectedAndActual()
+      {
+        Expected = $"{typeAssertion.Expression} should be of type {expectedType}.",
+        Actual = $"Type: {TypeHelper.TypeNameToString(result.GetType())}."
+      } : new ExpectedAndActual()
+      {
+        Expected = $"{typeAssertion.Expression} should not be of type {expectedType}.",
+        Actual = $"Type: {TypeHelper.TypeNameToString(result.GetType())}."
+      };
     }
 
     public IFriendlyMessagePattern[] SubPatterns => [];

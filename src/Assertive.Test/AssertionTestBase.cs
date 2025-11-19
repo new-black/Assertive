@@ -13,6 +13,7 @@ namespace Assertive.Test
       try
       {
         Assert.Throws(assertion);
+        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
@@ -30,6 +31,7 @@ namespace Assertive.Test
       try
       {
         await Assert.Throws(assertion);
+        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
@@ -47,6 +49,7 @@ namespace Assertive.Test
       try
       {
         await Assert.Throws<T>(assertion);
+        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
@@ -64,6 +67,7 @@ namespace Assertive.Test
       try
       {
         Assert.Throws<T>(assertion);
+        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
@@ -81,6 +85,7 @@ namespace Assertive.Test
       try
       {
         Assert.That(assertion);
+        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
@@ -88,11 +93,11 @@ namespace Assertive.Test
         
         if (exactMatch)
         {
-          Xunit.Assert.Equal(expectedMessage, ex.Message);
+          Assert.That(() => ex.Message == expectedMessage);
         }
         else
         {
-          Xunit.Assert.StartsWith(expectedMessage, ex.Message);
+          Assert.That(() => ex.Message.StartsWith(expectedMessage));
         }
       }
 
@@ -106,6 +111,7 @@ namespace Assertive.Test
       try
       {
         Assert.That(assertion, context);
+        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
@@ -123,6 +129,7 @@ namespace Assertive.Test
       try
       {
         Assert.That(assertion, message);
+        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {

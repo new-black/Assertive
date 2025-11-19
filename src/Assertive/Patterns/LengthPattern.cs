@@ -32,7 +32,7 @@ namespace Assertive.Patterns
       return IsArrayLength(expression) || IsListCount(expression) || IsCountMethod(expression) || IsStringLength(expression);
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var binaryExpression = (BinaryExpression)assertion.Expression;
 
@@ -42,11 +42,11 @@ namespace Assertive.Patterns
       
       if (IsArrayLength(binaryExpression.Left) || IsStringLength(binaryExpression.Left))
       {
-        countLabel = "length";
+        countLabel = "Length";
       }
       else
       {
-        countLabel = "count";
+        countLabel = "Count";
       }
 
       string comparison;
@@ -115,10 +115,19 @@ namespace Assertive.Patterns
 
       if (binaryExpression.Right.NodeType == ExpressionType.Constant)
       {
-        return $"Expected {operand}{filterString} to have a {countLabel} {comparison} {binaryExpression.Right}{actualCountString}.";
+        return new ExpectedAndActual()
+        {
+          Expected = $"{operand}{filterString} should have a {countLabel} {comparison} {binaryExpression.Right}.",
+          Actual = $"{countLabel}: {actualLength}."
+        };
       }
-      
-      return $"Expected {operand}{filterString} to have a {countLabel} {comparison} {binaryExpression.Right} (value: {binaryExpression.Right.ToValue()}){actualCountString}.";
+
+      return new ExpectedAndActual()
+      {
+        Expected =
+          $"{operand}{filterString} should have a {countLabel} {comparison} {binaryExpression.Right} (value: {binaryExpression.Right.ToValue()}).",
+        Actual = $"{countLabel}: {actualLength}."
+      };
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = [];

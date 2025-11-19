@@ -91,7 +91,7 @@ namespace Assertive.Patterns
       return ((BinaryExpression)assertion).Right;
     }
 
-    public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual? TryGetFriendlyMessage(FailedAssertion assertion)
     {
       return null;
     }

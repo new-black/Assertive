@@ -20,7 +20,7 @@ namespace Assertive.Patterns
       return expression is MethodCallExpression { Method.Name: nameof(Enumerable.Contains) };
     }
     
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var notContains = assertion.IsNegated;
 
@@ -50,10 +50,18 @@ namespace Assertive.Patterns
       
       if (instance != null && instance.Type == typeof(string))
       {
-        return $"Expected {instance} (value: {instance.ToValue()}) to{(notContains ? " not " : " ")}contain {expectedValueString}.";
+        return new ExpectedAndActual()
+        {
+          Expected = $"{instance} should{(notContains ? " not " : " ")}contain the substring {expectedValueString}.",
+          Actual = $"Value: {instance.ToValue()}"
+        };
       }
-
-      return $"Expected {instance} to{(notContains ? " not " : " ")}contain {expectedValueString}.";
+      
+      return new ExpectedAndActual()
+      {
+        Expected = $"{instance} should{(notContains ? " not " : " ")}contain {expectedValueString}.",
+        Actual = $"Value: {instance?.ToValue()}"
+      };
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = [];

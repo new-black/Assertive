@@ -30,7 +30,7 @@ namespace Assertive.Patterns
       };
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var b = (BinaryExpression)assertion.Expression;
 
@@ -38,13 +38,22 @@ namespace Assertive.Patterns
       
       if (b.Right.NodeType == ExpressionType.Constant)
       {
-        return
-          $"Expected {b.Left} to be {comparison} {b.Right}, but {b.Left} was {b.Left.ToValue()}.";
+        return new ExpectedAndActual()
+        {
+          Expected = $"{b.Left} should be {comparison} {b.Right}.",
+          Actual = $"{b.Left}: {b.Left.ToValue()}."
+        };
       }
       else
       {
-        return
-          $"Expected {b.Left} to be {comparison} {b.Right}, but {b.Left} was {b.Left.ToValue()} while {b.Right} was {b.Right.ToValue()}.";
+        return new ExpectedAndActual()
+        {
+          Expected = $"{b.Left} should be {comparison} {b.Right}.",
+          Actual = $"""
+                    {b.Left}: {b.Left.ToValue()}
+                    {b.Right}: {b.Right.ToValue()}
+                    """
+        };
       }
     }
 

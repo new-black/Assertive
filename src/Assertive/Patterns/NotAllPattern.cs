@@ -13,7 +13,7 @@ namespace Assertive.Patterns
       return failedAssertion.IsNegated && AllPattern.IsAllMethodCall(failedAssertion.NegatedExpression!);
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var methodCallExpression = (MethodCallExpression)((UnaryExpression)assertion.Expression).Operand;
 
@@ -21,7 +21,11 @@ namespace Assertive.Patterns
 
       var filter = (LambdaExpression)methodCallExpression.Arguments[1];
 
-      return $"Did not expect all items of {collectionExpression} to match the filter {filter.Body}.";
+      return new ExpectedAndActual()
+      {
+        Expected = $"Not all items of {collectionExpression} should match the filter {filter.Body}.",
+        Actual = null
+      };
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = [];

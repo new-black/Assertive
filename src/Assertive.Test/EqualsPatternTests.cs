@@ -178,6 +178,78 @@ namespace Assertive.Test
       return x;
     }
 
+    [Fact]
+    public void String_diff_shows_position_of_difference()
+    {
+      var actual = "Hello World";
+      var expected = "Hallo World";
+
+      try
+      {
+        Assert.That(() => actual == expected);
+        Xunit.Assert.Fail("Should have failed");
+      }
+      catch (Exception ex)
+      {
+        Xunit.Assert.Contains("Strings differ at index", ex.Message);
+        Xunit.Assert.Contains("[e]", ex.Message);
+        Xunit.Assert.Contains("[a]", ex.Message);
+      }
+    }
+
+    [Fact]
+    public void String_diff_shows_difference_in_long_strings()
+    {
+      var actual = "The quick brown fox jumps over the lazy dog";
+      var expected = "The quick brown cat jumps over the lazy dog";
+
+      try
+      {
+        Assert.That(() => actual == expected);
+        Xunit.Assert.Fail("Should have failed");
+      }
+      catch (Exception ex)
+      {
+        Xunit.Assert.Contains("Strings differ at index 16", ex.Message);
+        Xunit.Assert.Contains("[f]", ex.Message);
+        Xunit.Assert.Contains("[c]", ex.Message);
+      }
+    }
+
+    [Fact]
+    public void String_diff_shows_length_difference()
+    {
+      var actual = "Short";
+      var expected = "Short string";
+
+      try
+      {
+        Assert.That(() => actual == expected);
+        Xunit.Assert.Fail("Should have failed");
+      }
+      catch (Exception ex)
+      {
+        Xunit.Assert.Contains("Strings differ in length", ex.Message);
+      }
+    }
+
+    [Fact]
+    public void String_diff_escapes_special_characters()
+    {
+      var actual = "Line 1\nLine 2\nLine 3";
+      var expected = "Line 1\nLine 2\rLine 3";
+
+      try
+      {
+        Assert.That(() => actual == expected);
+        Xunit.Assert.Fail("Should have failed");
+      }
+      catch (Exception ex)
+      {
+        Xunit.Assert.True(ex.Message.Contains("\\n") || ex.Message.Contains("\\r"));
+      }
+    }
+
     private enum MyEnum
     {
       A = 1,
