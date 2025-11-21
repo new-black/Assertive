@@ -38,14 +38,19 @@ namespace Assertive.Patterns
       
       FormattableString filterString;
 
+      bool isFiltered;
+
       if (methodCallExpression.Arguments is [_, LambdaExpression lambdaExpression])
       {
         filterString = $" that match the filter {lambdaExpression.Body}";
+        isFiltered = true;
       }
       else
       {
+        isFiltered = false;
         filterString = $"";
       }
+      
       
       if (notAny)
       {
@@ -59,10 +64,11 @@ namespace Assertive.Patterns
       }
       else
       {
+        var actualCount = collection != null ? ExpressionHelper.GetCollectionItemCount(collection) : 0;
         return new ExpectedAndActual()
         {
           Expected = $"Collection {collection} should contain some items{filterString}.",
-          Actual = $"It contained no items."
+          Actual = !isFiltered || actualCount == 0 ? $"It contained no items." : (FormattableString)$"It contained no items matching the filter."
         };
       }
     }

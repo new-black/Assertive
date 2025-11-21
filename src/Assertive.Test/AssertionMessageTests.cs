@@ -1,9 +1,21 @@
+using System;
+using Assertive.Config;
 using Xunit;
 
 namespace Assertive.Test
 {
-  public class AssertionMessageTests : AssertionTestBase
+  public class AssertionMessageTests : AssertionTestBase, IDisposable
   {
+    public AssertionMessageTests()
+    {
+      Configuration.Colors.Enabled = false;
+    }
+
+    public void Dispose()
+    {
+      Configuration.Colors.Enabled = true;
+    }
+
     [Fact]
     public void Message_is_part_of_output()
     {
@@ -12,7 +24,10 @@ namespace Assertive.Test
         Amount = 10
       };
       
-      ShouldFail(() => order.Amount > 20, "Expected orderID to be more than 20", "Message: Expected orderID to be more than 20");
+      ShouldFailWithMessage(() => order.Amount > 20, "Expected orderID to be more than 20", """
+                                                                                            [MESSAGE]
+                                                                                            Expected orderID to be more than 20
+                                                                                            """);
     }
     
     private class Order
@@ -30,7 +45,10 @@ namespace Assertive.Test
         Amount = 10
       };
       
-      ShouldFail(() => order.Amount > 20, order, "Message: { ID = 999, Amount = 10 }");
+      ShouldFailWithMessage(() => order.Amount > 20, order, """
+                                                            [MESSAGE]
+                                                            { ID = 999, Amount = 10 }
+                                                            """);
     }
     
     [Fact]
@@ -42,7 +60,10 @@ namespace Assertive.Test
         Amount = 10
       };
       
-      ShouldFail(() => order.Amount > 20, order, "Message: { ID = 999, Amount = 10 }");
+      ShouldFailWithMessage(() => order.Amount > 20, order, """
+                                                            [MESSAGE]
+                                                            { ID = 999, Amount = 10 }
+                                                            """);
     }
   }
 }

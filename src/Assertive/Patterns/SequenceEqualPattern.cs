@@ -178,7 +178,10 @@ namespace Assertive.Patterns
           Actual = $"""
                     There {(differenceCount > 1 ? $"were {differenceCount} differences" : "was 1 difference")}{(hasMoreDifferences ? " (first 10)" : "")}:
 
-                    {string.Join("," + Environment.NewLine, differencesString)} 
+                    {string.Join("," + Environment.NewLine, differencesString)}
+                    
+                    {collection1Expression}: {collection1}
+                    {collection2Expression}: {collection2}
                     """
         };
       }
@@ -188,9 +191,8 @@ namespace Assertive.Patterns
         {
           Expected = $"{collection1Expression} should equal {collection2Expression}",
           Actual = $"""
-                    Value of {collection1Expression}: {collection1}
-
-                    Value of {collection2Expression}: {collection2}
+                    {collection1Expression}: {collection1}
+                    {collection2Expression}: {collection2}
                     """
         };
       }

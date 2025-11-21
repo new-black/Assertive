@@ -18,12 +18,12 @@ namespace Assertive.Patterns
       return assertion.IsNegated
         ? new ExpectedAndActual()
         {
-          Expected = $"{assertion.NegatedExpression}: {assertion.Expression.ToValue()}.",
+          Expected = $"{assertion.NegatedExpression}: False",
           Actual = $"True"
         }
         : new ExpectedAndActual()
         {
-          Expected = $"{assertion.Expression}: {assertion.Expression.ToValue()}.",
+          Expected = $"{assertion.Expression}: True",
           Actual = $"False"
         };
     }

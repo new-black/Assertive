@@ -75,8 +75,14 @@ namespace Assertive.Patterns
               if (failure.Message != null)
               {
                 subMessages.Add(collectionExpression is MethodCallExpression
-                  ? $"[{index}] - {failure.Message}"
-                  : (FormattableString)$"{collectionExpression?.ToUnquoted()}[{index}] - {failure.Message}");
+                  ? $"""
+                     [{index}]
+                     {failure.Message}
+                     """
+                  : (FormattableString)$"""
+                                        {collectionExpression?.ToUnquoted()}[{index}]
+                                        {failure.Message}
+                                        """);
               }
             }
           }
@@ -90,14 +96,18 @@ namespace Assertive.Patterns
         return subMessages.Count switch
         {
           0 => $"",
-          1 when invalidCount == 1 => $@"
+          1 when invalidCount == 1 => $"""
 
-{subMessages[0]}",
-          _ => $@"
 
-Messages per item:
+                                       {subMessages[0]}
+                                       """,
+          _ => $"""
 
-{subMessages}"
+
+                Messages per item:
+
+                {subMessages}
+                """
         };
       }
 

@@ -10,7 +10,7 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Assertive.Config
 {
-  public static class Configuration
+  public static partial class Configuration
   {
     /// <summary>
     /// Determines if and how assertion expressions in the test output should be quoted.
@@ -183,6 +183,12 @@ namespace Assertive.Config
     }
     
     public static CompareSnapshotsConfiguration Snapshots { get; } = new ();
+
+    /// <summary>
+    /// Color scheme configuration for assertion failure messages.
+    /// Set <see cref="ColorScheme.Enabled"/> to false to disable all colorization.
+    /// </summary>
+    public static ColorScheme Colors { get; } = new ();
 
     private static string? _expressionQuotationPattern;
   }

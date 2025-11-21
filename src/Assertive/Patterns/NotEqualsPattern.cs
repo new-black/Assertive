@@ -30,7 +30,7 @@ namespace Assertive.Patterns
       
       return new()
       {
-        Expected = $"{right}: {expected}",
+        Expected = $"{left}: should not equal {expected}.",
         Actual = $"{left}: {actual}"
       };
     }

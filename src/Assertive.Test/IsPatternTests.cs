@@ -9,12 +9,12 @@ namespace Assertive.Test
     {
       object o = "foo";
       
-      ShouldFail(() => o is int, "Expected o to be of type int but its actual type was string.");
-      ShouldFail(() => !(o is string), "Expected o to not be of type string.");
+      ShouldFail(() => o is int, "o should be of type int.", "Type: string.");
+      ShouldFail(() => !(o is string), "o should not be of type string.", "Type: string.");
 
       object? value = null;
       
-      ShouldFail(() =>  value is string, "Expected value to be of type string but it was null.");
+      ShouldFail(() =>  value is string, "value should be of type string.", "It was null.");
     }
   }
 }

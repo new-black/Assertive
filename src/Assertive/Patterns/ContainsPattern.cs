@@ -53,14 +53,14 @@ namespace Assertive.Patterns
         return new ExpectedAndActual()
         {
           Expected = $"{instance} should{(notContains ? " not " : " ")}contain the substring {expectedValueString}.",
-          Actual = $"Value: {instance.ToValue()}"
+          Actual = $"{instance}: {instance.ToValue()}"
         };
       }
       
       return new ExpectedAndActual()
       {
         Expected = $"{instance} should{(notContains ? " not " : " ")}contain {expectedValueString}.",
-        Actual = $"Value: {instance?.ToValue()}"
+        Actual = $"{instance}: {instance?.ToValue()}"
       };
     }
 

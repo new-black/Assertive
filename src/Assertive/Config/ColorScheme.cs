@@ -1,0 +1,456 @@
+using System;
+
+namespace Assertive.Config
+{
+  public static partial class Configuration
+  {
+    /// <summary>
+    /// Centralized colorization configuration for assertion failure messages.
+    /// Set <see cref="Enabled"/> to false to disable all colorization.
+    /// </summary>
+    public class ColorScheme
+    {
+      /// <summary>
+      /// Enables or disables all colorization. When false, all color methods return plain text.
+      /// </summary>
+      public bool Enabled { get; set; } = true;
+
+      // ANSI escape codes
+      private const string Reset = "\u001b[0m";
+      private const string Bold = "\u001b[1m";
+      private const string Dim = "\u001b[2m";
+      private const string Italic = "\u001b[3m";
+      private const string Underline = "\u001b[4m";
+
+      // Foreground colors
+      private const string Black = "\u001b[30m";
+      private const string Red = "\u001b[31m";
+      private const string Green = "\u001b[32m";
+      private const string Yellow = "\u001b[33m";
+      private const string Blue = "\u001b[34m";
+      private const string Magenta = "\u001b[35m";
+      private const string Cyan = "\u001b[36m";
+      private const string White = "\u001b[37m";
+
+      // Bright foreground colors
+      private const string BrightBlack = "\u001b[90m";
+      private const string BrightRed = "\u001b[91m";
+      private const string BrightGreen = "\u001b[92m";
+      private const string BrightYellow = "\u001b[93m";
+      private const string BrightBlue = "\u001b[94m";
+      private const string BrightMagenta = "\u001b[95m";
+      private const string BrightCyan = "\u001b[96m";
+      private const string BrightWhite = "\u001b[97m";
+
+      // Background colors
+      private const string BgBlack = "\u001b[40m";
+      private const string BgRed = "\u001b[41m";
+      private const string BgGreen = "\u001b[42m";
+      private const string BgYellow = "\u001b[43m";
+      private const string BgBlue = "\u001b[44m";
+      private const string BgMagenta = "\u001b[45m";
+      private const string BgCyan = "\u001b[46m";
+      private const string BgWhite = "\u001b[47m";
+
+      // Bright background colors
+      private const string BgBrightBlack = "\u001b[100m";
+      private const string BgBrightRed = "\u001b[101m";
+      private const string BgBrightGreen = "\u001b[102m";
+      private const string BgBrightYellow = "\u001b[103m";
+      private const string BgBrightBlue = "\u001b[104m";
+      private const string BgBrightMagenta = "\u001b[105m";
+      private const string BgBrightCyan = "\u001b[106m";
+      private const string BgBrightWhite = "\u001b[107m";
+
+      /// <summary>
+      /// Applies color formatting to text if colorization is enabled.
+      /// </summary>
+      private string ApplyColor(string text, string colorCodes)
+      {
+        if (!Enabled) return text;
+        return $"{colorCodes}{text}{Reset}";
+      }
+
+      /// <summary>
+      /// Creates the "EXPECTED" header with fancy styling.
+      /// </summary>
+      public string ExpectedHeader()
+      {
+        if (!Enabled) return "[EXPECTED]";
+
+        // Green background with black text, bold
+        var header = ApplyColor(" ✓ EXPECTED".PadRight(80, ' '), $"{Bold}{Black}{BgBrightGreen}");
+        return $"{header}";
+      }
+
+      /// <summary>
+      /// Creates the "ACTUAL" header with fancy styling.
+      /// </summary>
+      public string ActualHeader()
+      {
+        if (!Enabled) return "[ACTUAL]";
+
+        // Red background with white text, bold
+        var header = ApplyColor(" ✗ ACTUAL".PadRight(80, ' '), $"{Bold}{BrightWhite}{BgBrightRed}");
+        return header;
+      }
+
+      /// <summary>
+      /// Highlights the expected value.
+      /// </summary>
+      public string Expected(string text)
+      {
+        if (!Enabled) return text;
+
+        return ApplyColor(text, $"{Green}");
+      }
+
+      /// <summary>
+      /// Highlights the actual value.
+      /// </summary>
+      public string Actual(string text)
+      {
+        if (!Enabled) return text;
+
+        return ApplyColor(text, $"{Red}");
+      }
+
+      /// <summary>
+      /// Highlights a difference or error.
+      /// </summary>
+      public string Diff(string text)
+      {
+        if (!Enabled) return text;
+
+        return ApplyColor(text, $"{Bold}{BrightYellow}{BgBrightBlack}");
+      }
+
+      /// <summary>
+      /// Highlights important information.
+      /// </summary>
+      public string Highlight(string text)
+      {
+        if (!Enabled) return text;
+
+        return ApplyColor(text, $"{Bold}{BrightCyan}");
+      }
+
+      /// <summary>
+      /// Dims less important text.
+      /// </summary>
+      public string Dimmed(string text)
+      {
+        if (!Enabled) return text;
+        return ApplyColor(text, Dim);
+      }
+
+      /// <summary>
+      /// Formats a string diff section header.
+      /// </summary>
+      public string DiffHeader(string text)
+      {
+        if (!Enabled) return text;
+
+        var header = ApplyColor(text, $"{Bold}{BrightYellow}");
+        return header;
+      }
+
+      /// <summary>
+      /// Highlights matching context in diff.
+      /// </summary>
+      public string DiffContext(string text)
+      {
+        if (!Enabled) return text;
+
+        return ApplyColor(text, $"{Dim}{BrightBlack}");
+      }
+
+      /// <summary>
+      /// Highlights the differing character in expected.
+      /// </summary>
+      public string DiffExpectedChar(string text)
+      {
+        if (!Enabled) return $"[{text}]";
+
+        return ApplyColor($"⟦{text}⟧", $"{Bold}{BrightWhite}{BgGreen}");
+      }
+
+      /// <summary>
+      /// Highlights the differing character in actual.
+      /// </summary>
+      public string DiffActualChar(string text)
+      {
+        if (!Enabled) return $"[{text}]";
+
+        return ApplyColor($"⟦{text}⟧", $"{Bold}{BrightWhite}{BgRed}");
+      }
+
+      /// <summary>
+      /// Formats ellipsis in diff.
+      /// </summary>
+      public string DiffEllipsis()
+      {
+        if (!Enabled) return "...";
+
+        return ApplyColor("⋯", $"{Dim}{BrightBlack}");
+      }
+
+      /// <summary>
+      /// Formats the "Expected:" label in diff.
+      /// </summary>
+      public string DiffExpectedLabel()
+      {
+        if (!Enabled) return "Expected:";
+
+        return ApplyColor("  Expected ", $"{Bold}{BrightWhite}{BgGreen}") + " ";
+      }
+
+      /// <summary>
+      /// Formats the "Actual:" label in diff.
+      /// </summary>
+      public string DiffActualLabel()
+      {
+        if (!Enabled) return "Actual:";
+
+        return ApplyColor("  Actual   ", $"{Bold}{BrightWhite}{BgRed}") + " ";
+      }
+
+      /// <summary>
+      /// Formats a metadata section header (Assertion, Locals, Message, etc.)
+      /// </summary>
+      public string MetadataHeader(string header)
+      {
+        if (!Enabled) return $"[{header}]";
+
+        var icon = header switch
+        {
+          "LOCALS" => "ℹ",
+          "EXCEPTION" => "⚠",
+          _ => " "
+        };
+
+        return ApplyColor($" {icon} {header}".PadRight(80, ' '), $"{Bold}{Black}{BgBrightCyan}");
+      }
+
+      /// <summary>
+      /// Formats expression code with C# syntax highlighting.
+      /// </summary>
+      public string Expression(string expression)
+      {
+        return HighlightCSharpSyntax(expression);
+        //return expression;
+      }
+
+      /// <summary>
+      /// Applies syntax highlighting to C# code.
+      /// </summary>
+      private string HighlightCSharpSyntax(string code)
+      {
+        var result = new System.Text.StringBuilder();
+        var i = 0;
+
+        // C# keywords
+        var keywords = new System.Collections.Generic.HashSet<string>
+        {
+          "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked",
+          "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else",
+          "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for",
+          "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal", "is", "lock",
+          "long", "namespace", "new", "null", "object", "operator", "out", "override", "params",
+          "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed",
+          "short", "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw",
+          "true", "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using",
+          "virtual", "void", "volatile", "while", "var", "dynamic", "async", "await", "nameof",
+          "when", "where", "yield", "select", "from", "let", "orderby", "group", "by", "into",
+          "join", "on", "equals", "ascending", "descending"
+        };
+
+        while (i < code.Length)
+        {
+          var ch = code[i];
+
+          // String literals
+          if (ch == '"' || ch == '\'')
+          {
+            var quote = ch;
+            var str = new System.Text.StringBuilder();
+            str.Append(ch);
+            i++;
+
+            var isVerbatim = i > 1 && code[i - 2] == '@';
+
+            while (i < code.Length)
+            {
+              var c = code[i];
+              str.Append(c);
+              i++;
+
+              if (c == quote)
+              {
+                // Check for escaped quote in verbatim strings
+                if (isVerbatim && i < code.Length && code[i] == quote)
+                {
+                  str.Append(code[i]);
+                  i++;
+                  continue;
+                }
+
+                break;
+              }
+
+              // Handle escape sequences in regular strings
+              if (!isVerbatim && c == '\\' && i < code.Length)
+              {
+                str.Append(code[i]);
+                i++;
+              }
+            }
+
+            result.Append(ApplyColor(str.ToString(), BrightGreen));
+            continue;
+          }
+
+          // Verbatim string prefix
+          if (ch == '@' && i + 1 < code.Length && (code[i + 1] == '"' || code[i + 1] == '\''))
+          {
+            result.Append(ApplyColor("@", BrightGreen));
+            i++;
+            continue;
+          }
+
+          // Lambda arrow =>
+          if (ch == '=' && i + 1 < code.Length && code[i + 1] == '>')
+          {
+            result.Append(ApplyColor("=>", BrightMagenta));
+            i += 2;
+            continue;
+          }
+
+          // Operators and punctuation
+          if ("+-*/%<>=!&|^~?:".Contains(ch))
+          {
+            var op = new System.Text.StringBuilder();
+            op.Append(ch);
+            i++;
+
+            // Multi-character operators
+            if (i < code.Length)
+            {
+              var next = code[i];
+              if ((ch == '=' && "=>".Contains(next)) ||
+                  (ch == '!' && next == '=') ||
+                  (ch == '<' && next == '=') ||
+                  (ch == '>' && next == '=') ||
+                  (ch == '&' && next == '&') ||
+                  (ch == '|' && next == '|') ||
+                  (ch == '+' && next == '+') ||
+                  (ch == '-' && next == '-') ||
+                  (ch == '?' && next == '?'))
+              {
+                op.Append(next);
+                i++;
+              }
+            }
+
+            result.Append(ApplyColor(op.ToString(), BrightCyan));
+            continue;
+          }
+
+          // Parentheses, brackets, braces
+          if ("()[]{}".Contains(ch))
+          {
+            result.Append(ApplyColor(ch.ToString(), $"{Bold}{BrightWhite}"));
+            i++;
+            continue;
+          }
+
+          // Identifiers and keywords
+          if (char.IsLetter(ch) || ch == '_')
+          {
+            var identifier = new System.Text.StringBuilder();
+            while (i < code.Length && (char.IsLetterOrDigit(code[i]) || code[i] == '_'))
+            {
+              identifier.Append(code[i]);
+              i++;
+            }
+
+            var word = identifier.ToString();
+            if (keywords.Contains(word))
+            {
+              result.Append(ApplyColor(word, BrightBlue));
+            }
+            else
+            {
+              result.Append(ApplyColor(word, $"{Italic}{Yellow}"));
+            }
+
+            continue;
+          }
+
+          // Numbers
+          if (char.IsDigit(ch))
+          {
+            var number = new System.Text.StringBuilder();
+            while (i < code.Length && (char.IsDigit(code[i]) || code[i] == '.' || code[i] == '_' ||
+                                       char.ToLower(code[i]) == 'f' || char.ToLower(code[i]) == 'd' ||
+                                       char.ToLower(code[i]) == 'm' || char.ToLower(code[i]) == 'l' ||
+                                       char.ToLower(code[i]) == 'u' || char.ToLower(code[i]) == 'x'))
+            {
+              number.Append(code[i]);
+              i++;
+
+              // Handle hex numbers
+              if (number.Length == 2 && number.ToString() == "0x")
+              {
+                while (i < code.Length && "0123456789abcdefABCDEF_".Contains(code[i]))
+                {
+                  number.Append(code[i]);
+                  i++;
+                }
+
+                break;
+              }
+            }
+
+            result.Append(ApplyColor(number.ToString(), BrightYellow));
+            continue;
+          }
+
+          // Semicolons and commas
+          if (ch == ';' || ch == ',' || ch == '.')
+          {
+            result.Append(ApplyColor(ch.ToString(), BrightWhite));
+            i++;
+            continue;
+          }
+
+          // Default: whitespace and other characters
+          result.Append(ch);
+          i++;
+        }
+
+        return result.ToString();
+      }
+
+      /// <summary>
+      /// Formats a local variable name.
+      /// </summary>
+      public string LocalName(string name)
+      {
+        if (!Enabled) return name;
+
+        return ApplyColor(name, $"{Bold}{BrightMagenta}");
+      }
+
+      /// <summary>
+      /// Formats a local variable value.
+      /// </summary>
+      public string LocalValue(string value)
+      {
+        if (!Enabled) return value;
+
+        return ApplyColor(value, $"{BrightWhite}");
+      }
+    }
+  }
+}

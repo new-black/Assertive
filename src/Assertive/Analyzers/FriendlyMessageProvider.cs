@@ -37,17 +37,7 @@ namespace Assertive.Analyzers
 
           FormattableString? friendlyMessage;
 
-          const string Reset = "\u001b[0m";
-          //const string Bold = "\u001b[1m";
-          const string Red = "\u001b[31m";
-          const string Green = "\u001b[32m";
-          //const string Yellow = "\u001b[33m";
-          //const string Cyan = "\u001b[36m";
-
-          static string Color(string text, string colorCode)
-          {
-            return $"{colorCode}{text}{Reset}";
-          }
+          var colors = Config.Configuration.Colors;
 
           if (expectedAndActual == null)
           {
@@ -56,27 +46,25 @@ namespace Assertive.Analyzers
           else if (expectedAndActual.Actual != null)
           {
             friendlyMessage = $"""
-                               {Color("[EXPECTED]", Green)}
-
+                               {colors.ExpectedHeader()}
                                {expectedAndActual.Expected}
-
-                               {Color("[ACTUAL]", Red)}
-
+                               {colors.ActualHeader()}
                                {expectedAndActual.Actual}
+                               
                                """;
           }
           else
           {
             friendlyMessage = $"""
-                               [EXPECTED]
-
+                               {colors.ExpectedHeader()}
                                {expectedAndActual.Expected}
+                               
                                """;
           }
 
           var formattedMessage = FriendlyMessageFormatter.GetString(friendlyMessage, _context.EvaluatedExpressions);
 
-          return new FriendlyMessage(formattedMessage, pattern);
+          return new FriendlyMessage(formattedMessage, pattern, expectedAndActual);
         }
       }
       catch

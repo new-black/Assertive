@@ -9,9 +9,7 @@ namespace Assertive.Test
     {
       var myString = "abcdefghijklmnop";
       
-      ShouldFail(() => myString.StartsWith("cba"), @"Expected myString to start with ""cba"".
-
-Value of myString: ""abcdefghijklmnop""");
+      ShouldFail(() => myString.StartsWith("cba"), @"myString: should start with ""cba"".", @"myString: ""abcdefghijklmnop""");
     }
     
     [Fact]
@@ -19,9 +17,7 @@ Value of myString: ""abcdefghijklmnop""");
     {
       var myString = "abcdefghijklmnop";
       
-      ShouldFail(() => !myString.StartsWith("abc"), @"Expected myString to not start with ""abc"".
-
-Value of myString: ""abcdefghijklmnop""");
+      ShouldFail(() => !myString.StartsWith("abc"), @"myString: should not start with ""abc"".", @"myString: ""abcdefghijklmnop""");
     }
     
     [Fact]
@@ -30,9 +26,9 @@ Value of myString: ""abcdefghijklmnop""");
       var myString = "abcdefghijklmnop";
       var prefix = "cba";
       
-      ShouldFail(() => myString.StartsWith(prefix), @"Expected myString to start with prefix (value: ""cba"").
+      ShouldFail(() => myString.StartsWith(prefix), @"myString: should start with prefix.
 
-Value of myString: ""abcdefghijklmnop""");
+prefix: ""cba""", @"myString: ""abcdefghijklmnop""");
     }
     
     [Fact]
@@ -41,9 +37,9 @@ Value of myString: ""abcdefghijklmnop""");
       var myString = "abcdefghijklmnop";
       var prefix = "abc";
       
-      ShouldFail(() => !myString.StartsWith(prefix), @"Expected myString to not start with prefix (value: ""abc"").
+      ShouldFail(() => !myString.StartsWith(prefix), @"myString: should not start with prefix.
 
-Value of myString: ""abcdefghijklmnop""");
+prefix: ""abc""", @"myString: ""abcdefghijklmnop""");
     }
     
     [Fact]
@@ -51,9 +47,7 @@ Value of myString: ""abcdefghijklmnop""");
     {
       var myString = "abcdefghijklmnopabc";
       
-      ShouldFail(() => !myString.EndsWith("abc"), @"Expected myString to not end with ""abc"".
-
-Value of myString: ""abcdefghijklmnopabc""");
+      ShouldFail(() => !myString.EndsWith("abc"), @"myString: should not end with ""abc"".", @"myString: ""abcdefghijklmnopabc""");
     }
 
   }

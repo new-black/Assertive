@@ -18,9 +18,9 @@ namespace Assertive.Test
 
       var myValue = "abc";
       
-      ShouldFail(() => list.Contains("d"), @"Expected list to contain ""d"".");
-      ShouldFail(() => list.Contains(myValue), @"Expected list to contain myValue (value: ""abc"").");
-      ShouldFail(() => list[0].Contains("foo"), @"Expected list[0] (value: ""a"") to contain ""foo"".");
+      ShouldFail(() => list.Contains("d"), @"list should contain ""d"".", @"list: [ ""a"", ""b"", ""c"" ]");
+      ShouldFail(() => list.Contains(myValue), @"list should contain myValue (value: ""abc"").", @"list: [ ""a"", ""b"", ""c"" ]");
+      ShouldFail(() => list[0].Contains("foo"), @"list[0] should contain the substring ""foo"".", @"list[0]: ""a""");
     }
 
     [Fact]
@@ -28,7 +28,7 @@ namespace Assertive.Test
     {
       var value = "abcdefg";
       
-      ShouldFail(() => value.Contains("z"), @"Expected value (value: ""abcdefg"") to contain ""z"".");
+      ShouldFail(() => value.Contains("z"), @"value should contain the substring ""z"".", @"value: ""abcdefg""");
     }
     
     [Fact]
@@ -36,7 +36,7 @@ namespace Assertive.Test
     {
       var value = "abcdefg";
       
-      ShouldFail(() => !value.Contains("abc"), @"Expected value (value: ""abcdefg"") to not contain ""abc"".");
+      ShouldFail(() => !value.Contains("abc"), @"value should not contain the substring ""abc"".", @"value: ""abcdefg""");
     }
     
     [Fact]

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Assertive.Interfaces;
 
 namespace Assertive.Analyzers
 {
@@ -33,7 +34,7 @@ namespace Assertive.Analyzers
 
             var friendlyMessage = friendlyMessageProvider.TryGetFriendlyMessage();
 
-            var failedAssertion = new FailedAnalyzedAssertion(part, friendlyMessage?.Message, friendlyMessage?.Pattern);
+            var failedAssertion = new FailedAnalyzedAssertion(part, friendlyMessage?.Message, friendlyMessage?.Pattern, friendlyMessage?.ExpectedAndActual);
 
             failedAssertions.Add(failedAssertion);
           }
@@ -44,7 +45,7 @@ namespace Assertive.Analyzers
         }
         catch
         {
-          failedAssertions.Add(new FailedAnalyzedAssertion(part, null, null));
+          failedAssertions.Add(new FailedAnalyzedAssertion(part, null, null, default(ExpectedAndActual?)));
         }
       }
 

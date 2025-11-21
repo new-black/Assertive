@@ -16,12 +16,12 @@ namespace Assertive.Test
 
       var array = new int[2];
 
-      ShouldFail(() => list.Count == 3, "Expected list to have a count equal to 3 but the actual count was 2.");
-      ShouldFail(() => list.Count != 2, "Expected list to have a count not equal to 2.");
-      ShouldFail(() => list.Count != array.Length, "Expected list to have a count not equal to array.Length (value: 2).");
-      ShouldFail(() => array.Length > 3, "Expected array to have a length greater than 3 but the actual length was 2.");
-      ShouldFail(() => list.Count() <= 1, "Expected list to have a count less than or equal to 1 but the actual count was 2.");
-      ShouldFail(() => list.Count() > array.Length, "Expected list to have a count greater than array.Length (value: 2) but the actual count was 2.");
+      ShouldFail(() => list.Count == 3, "list should have a Count equal to 3.", "Count: 2.");
+      ShouldFail(() => list.Count != 2, "list should have a Count not equal to 2.", "Count: 2.");
+      ShouldFail(() => list.Count != array.Length, "list should have a Count not equal to array.Length (value: 2).", "Count: 2.");
+      ShouldFail(() => array.Length > 3, "array should have a Length greater than 3.", "Length: 2.");
+      ShouldFail(() => list.Count() <= 1, "list should have a Count less than or equal to 1.", "Count: 2.");
+      ShouldFail(() => list.Count() > array.Length, "list should have a Count greater than array.Length (value: 2).", "Count: 2.");
     }
 
     private class Customer
@@ -34,7 +34,7 @@ namespace Assertive.Test
     {
       var customers = new List<Customer>();
       
-      ShouldFail(() => customers.Count(c => c.Age > 50) > 0, "Expected customers with filter c.Age > 50 to have a count greater than 0 but the actual count was 0.");
+      ShouldFail(() => customers.Count(c => c.Age > 50) > 0, "customers with filter c.Age > 50 should have a Count greater than 0.", "Count: 0.");
     }
   }
 }

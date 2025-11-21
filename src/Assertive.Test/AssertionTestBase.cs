@@ -18,12 +18,13 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         throws = true;
-        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
+
+        Assert.That(() => ex.Message.StartsWith(expectedMessage));
       }
 
       Xunit.Assert.True(throws);
     }
-    
+
     protected async Task ShouldThrow(Expression<Func<Task>> assertion, string expectedMessage)
     {
       bool throws = false;
@@ -36,12 +37,13 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         throws = true;
-        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
+
+        Assert.That(() => ex.Message.StartsWith(expectedMessage));
       }
 
       Xunit.Assert.True(throws);
     }
-    
+
     protected async Task ShouldThrow<T>(Expression<Func<Task>> assertion, string expectedMessage) where T : Exception
     {
       bool throws = false;
@@ -54,12 +56,12 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         throws = true;
-        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
+        Assert.That(() => ex.Message.StartsWith(expectedMessage));
       }
 
       Xunit.Assert.True(throws);
     }
-    
+
     protected void ShouldThrow<T>(Expression<Func<object>> assertion, string expectedMessage) where T : Exception
     {
       bool throws = false;
@@ -72,13 +74,13 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         throws = true;
-        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
+        Assert.That(() => ex.Message.StartsWith(expectedMessage));
       }
 
       Xunit.Assert.True(throws);
     }
 
-    protected void ShouldFail(Expression<Func<bool>> assertion, string expectedMessage, bool exactMatch = false)
+    protected void ShouldFail(Expression<Func<bool>> assertion, string expectedMessage, string actualMessage = null, bool exactMatch = false)
     {
       bool throws = false;
 
@@ -89,15 +91,52 @@ namespace Assertive.Test
       }
       catch (Exception ex)
       {
+        var expected = string.Join(Environment.NewLine, ex.Data["Assertive.Expected"] as string[]);
+        var actual = string.Join(Environment.NewLine, ex.Data["Assertive.Actual"] as string[]);
+        var handledExceptions = string.Join(Environment.NewLine, ex.Data["Assertive.HandledExceptions"] as string[]);
+
+        if (handledExceptions != "")
+        {
+          Assert.That(() => handledExceptions.Trim() == expectedMessage.Trim());
+          return;
+        }
+        else if (actualMessage == null)
+        {
+          var expectedPrefix = "";
+          var actualPrefix = "";
+
+          if (expected.Contains("\"") || expected.Contains("\n"))
+          {
+            expectedPrefix = "@";
+            expected = expected.Replace("\"", "\"\"");
+          }
+
+          if (actual.Contains("\"") || actual.Contains("\n"))
+          {
+            actualPrefix = "@";
+            actual = actual.Replace("\"", "\"\"");
+          }
+
+          var message = $"""
+                         {expectedPrefix}"{expected}", {actualPrefix}"{actual}"
+                         """;
+
+
+          throw new Exception(message);
+        }
+
+        //throw;
         throws = true;
-        
+
         if (exactMatch)
         {
-          Assert.That(() => ex.Message == expectedMessage);
+          Assert.That(() => expected == expectedMessage);
+          Assert.That(() => actual == actualMessage);
         }
         else
         {
-          Assert.That(() => ex.Message.StartsWith(expectedMessage));
+          Assert.That(() => expected.Contains(expectedMessage));
+          Assert.That(() => actual.Contains(actualMessage));
         }
       }
 
@@ -116,13 +155,13 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         throws = true;
-        Xunit.Assert.Contains(expectedMessage, ex.Message);
+        Assert.That(() => ex.Message.Contains(expectedMessage));
       }
 
       Xunit.Assert.True(throws);
     }
 
-    protected void ShouldFail(Expression<Func<bool>> assertion, object message, string expectedMessage)
+    protected void ShouldFailWithMessage(Expression<Func<bool>> assertion, object message, string expectedMessage)
     {
       bool throws = false;
 
@@ -134,26 +173,10 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         throws = true;
-        Xunit.Assert.Contains(expectedMessage, ex.Message);
+        Assert.That(() => ex.Message.Contains(expectedMessage));
       }
 
       Xunit.Assert.True(throws);
     }
-//    protected void ShouldFail(Expression<Func<object>> assertion, string expectedMessage)
-//    {
-//      bool throws = false;
-//
-//      try
-//      {
-//        Assert.That(assertion);
-//      }
-//      catch (Exception ex)
-//      {
-//        throws = true;
-//        Xunit.Assert.StartsWith(expectedMessage, ex.Message);
-//      }
-//
-//      Xunit.Assert.True(throws);
-//    } 
   }
 }

@@ -16,8 +16,8 @@ namespace Assertive.Test
 
       string notNullString = "a string";
       
-      ShouldFail(() => nullString != null, "Expected nullString to not be null.");
-      ShouldFail(() => notNullString == null, @"Expected notNullString to be null but it was ""a string"" instead.");
+      ShouldFail(() => nullString != null, "nullString should not be null.", "null");
+      ShouldFail(() => notNullString == null, "notNullString should be null.", @"""a string""");
     }
     
     [Fact]
@@ -27,8 +27,8 @@ namespace Assertive.Test
 
       string notNullString = "a string";
       
-      ShouldFail(() => nullString is object, "Expected nullString to not be null.");
-      ShouldFail(() => !(notNullString is object), @"Expected notNullString to be null but it was ""a string"" instead.");
+      ShouldFail(() => nullString is object, "nullString should not be null.", "null");
+      ShouldFail(() => !(notNullString is object), "notNullString should be null.", @"""a string""");
     }
     
     [Fact]
@@ -38,10 +38,10 @@ namespace Assertive.Test
 
       string notNullString = "a string";
       
-      ShouldFail(() => nullString != default, "Expected nullString to not be null.");
-      ShouldFail(() => nullString != default(string), "Expected nullString to not be null.");
-      ShouldFail(() => notNullString == default, @"Expected notNullString to be null but it was ""a string"" instead.");
-      ShouldFail(() => notNullString == default(string), @"Expected notNullString to be null but it was ""a string"" instead.");
+      ShouldFail(() => nullString != default, "nullString should not be null.", "null");
+      ShouldFail(() => nullString != default(string), "nullString should not be null.", "null");
+      ShouldFail(() => notNullString == default, "notNullString should be null.", @"""a string""");
+      ShouldFail(() => notNullString == default(string), "notNullString should be null.", @"""a string""");
     }
 
     private static AssertionFailureContext CreateContext(Expression<Func<bool>> assertion)

@@ -50,7 +50,7 @@ namespace Assertive.Analyzers
 
       return new FailedAnalyzedAssertion(part, FriendlyMessageFormatter.GetString(failedAssertionMessage, _context.EvaluatedExpressions), 
         handledExceptionPattern, 
-        handledException?.CauseOfException);
+        handledException);
     }
   }
 }

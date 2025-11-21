@@ -45,7 +45,7 @@ namespace Assertive.Patterns
 
       return new()
       {
-        Expected = $"{right}: {expected}",
+        Expected = $"{left}: {expected}",
         Actual = $"{left}: {actual}{diff}"
       };
     }
@@ -53,6 +53,7 @@ namespace Assertive.Patterns
     private static string GetStringDiff(string expected, string actual)
     {
       const int contextLength = 20;
+      var colors = Config.Configuration.Colors;
 
       // Find first difference
       int diffIndex = 0;
@@ -68,7 +69,8 @@ namespace Assertive.Patterns
       {
         if (expected.Length != actual.Length)
         {
-          return $"Strings differ in length: expected {expected.Length} chars, actual {actual.Length} chars";
+          var header = colors.DiffHeader($"Strings differ in length: expected {colors.Highlight(expected.Length.ToString())} chars, actual {colors.Highlight(actual.Length.ToString())} chars");
+          return $"{Environment.NewLine}{header}";
         }
 
         // This shouldn't happen since we checked they're not equal, but just in case
@@ -81,10 +83,10 @@ namespace Assertive.Patterns
       int actualEndIndex = Math.Min(actual.Length, diffIndex + contextLength + 1);
 
       // Extract context
-      string expectedPrefix = startIndex > 0 ? "..." : "";
-      string expectedSuffix = expectedEndIndex < expected.Length ? "..." : "";
-      string actualPrefix = startIndex > 0 ? "..." : "";
-      string actualSuffix = actualEndIndex < actual.Length ? "..." : "";
+      string expectedPrefix = startIndex > 0 ? colors.DiffEllipsis() : "";
+      string expectedSuffix = expectedEndIndex < expected.Length ? colors.DiffEllipsis() : "";
+      string actualPrefix = startIndex > 0 ? colors.DiffEllipsis() : "";
+      string actualSuffix = actualEndIndex < actual.Length ? colors.DiffEllipsis() : "";
 
       string expectedContext = expected.Substring(startIndex, expectedEndIndex - startIndex);
       string actualContext = actual.Substring(startIndex, actualEndIndex - startIndex);
@@ -94,49 +96,58 @@ namespace Assertive.Patterns
 
       // Build the diff message
       var sb = new StringBuilder();
-      sb.AppendLine($"Strings differ at index {diffIndex}:");
+      sb.AppendLine();
+      sb.AppendLine();
+      sb.AppendLine(colors.DiffHeader($"Strings differ at index {colors.Highlight(diffIndex.ToString())}:"));
+      sb.AppendLine();
 
       // Show expected with diff character highlighted
-      sb.Append("  Expected: \"");
+      sb.Append(colors.DiffExpectedLabel());
+      sb.Append('"');
       sb.Append(expectedPrefix);
       if (diffPosInContext > 0)
       {
-        sb.Append(EscapeString(expectedContext[..diffPosInContext]));
+        sb.Append(colors.DiffContext(EscapeString(expectedContext[..diffPosInContext])));
       }
 
-      sb.Append('[');
       if (diffPosInContext < expectedContext.Length)
       {
-        sb.Append(EscapeString(expectedContext[diffPosInContext].ToString()));
+        sb.Append(colors.DiffExpectedChar(EscapeString(expectedContext[diffPosInContext].ToString())));
+      }
+      else
+      {
+        sb.Append(colors.DiffExpectedChar(""));
       }
 
-      sb.Append(']');
       if (diffPosInContext + 1 < expectedContext.Length)
       {
-        sb.Append(EscapeString(expectedContext[(diffPosInContext + 1)..]));
+        sb.Append(colors.DiffContext(EscapeString(expectedContext[(diffPosInContext + 1)..])));
       }
 
       sb.Append(expectedSuffix);
       sb.AppendLine("\"");
 
       // Show actual with diff character highlighted
-      sb.Append("  Actual:   \"");
+      sb.Append(colors.DiffActualLabel());
+      sb.Append('"');
       sb.Append(actualPrefix);
       if (diffPosInContext > 0)
       {
-        sb.Append(EscapeString(actualContext[..diffPosInContext]));
+        sb.Append(colors.DiffContext(EscapeString(actualContext[..diffPosInContext])));
       }
 
-      sb.Append('[');
       if (diffPosInContext < actualContext.Length)
       {
-        sb.Append(EscapeString(actualContext[diffPosInContext].ToString()));
+        sb.Append(colors.DiffActualChar(EscapeString(actualContext[diffPosInContext].ToString())));
+      }
+      else
+      {
+        sb.Append(colors.DiffActualChar(""));
       }
 
-      sb.Append(']');
       if (diffPosInContext + 1 < actualContext.Length)
       {
-        sb.Append(EscapeString(actualContext[(diffPosInContext + 1)..]));
+        sb.Append(colors.DiffContext(EscapeString(actualContext[(diffPosInContext + 1)..])));
       }
 
       sb.Append(actualSuffix);
