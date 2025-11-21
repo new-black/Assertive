@@ -88,11 +88,10 @@ item: 3.
 numbersText[item.i]: ""3""
 [ACTUAL]
 numbersText[item.i]: ""4""
-
-Strings differ at index 0:
-
-Expected:""[4]""
-Actual:""[3]""");
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] [-3-]
++ [A1] [+4+]");
     }
 
     [Fact]

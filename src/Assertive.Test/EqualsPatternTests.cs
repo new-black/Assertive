@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Assertive.Analyzers;
@@ -184,36 +185,50 @@ namespace Assertive.Test
       var actual = "Hello World";
       var expected = "Hallo World";
 
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
       try
       {
-        Assert.That(() => actual == expected);
-        Xunit.Assert.Fail("Should have failed");
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+        Xunit.Assert.Contains("String diff (expected vs actual):", message);
+        Xunit.Assert.Contains("Legend:", message);
+        Xunit.Assert.Contains("- [E1] H[-a-]llo World", message);
+        Xunit.Assert.Contains("+ [A1] H[+e+]llo World", message);
       }
-      catch (Exception ex)
+      finally
       {
-        Xunit.Assert.Contains("Strings differ at index", ex.Message);
-        Xunit.Assert.Contains("[e]", ex.Message);
-        Xunit.Assert.Contains("[a]", ex.Message);
+        Configuration.Colors.Enabled = originalColors;
       }
     }
 
     [Fact]
     public void String_diff_shows_difference_in_long_strings()
     {
-      var actual = "The quick brown fox jumps over the lazy dog";
-      var expected = "The quick brown cat jumps over the lazy god";
-      Configuration.Colors.Enabled = false;
-      Assert.That(() => actual == expected);
+      var actual = """
+                   The quick brown fox jumps over the lazy dog
+                   The quick brown fox jumps over the lazy dog
+                   The quick brown fox jumps over the lazy dog
+                   """;
+      var expected = """
+                     The quick brown fox jumps over the lazy dog
+                     The quick brown cat jumps over the lazy god
+                     The quick brown fox jumps over the lazy dog
+                     """;
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = true;
       try
       {
-        Assert.That(() => actual == expected);
-        Xunit.Assert.Fail("Should have failed");
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+        Xunit.Assert.Contains("String diff (expected vs actual):", message);
+        Xunit.Assert.Contains("cat jumps over the lazy god", message);
+        Xunit.Assert.Contains("fox jumps over the lazy dog", message);
       }
-      catch (Exception ex)
+      finally
       {
-        Xunit.Assert.Contains("Strings differ at index 16", ex.Message);
-        Xunit.Assert.Contains("[f]", ex.Message);
-        Xunit.Assert.Contains("[c]", ex.Message);
+        Configuration.Colors.Enabled = originalColors;
       }
     }
 
@@ -223,15 +238,117 @@ namespace Assertive.Test
       var actual = "Short";
       var expected = "Short string";
 
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
       try
       {
-        Assert.That(() => actual == expected);
-        Xunit.Assert.Fail("Should have failed");
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+        Xunit.Assert.Contains("String diff (expected vs actual):", message);
+        Xunit.Assert.Contains("Legend:", message);
+        Xunit.Assert.Contains("- [E1] Shor[-t s-]t[-ring-]", message);
+        Xunit.Assert.Contains("+ [A1] Short", message);
       }
-      catch (Exception ex)
+      finally
       {
-        Xunit.Assert.Contains("Strings differ in length", ex.Message);
+        Configuration.Colors.Enabled = originalColors;
       }
+    }
+
+    [Fact]
+    public void String_diff_limits_context_for_long_lines()
+    {
+      var actual = "Start " +
+                   new string('a', 60) +
+                   " MIDDLE_one " +
+                   new string('b', 60) +
+                   " MIDDLE_two " +
+                   new string('c', 60) +
+                   " End";
+      var expected = "Start " +
+                     new string('a', 60) +
+                     " middle_one " +
+                     new string('b', 60) +
+                     " middle-two " +
+                     new string('c', 60) +
+                     " End";
+
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+      try
+      {
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+
+        var lines = message.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var expectedLine = lines.First(l => l.StartsWith("- [E1]"));
+        var actualLine = lines.First(l => l.StartsWith("+ [A1]"));
+
+        // We should show both differences with trimmed context (no full 60-char runs).
+        Xunit.Assert.True(expectedLine.Split("...", StringSplitOptions.None).Length - 1 >= 2);
+        Xunit.Assert.True(actualLine.Split("...", StringSplitOptions.None).Length - 1 >= 2);
+
+        Xunit.Assert.Contains("middle", expectedLine, StringComparison.OrdinalIgnoreCase);
+        Xunit.Assert.Contains("one", expectedLine, StringComparison.OrdinalIgnoreCase);
+        Xunit.Assert.Contains("two", expectedLine, StringComparison.OrdinalIgnoreCase);
+
+        Xunit.Assert.Contains("middle", actualLine, StringComparison.OrdinalIgnoreCase);
+        Xunit.Assert.Contains("one", actualLine, StringComparison.OrdinalIgnoreCase);
+        Xunit.Assert.Contains("two", actualLine, StringComparison.OrdinalIgnoreCase);
+
+        Xunit.Assert.DoesNotContain(new string('a', 40), expectedLine);
+        Xunit.Assert.DoesNotContain(new string('b', 40), expectedLine);
+        Xunit.Assert.DoesNotContain(new string('c', 40), expectedLine);
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void String_diff_limits_context_for_many_lines()
+    {
+      var actualLines = Enumerable.Range(1, 60).Select(i => $"Line {i}").ToArray();
+      actualLines[5] = "Line six (actual)";
+      actualLines[30] = "Line thirty-one (actual)";
+      actualLines[ FiftyFiveIndex() ] = "Line fifty-six (actual)";
+
+      var expectedLines = Enumerable.Range(1, 60).Select(i => $"Line {i}").ToArray();
+      expectedLines[5] = "Line six (expected)";
+      expectedLines[30] = "Line thirty-one (expected)";
+      expectedLines[ FiftyFiveIndex() ] = "Line fifty-six (expected)";
+
+      var actual = string.Join("\n", actualLines);
+      var expected = string.Join("\n", expectedLines);
+
+      var originalColors = Configuration.Colors.Enabled;
+      
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+
+        var diffBlock = message.Split("String diff (expected vs actual):", StringSplitOptions.None)[1];
+        var lines = diffBlock.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        Xunit.Assert.Contains(lines, l => l.Contains("Line six", StringComparison.OrdinalIgnoreCase));
+        Xunit.Assert.Contains(lines, l => l.Contains("Line thirty-one", StringComparison.OrdinalIgnoreCase));
+        Xunit.Assert.Contains(lines, l => l.Contains("Line fifty-six", StringComparison.OrdinalIgnoreCase));
+
+        // Ensure we didn't dump all intervening unchanged lines
+        Xunit.Assert.Contains(lines, l => l.Contains("..."));
+        Xunit.Assert.DoesNotContain(lines, l => l.Contains("Line 1"));
+        Xunit.Assert.DoesNotContain(lines, l => l.Contains("Line 60"));
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+
+      static int FiftyFiveIndex() => 55 - 1; // zero-based index for 55
     }
 
     [Fact]
@@ -240,14 +357,19 @@ namespace Assertive.Test
       var actual = "Line 1\nLine 2\nLine 3";
       var expected = "Line 1\nLine 2\rLine 3";
 
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
       try
       {
-        Assert.That(() => actual == expected);
-        Xunit.Assert.Fail("Should have failed");
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        Xunit.Assert.Contains("String diff (expected vs actual):", ex.Message);
+        Xunit.Assert.Contains("\\r", ex.Message);
+        Xunit.Assert.Contains("\\n", ex.Message);
       }
-      catch (Exception ex)
+      finally
       {
-        Xunit.Assert.True(ex.Message.Contains("\\n") || ex.Message.Contains("\\r"));
+        Configuration.Colors.Enabled = originalColors;
       }
     }
 
@@ -261,6 +383,11 @@ namespace Assertive.Test
     {
       public string A { get; set; }
       public string B { get; set; }
+    }
+
+    private static string StripAnsi(string input)
+    {
+      return Regex.Replace(input, @"\u001b\[[0-9;]*[A-Za-z]", "");
     }
   }
 }

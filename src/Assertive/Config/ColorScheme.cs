@@ -13,7 +13,12 @@ namespace Assertive.Config
       /// <summary>
       /// Enables or disables all colorization. When false, all color methods return plain text.
       /// </summary>
-      public bool Enabled { get; set; } = true;
+      public bool Enabled { get; set; }
+
+      public ColorScheme()
+      {
+        Enabled = ShouldEnableColors();
+      }
 
       // ANSI escape codes
       private const string Reset = "\u001b[0m";
@@ -166,26 +171,6 @@ namespace Assertive.Config
       }
 
       /// <summary>
-      /// Highlights the differing character in expected.
-      /// </summary>
-      public string DiffExpectedChar(string text)
-      {
-        if (!Enabled) return $"[{text}]";
-
-        return ApplyColor($"⟦{text}⟧", $"{Bold}{BrightWhite}{BgGreen}");
-      }
-
-      /// <summary>
-      /// Highlights the differing character in actual.
-      /// </summary>
-      public string DiffActualChar(string text)
-      {
-        if (!Enabled) return $"[{text}]";
-
-        return ApplyColor($"⟦{text}⟧", $"{Bold}{BrightWhite}{BgRed}");
-      }
-
-      /// <summary>
       /// Formats ellipsis in diff.
       /// </summary>
       public string DiffEllipsis()
@@ -213,6 +198,83 @@ namespace Assertive.Config
         if (!Enabled) return "Actual:";
 
         return ApplyColor("  Actual   ", $"{Bold}{BrightWhite}{BgRed}") + " ";
+      }
+
+      /// <summary>
+      /// Formats a removed line in a diff.
+      /// </summary>
+      public string DiffRemovedLine(string text)
+      {
+        if (!Enabled) return text;
+
+        return ApplyColor(text, $"{Dim}{BrightBlack}{BgRed}");
+      }
+
+      /// <summary>
+      /// Formats an added line in a diff.
+      /// </summary>
+      public string DiffAddedLine(string text)
+      {
+        if (!Enabled) return text;
+
+        return ApplyColor(text, $"{Dim}{BrightBlack}{BgGreen}");
+      }
+
+      internal string DiffRemovedBackgroundCode => $"{Dim}{BrightBlack}{BgBrightRed}";
+      internal string DiffAddedBackgroundCode => $"{Dim}{BrightBlack}{BgBrightGreen}";
+      internal string ResetCode => Reset;
+
+      internal string DiffRemovedInlineBackgroundCode => $"{BgRed}";
+      internal string DiffAddedInlineBackgroundCode => $"{BgGreen}";
+
+      internal string ApplyBackground(string text, string backgroundCodes)
+      {
+        if (!Enabled) return text;
+
+        var rebased = text.Replace(ResetCode, $"{ResetCode}{backgroundCodes}");
+        return $"{backgroundCodes}{rebased}{ResetCode}";
+      }
+
+      private static bool ShouldEnableColors()
+      {
+        static bool IsTruthy(string? value)
+        {
+          if (string.IsNullOrEmpty(value)) return false;
+          return !value.Equals("false", StringComparison.OrdinalIgnoreCase)
+                 && !value.Equals("0", StringComparison.OrdinalIgnoreCase);
+        }
+
+        static bool IsFalsey(string? value)
+        {
+          if (string.IsNullOrEmpty(value)) return false;
+          return value.Equals("false", StringComparison.OrdinalIgnoreCase)
+                 || value.Equals("0", StringComparison.OrdinalIgnoreCase);
+        }
+
+        static bool IsSet(string? value) => !string.IsNullOrEmpty(value);
+
+        var overrideColors = Environment.GetEnvironmentVariable("ASSERTIVE_COLORS_ENABLED");
+        if (IsTruthy(overrideColors)) return true;
+        if (IsFalsey(overrideColors)) return false;
+
+        if (Environment.GetEnvironmentVariable("NO_COLOR") != null) return false;
+        if (IsTruthy(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"))) return false;
+        if (IsTruthy(Environment.GetEnvironmentVariable("CI"))) return false;
+        if (IsTruthy(Environment.GetEnvironmentVariable("TF_BUILD"))) return false; // Azure Pipelines
+        if (IsSet(Environment.GetEnvironmentVariable("BUILD_BUILDID"))) return false; // Azure Pipelines legacy
+        if (IsTruthy(Environment.GetEnvironmentVariable("GITLAB_CI"))) return false;
+        if (IsTruthy(Environment.GetEnvironmentVariable("CIRCLECI"))) return false;
+        if (IsTruthy(Environment.GetEnvironmentVariable("TRAVIS"))) return false;
+        if (IsSet(Environment.GetEnvironmentVariable("JENKINS_HOME"))) return false;
+        if (IsSet(Environment.GetEnvironmentVariable("HUDSON_URL"))) return false;
+        if (IsTruthy(Environment.GetEnvironmentVariable("TEAMCITY_VERSION"))) return false;
+        if (IsTruthy(Environment.GetEnvironmentVariable("BUILDKITE"))) return false;
+        if (IsTruthy(Environment.GetEnvironmentVariable("DRONE"))) return false;
+        if (IsTruthy(Environment.GetEnvironmentVariable("APPVEYOR"))) return false;
+        if (IsTruthy(Environment.GetEnvironmentVariable("BITBUCKET_BUILD_NUMBER"))) return false;
+        if (IsTruthy(Environment.GetEnvironmentVariable("BITBUCKET_PIPELINE_UUID"))) return false;
+
+        return true;
       }
 
       /// <summary>
