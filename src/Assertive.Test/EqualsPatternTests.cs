@@ -201,8 +201,9 @@ namespace Assertive.Test
     public void String_diff_shows_difference_in_long_strings()
     {
       var actual = "The quick brown fox jumps over the lazy dog";
-      var expected = "The quick brown cat jumps over the lazy dog";
-
+      var expected = "The quick brown cat jumps over the lazy god";
+      Configuration.Colors.Enabled = false;
+      Assert.That(() => actual == expected);
       try
       {
         Assert.That(() => actual == expected);
