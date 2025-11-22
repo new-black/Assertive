@@ -27,14 +27,14 @@ namespace Assertive.Analyzers
       {
         result.Add($"""
                   
-                  {colors.Expression(assertionExpression)}
+                  {assertionExpression}
                   """);
       }
       else
       {
         result.Add($"""
                   
-                  {colors.Expression(assertionExpression)}
+                  {assertionExpression}
                   
                   {failedAssertion.Message}
                   """);
@@ -55,7 +55,7 @@ namespace Assertive.Analyzers
         var contextValue = Serializer.Serialize(EvaluateExpression(_assertion.Context.Body));
         result.Add($"""
                    {colors.MetadataHeader("CONTEXT")}
-                   {colors.Expression(contextExpr)} = {colors.LocalValue(contextValue)}
+                   {contextExpr} = {colors.LocalValue(contextValue)}
                    """);
       }
 
@@ -66,7 +66,7 @@ namespace Assertive.Analyzers
           var causeExpr = ExpressionToString(failedAssertion.HandledException.CauseOfException);
           result.Add($"""
                      {colors.MetadataHeader("CAUSE OF EXCEPTION")}
-                     {colors.Expression(causeExpr)}
+                     {causeExpr}
                      """);
         }
 

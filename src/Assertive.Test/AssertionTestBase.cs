@@ -91,6 +91,7 @@ namespace Assertive.Test
       }
       catch (Exception ex)
       {
+        throw;
         var expected = string.Join(Environment.NewLine, ex.Data["Assertive.Expected"] as string[]);
         var actual = string.Join(Environment.NewLine, ex.Data["Assertive.Actual"] as string[]);
         var handledExceptions = string.Join(Environment.NewLine, ex.Data["Assertive.HandledExceptions"] as string[]);

@@ -101,15 +101,10 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
 
       return items;
     }
-
-    private static string GetMethod(MethodCallExpression methodCallExpression)
+    
+    private static Expression GetMethod(MethodCallExpression methodCallExpression)
     {
-      if (methodCallExpression.Arguments.Count >= 2 && methodCallExpression.Arguments[1] is LambdaExpression)
-      {
-        return MethodCallToString(methodCallExpression);
-      }
-
-      return methodCallExpression.Method.Name;
+      return methodCallExpression;
     }
 
     private static FormattableString GetReasonMessage(MethodCallExpression methodCallExpression,

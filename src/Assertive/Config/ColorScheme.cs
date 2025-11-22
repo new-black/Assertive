@@ -14,6 +14,8 @@ namespace Assertive.Config
       /// Enables or disables all colorization. When false, all color methods return plain text.
       /// </summary>
       public bool Enabled { get; set; }
+      
+      public bool UseSyntaxHighlighting { get; set; } = true;
 
       public ColorScheme()
       {
@@ -299,8 +301,8 @@ namespace Assertive.Config
       /// </summary>
       public string Expression(string expression)
       {
+        if (!Enabled || !UseSyntaxHighlighting) return expression;
         return HighlightCSharpSyntax(expression);
-        //return expression;
       }
 
       /// <summary>
@@ -421,7 +423,7 @@ namespace Assertive.Config
           // Parentheses, brackets, braces
           if ("()[]{}".Contains(ch))
           {
-            result.Append(ApplyColor(ch.ToString(), $"{Bold}{BrightWhite}"));
+            result.Append(ApplyColor(ch.ToString(), $"{Bold}{Blue}"));
             i++;
             continue;
           }
@@ -443,7 +445,12 @@ namespace Assertive.Config
             }
             else
             {
-              result.Append(ApplyColor(word, $"{Italic}{Yellow}"));
+              // Method call detection: next non-whitespace char being '('
+              var j = i;
+              while (j < code.Length && char.IsWhiteSpace(code[j])) j++;
+              var isMethodCall = j < code.Length && code[j] == '(';
+              var color = isMethodCall ? $"{Bold}{BrightMagenta}" : $"{Italic}{Yellow}";
+              result.Append(ApplyColor(word, color));
             }
 
             continue;
@@ -474,7 +481,7 @@ namespace Assertive.Config
               }
             }
 
-            result.Append(ApplyColor(number.ToString(), BrightYellow));
+            result.Append(ApplyColor(number.ToString(), BrightBlue));
             continue;
           }
 

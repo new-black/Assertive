@@ -147,7 +147,9 @@ namespace Assertive.Expressions
       
       var expressionAsString = rewritten != null ? ExpressionStringBuilder.ExpressionToString(rewritten) : "";
 
-      return string.Format(GetQuotationPattern(expression, allowQuotation), expressionAsString);
+      var result = string.Format(GetQuotationPattern(expression, allowQuotation), expressionAsString);
+
+      return Configuration.Colors.Expression(result);
     }
 
     public static Expression ReplaceParameter(Expression expression, ParameterExpression parameter,
