@@ -13,3 +13,4 @@ src/Assertive.Test.MSTest/bin/*
 src/Assertive.Test.MSTest/obj/*
 src/Assertive.xUnit/bin/
 src/Assertive.xUnit/obj/
+**/.DS_Store
