@@ -336,7 +336,7 @@ internal partial class AssertImpl
       context.Errors.Add(new($"Expected array length: {expected.Count}, got: {actual.Count}"));
     }
 
-    for (var i = 0; i < expected.Count; i++)
+    for (var i = 0; i < expected.Count && i < actual.Count; i++)
     {
       CheckRecursive(context, expected[i], actual[i], null);
     }
