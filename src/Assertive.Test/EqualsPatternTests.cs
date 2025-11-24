@@ -204,6 +204,48 @@ namespace Assertive.Test
     }
 
     [Fact]
+    public void EqualsPattern_without_colors_uses_plain_messages()
+    {
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var actual = "apple";
+        var expected = "orange";
+
+        ShouldFail(() => actual == expected,
+          @"actual: ""orange""",
+          @"actual: ""apple""");
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void EqualsPattern_without_colors_handles_long_strings()
+    {
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var actual = "This is a long string with apple inside.";
+        var expected = "This is a long string with orange inside.";
+
+        ShouldFail(() => actual == expected,
+          @"actual: ""This is a long string with orange inside.""",
+          @"actual: ""This is a long string with apple inside.""");
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
     public void String_diff_shows_difference_in_long_strings()
     {
       var actual = """
@@ -251,6 +293,46 @@ namespace Assertive.Test
         Xunit.Assert.Contains("Legend:", message);
         Xunit.Assert.Contains("- [E1] Shor[-t s-]t[-ring-]", message);
         Xunit.Assert.Contains("+ [A1] Short", message);
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void EqualsPattern_full_output_without_colors_matches_expected()
+    {
+      var actual = "ABCDEFGHIJK";
+      var expected = "ABXXEFGHIJK";
+
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+
+        var expectedMessage = """
+
+actual == expected
+
+[EXPECTED]
+actual: "ABXXEFGHIJK"
+[ACTUAL]
+actual: "ABCDEFGHIJK"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] AB[-XX-]EFGHIJK
++ [A1] AB[+CD+]EFGHIJK
+
+
+················································································
+
+""";
+
+        Xunit.Assert.Equal(expectedMessage, message);
       }
       finally
       {
