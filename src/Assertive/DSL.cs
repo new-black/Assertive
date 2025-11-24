@@ -57,64 +57,76 @@ namespace Assertive
       }
     }
     
-    public static void Throws(Expression<Func<object>> expression)
+    public static Exception Throws(Expression<Func<object>> expression, Expression<Func<Exception, bool>>? exceptionAssertion = null)
     {
-      var exception = AssertImpl.Throws(expression);
+      var result = AssertImpl.Throws(expression, null, exceptionAssertion);
 
-      if (exception != null)
+      if (result.Failure != null)
       {
-        throw exception;
+        throw result.Failure;
       }
+
+      return result.Thrown!;
     }
 
-    public static void Throws(Expression<Action> expression)
+    public static Exception Throws(Expression<Action> expression, Expression<Func<Exception, bool>>? exceptionAssertion = null)
     {
-      var exception = AssertImpl.Throws(expression);
+      var result = AssertImpl.Throws(expression, null, exceptionAssertion);
 
-      if (exception != null)
+      if (result.Failure != null)
       {
-        throw exception;
+        throw result.Failure;
       }
+
+      return result.Thrown!;
     }
 
-    public static void Throws<TException>(Expression<Action> expression) where TException : Exception
+    public static TException Throws<TException>(Expression<Action> expression, Expression<Func<TException, bool>>? exceptionAssertion = null) where TException : Exception
     {
-      var exception = AssertImpl.Throws(expression, typeof(TException));
+      var result = AssertImpl.Throws(expression, typeof(TException), exceptionAssertion);
 
-      if (exception != null)
+      if (result.Failure != null)
       {
-        throw exception;
+        throw result.Failure;
       }
-    }
-    
-    public static void Throws<TException>(Expression<Func<object>> expression) where TException : Exception
-    {
-      var exception = AssertImpl.Throws(expression, typeof(TException));
 
-      if (exception != null)
-      {
-        throw exception;
-      }
-    }
-
-    public static async Task Throws<TException>(Expression<Func<Task>> expression) where TException : Exception
-    {
-      var exception = await AssertImpl.Throws(expression, typeof(TException));
-
-      if (exception != null)
-      {
-        throw exception;
-      }
+      return (TException)result.Thrown!;
     }
     
-    public static async Task Throws(Expression<Func<Task>> expression)
+    public static TException Throws<TException>(Expression<Func<object>> expression, Expression<Func<TException, bool>>? exceptionAssertion = null) where TException : Exception
     {
-      var exception = await AssertImpl.Throws(expression);
+      var result = AssertImpl.Throws(expression, typeof(TException), exceptionAssertion);
 
-      if (exception != null)
+      if (result.Failure != null)
       {
-        throw exception;
+        throw result.Failure;
       }
+
+      return (TException)result.Thrown!;
+    }
+
+    public static async Task<TException> Throws<TException>(Expression<Func<Task>> expression, Expression<Func<TException, bool>>? exceptionAssertion = null) where TException : Exception
+    {
+      var result = await AssertImpl.Throws(expression, typeof(TException), exceptionAssertion);
+
+      if (result.Failure != null)
+      {
+        throw result.Failure;
+      }
+
+      return (TException)result.Thrown!;
+    }
+    
+    public static async Task<Exception> Throws(Expression<Func<Task>> expression, Expression<Func<Exception, bool>>? exceptionAssertion = null)
+    {
+      var result = await AssertImpl.Throws(expression, null, exceptionAssertion);
+
+      if (result.Failure != null)
+      {
+        throw result.Failure;
+      }
+
+      return result.Thrown!;
     }
   }
 }
