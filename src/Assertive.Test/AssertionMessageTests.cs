@@ -4,8 +4,21 @@ using Xunit;
 
 namespace Assertive.Test
 {
-  public class AssertionMessageTests : AssertionTestBase
+  public class AssertionMessageTests : AssertionTestBase, IDisposable
   {
+    private readonly bool originalColors;
+
+    public AssertionMessageTests()
+    {
+      originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+    }
+
+    public void Dispose()
+    {
+      Configuration.Colors.Enabled = originalColors;
+    }
+
     [Fact]
     public void Message_is_part_of_output()
     {
@@ -15,10 +28,8 @@ namespace Assertive.Test
       };
       
       ShouldFailWithMessage(() => order.Amount > 20, "Expected orderID to be more than 20", """
-                                                                                               MESSAGE                                                                      
+                                                                                            [MESSAGE]
                                                                                             Expected orderID to be more than 20
-                                                                                             ℹ LOCALS                                                                       
-                                                                                            order = { Amount = 10 }
                                                                                             """);
     }
     
@@ -38,10 +49,8 @@ namespace Assertive.Test
       };
       
       ShouldFailWithMessage(() => order.Amount > 20, order, """
-                                                               MESSAGE                                                                      
+                                                            [MESSAGE]
                                                             { ID = 999, Amount = 10 }
-                                                             ℹ LOCALS                                                                       
-                                                            order = { ID = 999, Amount = 10 }
                                                             """);
     }
     
@@ -55,10 +64,8 @@ namespace Assertive.Test
       };
       
       ShouldFailWithMessage(() => order.Amount > 20, order, """
-                                                               MESSAGE                                                                      
+                                                            [MESSAGE]
                                                             { ID = 999, Amount = 10 }
-                                                             ℹ LOCALS                                                                       
-                                                            order = { ID = 999, Amount = 10 }
                                                             """);
     }
   }

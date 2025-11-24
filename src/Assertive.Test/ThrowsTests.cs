@@ -6,9 +6,20 @@ using Assertive.Config;
 
 namespace Assertive.Test
 {
-  public class ThrowsTests : AssertionTestBase
+  public class ThrowsTests : AssertionTestBase, IDisposable
   {
+    private readonly bool originalColors;
+
+    public ThrowsTests()
+    {
+      originalColors = Configuration.Colors.Enabled;
+    }
     
+    public void Dispose()
+    {
+      Configuration.Colors.Enabled = originalColors;
+    }
+
     [Fact]
     public void Assertion_that_throw_tests()
     {
@@ -63,9 +74,9 @@ namespace Assertive.Test
         Assert.That(() => StripAnsi(ex.Message).Contains("""
                                                          e.Message == "wrong"
                                                          
-                                                          ✓ EXPECTED                                                                     
+                                                         [EXPECTED]
                                                          e.Message: "wrong"
-                                                          ✗ ACTUAL                                                                       
+                                                         [ACTUAL]
                                                          e.Message: "boom"
                                                          """));
       }
@@ -82,12 +93,14 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         Assert.That(() => StripAnsi(ex.Message).Contains("""
-                                                         e.Message == "wrong"
-
-                                                          ✓ EXPECTED                                                                     
+                                                         [EXPECTED]
                                                          e.Message: "wrong"
-                                                          ✗ ACTUAL                                                                       
+                                                         [ACTUAL]
                                                          e.Message: "an exception"
+                                                         String diff (expected vs actual):
+                                                         Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+                                                         - [E1] [-wr-]on[-g-]
+                                                         + [A1] [+an excepti+]on
                                                          """));
       }
     }

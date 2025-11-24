@@ -4,8 +4,21 @@ using Xunit;
 
 namespace Assertive.Test
 {
-  public class AssertionContextTests : AssertionTestBase
+  public class AssertionContextTests : AssertionTestBase, IDisposable
   {
+    private readonly bool originalColors;
+
+    public AssertionContextTests()
+    {
+      originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+    }
+
+    public void Dispose()
+    {
+      Configuration.Colors.Enabled = originalColors;
+    }
+
     [Fact]
     public void Context_is_part_of_output()
     {
@@ -17,10 +30,8 @@ namespace Assertive.Test
       };
       
       ShouldFail(() => order.Amount > 20, () => orderID, """
-                                                            CONTEXT                                                                      
+                                                         [CONTEXT]
                                                          orderID = 10
-                                                          ℹ LOCALS                                                                       
-                                                         order = { Amount = 10 }
                                                          """);
     }
     
@@ -34,7 +45,7 @@ namespace Assertive.Test
       };
       
       ShouldFail(() => order.Amount > 20, () => order, """
-                                                          CONTEXT                                                                      
+                                                       [CONTEXT]
                                                        order = { ID = 99, Amount = 10 }
                                                        """);
     }
@@ -49,9 +60,8 @@ namespace Assertive.Test
       };
       
       ShouldFail(() => order.Amount > 20, () => order, """
-                                                          CONTEXT                                                                      
+                                                       [CONTEXT]
                                                        order = { ID = 99, Amount = 10 }
-                                                       
                                                        """);
     }
     
