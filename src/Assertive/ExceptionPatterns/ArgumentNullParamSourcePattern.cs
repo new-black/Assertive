@@ -30,7 +30,7 @@ namespace Assertive.ExceptionPatterns
     private static FormattableString GetReasonMessage(MethodCallExpression causeOfNullReference)
     {
       return
-        $"ArgumentNullException caused by calling {causeOfNullReference.Method.Name} on {ExpressionHelper.GetInstanceOfMethodCall(causeOfNullReference)} which was null.";
+        $"ArgumentNullException caused by calling {StaticRenderMethodCallExpression.Wrap(causeOfNullReference)} on {ExpressionHelper.GetInstanceOfMethodCall(causeOfNullReference)} which was null.";
     }
 
     private class ArgumentNullVisitor : ExpressionVisitor

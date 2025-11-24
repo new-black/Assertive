@@ -1,11 +1,24 @@
 using System;
 using System.Linq.Expressions;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Assertive.Test
 {
-  public abstract class AssertionTestBase
+  public abstract partial class AssertionTestBase
   {
+    private static partial class AnsiHelper
+    {
+      
+      [GeneratedRegex(@"\u001b\[[0-9;]*[A-Za-z]")]
+      public static partial Regex AnsiRegex();
+
+    }
+    protected static string StripAnsi(string input)
+    {
+      return AnsiHelper.AnsiRegex().Replace(input, "");
+    }
+
     protected void ShouldThrow(Expression<Func<object>> assertion, string expectedMessage)
     {
       bool throws = false;
@@ -19,7 +32,7 @@ namespace Assertive.Test
       {
         throws = true;
 
-        Assert.That(() => ex.Message.StartsWith(expectedMessage));
+        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
       }
 
       Xunit.Assert.True(throws);
@@ -38,7 +51,7 @@ namespace Assertive.Test
       {
         throws = true;
 
-        Assert.That(() => ex.Message.StartsWith(expectedMessage));
+        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
       }
 
       Xunit.Assert.True(throws);
@@ -56,7 +69,7 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         throws = true;
-        Assert.That(() => ex.Message.StartsWith(expectedMessage));
+        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
       }
 
       Xunit.Assert.True(throws);
@@ -74,7 +87,7 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         throws = true;
-        Assert.That(() => ex.Message.StartsWith(expectedMessage));
+        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
       }
 
       Xunit.Assert.True(throws);
@@ -91,10 +104,9 @@ namespace Assertive.Test
       }
       catch (Exception ex)
       {
-        throw;
-        var expected = string.Join(Environment.NewLine, ex.Data["Assertive.Expected"] as string[]);
-        var actual = string.Join(Environment.NewLine, ex.Data["Assertive.Actual"] as string[]);
-        var handledExceptions = string.Join(Environment.NewLine, ex.Data["Assertive.HandledExceptions"] as string[]);
+        var expected = StripAnsi(string.Join(Environment.NewLine, ex.Data["Assertive.Expected"] as string[]));
+        var actual = StripAnsi(string.Join(Environment.NewLine, ex.Data["Assertive.Actual"] as string[]));
+        var handledExceptions = StripAnsi(string.Join(Environment.NewLine, ex.Data["Assertive.HandledExceptions"] as string[]));
 
         if (handledExceptions != "")
         {
@@ -156,7 +168,7 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         throws = true;
-        Assert.That(() => ex.Message.Contains(expectedMessage));
+        Assert.That(() => StripAnsi(ex.Message).Contains(expectedMessage));
       }
 
       Xunit.Assert.True(throws);
@@ -174,7 +186,7 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         throws = true;
-        Assert.That(() => ex.Message.Contains(expectedMessage));
+        Assert.That(() => StripAnsi(ex.Message).Contains(expectedMessage));
       }
 
       Xunit.Assert.True(throws);

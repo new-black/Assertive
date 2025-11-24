@@ -38,7 +38,7 @@ namespace Assertive.Analyzers
           }
 
           var value = Serializer.Serialize(ExpressionHelper.EvaluateExpression(local.Expression));
-          localVariables.Add(new LocalVariable(local.Name, value));
+          localVariables.Add(new LocalVariable(local.Name, value.ToString()));
         }
 
         if (localVariables.Count == 0)

@@ -1,7 +1,5 @@
-using System;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
-using Assertive.Expressions;
 using Assertive.Interfaces;
 
 namespace Assertive.Patterns
@@ -18,13 +16,13 @@ namespace Assertive.Patterns
       return assertion.IsNegated
         ? new ExpectedAndActual()
         {
-          Expected = $"{assertion.NegatedExpression}: False",
-          Actual = $"True"
+          Expected = $"{assertion.NegatedExpression}: {Expression.Constant(false)}",
+          Actual = $"{Expression.Constant(true)}"
         }
         : new ExpectedAndActual()
         {
-          Expected = $"{assertion.Expression}: True",
-          Actual = $"False"
+          Expected = $"{assertion.Expression}: {Expression.Constant(true)}",
+          Actual = $"{Expression.Constant(false)}"
         };
     }
 

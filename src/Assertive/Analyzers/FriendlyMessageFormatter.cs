@@ -50,6 +50,10 @@ namespace Assertive.Analyzers
         {
           arguments[i] = s;
         }
+        else if (a is SerializerResult)
+        {
+          arguments[i] = a.ToString();
+        }
         else
         {
           arguments[i] = Serializer.Serialize(arguments[i]);

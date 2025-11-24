@@ -6,18 +6,8 @@ using Xunit;
 
 namespace Assertive.Test
 {
-  public class AllPatternTests : AssertionTestBase, IDisposable
+  public class AllPatternTests : AssertionTestBase
   {
-    public AllPatternTests()
-    {
-      Configuration.Colors.Enabled = false;
-    }
-
-    public void Dispose()
-    {
-     Configuration.Colors.Enabled = true;
-    }
-
     [Fact]
     public void No_items_match()
     {
@@ -35,21 +25,21 @@ namespace Assertive.Test
 Messages per item:
 
 ids[0]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 10.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 1.
 
 ids[1]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 10.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 2.
 
 ids[2]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 10.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 3.
 ");
     }
@@ -84,14 +74,11 @@ item: 3.
 { n = 3, i = 2 }
 
 [2]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 numbersText[item.i]: ""3""
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 numbersText[item.i]: ""4""
-String diff (expected vs actual):
-Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
-- [E1] [-3-]
-+ [A1] [+4+]");
+");
     }
 
     [Fact]
@@ -106,9 +93,9 @@ Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
 1
 
 ids[0]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than or equal to 2.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 1.
 ");
     }
@@ -134,63 +121,63 @@ item: 1.
 Messages per item:
 
 ids[0]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 1000.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 1.
 
 ids[1]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 1000.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 2.
 
 ids[2]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 1000.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 3.
 
 ids[3]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 1000.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 4.
 
 ids[4]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 1000.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 5.
 
 ids[5]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 1000.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 6.
 
 ids[6]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 1000.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 7.
 
 ids[7]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 1000.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 8.
 
 ids[8]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 1000.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 9.
 
 ids[9]
-[EXPECTED]
+ ✓ EXPECTED                                                                     
 item should be greater than 1000.
-[ACTUAL]
+ ✗ ACTUAL                                                                       
 item: 10.
 ");
     }

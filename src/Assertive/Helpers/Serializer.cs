@@ -8,6 +8,24 @@ using System.Text;
 
 namespace Assertive.Helpers
 {
+  internal class SerializerResult
+  {
+    private readonly string _value;
+    public SerializerResult(string value)
+    {
+      _value = value;
+    }
+
+    public override string ToString()
+    {
+      if (_value.Length < 100)
+      {
+        return Config.Configuration.Colors.Expression(_value);
+      }
+      
+      return _value;
+    }
+  }
   internal static class Serializer
   {
     private static readonly string[] _newLineSplitChars =
@@ -20,21 +38,23 @@ namespace Assertive.Helpers
       " "
     ];
 
-    public static string Serialize(object? o)
+    public static SerializerResult Serialize(object? o)
     {
       try
       {
-        return SerializeImpl(o, 0, null);
+        var result = SerializeImpl(o, 0, null);
+
+        return new SerializerResult(result);
       }
       catch(Exception ex)
       {
-        return $"<exception serializing = {ex.InnerException?.GetType().Name ?? ex.GetType().Name}>";
+        return new SerializerResult($"<exception serializing = {ex.InnerException?.GetType().Name ?? ex.GetType().Name}>");
       }
     }
 
     private class Ellipsis
     {
-      private int? _remaining;
+      private readonly int? _remaining;
 
       public Ellipsis(int? remaining)
       {

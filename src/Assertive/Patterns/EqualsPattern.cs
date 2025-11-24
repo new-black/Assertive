@@ -1,4 +1,3 @@
-using System;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
 using Assertive.Helpers;
@@ -37,7 +36,8 @@ namespace Assertive.Patterns
         var leftValue = EvaluateExpression(left) as string;
         var rightValue = EvaluateExpression(right) as string;
 
-        if (leftValue != null && rightValue != null && leftValue != rightValue)
+        if (leftValue != null && rightValue != null && leftValue != rightValue
+            && (leftValue.Length > 10 || rightValue.Length > 10))
         {
           diff = StringDiffHelper.GetStringDiff(leftValue, rightValue);
         }

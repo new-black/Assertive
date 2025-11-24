@@ -797,6 +797,25 @@ namespace Assertive.Expressions
 
     protected override Expression VisitExtension(Expression node)
     {
+      if (node is StaticRenderMethodCallExpression staticRender)
+      {
+        var call = staticRender.Original;
+        var args = call.Object != null ? call.Arguments : call.Arguments.Skip(1);
+
+        Out(call.Method.Name);
+        Out('(');
+        bool first = true;
+        foreach (var arg in args)
+        {
+          if (!first) Out(", ");
+          Visit(arg);
+          first = false;
+        }
+        Out(')');
+
+        return node;
+      }
+
       // Prefer an overridden ToString, if available.
       MethodInfo toString = node.GetType().GetMethod("ToString", Type.EmptyTypes)!;
       if (toString.DeclaringType != typeof(Expression) && !toString.IsStatic)

@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading;
 using Assertive.Analyzers;
 using Assertive.Config;
 using Assertive.Patterns;
@@ -10,7 +9,7 @@ using static Assertive.DSL;
 
 namespace Assertive.Test
 {
-  public class EqualsPatternTests : AssertionTestBase
+  public  class EqualsPatternTests : AssertionTestBase
   {
     [Fact]
     public void EqualsPattern_tests()
@@ -23,7 +22,7 @@ namespace Assertive.Test
 
       var foo = "foo";
       var bar = "bar";
-      
+
       int? nullableInt = null;
       ShouldFail(() => nullableInt == 1, "nullableInt: 1", "nullableInt: null");
       Assert.That(() => a != b);
@@ -31,7 +30,7 @@ namespace Assertive.Test
       Assert.That(() => x != y);
       Assert.That(() => x == 1);
       Assert.That(() => foo + bar == "foobar");
-      
+
       ShouldFail(() => a == b, @"a: ""B""", @"a: ""A""");
       ShouldFail(() => nullableInt == x, "nullableInt: 1", "nullableInt: null");
 
@@ -102,7 +101,8 @@ namespace Assertive.Test
       var a = "A";
       var b = "B";
 
-      var failures = new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => a == b, null, null), null)).AnalyzeAssertionFailures();
+      var failures =
+        new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => a == b, null, null), null)).AnalyzeAssertionFailures();
       Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is EqualsPattern);
     }
 
@@ -137,7 +137,7 @@ namespace Assertive.Test
       ShouldFail(() => a == b, "a: MyEnum.B", "a: MyEnum.A");
 
       b = null;
-      
+
       ShouldFail(() => a == b, "a: null", "a: MyEnum.A");
     }
 
@@ -170,10 +170,10 @@ namespace Assertive.Test
     public void Nullable_bool_false()
     {
       bool? success = null;
-      
+
       ShouldFail(() => success == false, "success: false", "success: null");
     }
-    
+
     private MyEnum DoIt(MyEnum x)
     {
       return x;
@@ -216,8 +216,10 @@ namespace Assertive.Test
                      The quick brown cat jumps over the lazy god
                      The quick brown fox jumps over the lazy dog
                      """;
+      
       var originalColors = Configuration.Colors.Enabled;
-      Configuration.Colors.Enabled = true;
+      Configuration.Colors.Enabled = false;
+
       try
       {
         var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
@@ -313,18 +315,18 @@ namespace Assertive.Test
       var actualLines = Enumerable.Range(1, 60).Select(i => $"Line {i}").ToArray();
       actualLines[5] = "Line six (actual)";
       actualLines[30] = "Line thirty-one (actual)";
-      actualLines[ FiftyFiveIndex() ] = "Line fifty-six (actual)";
+      actualLines[FiftyFiveIndex()] = "Line fifty-six (actual)";
 
       var expectedLines = Enumerable.Range(1, 60).Select(i => $"Line {i}").ToArray();
       expectedLines[5] = "Line six (expected)";
       expectedLines[30] = "Line thirty-one (expected)";
-      expectedLines[ FiftyFiveIndex() ] = "Line fifty-six (expected)";
+      expectedLines[FiftyFiveIndex()] = "Line fifty-six (expected)";
 
       var actual = string.Join("\n", actualLines);
       var expected = string.Join("\n", expectedLines);
 
       var originalColors = Configuration.Colors.Enabled;
-      
+
       Configuration.Colors.Enabled = false;
 
       try
@@ -383,11 +385,6 @@ namespace Assertive.Test
     {
       public string A { get; set; }
       public string B { get; set; }
-    }
-
-    private static string StripAnsi(string input)
-    {
-      return Regex.Replace(input, @"\u001b\[[0-9;]*[A-Za-z]", "");
     }
   }
 }

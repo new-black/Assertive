@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
+using Assertive.Config;
 using Assertive.Expressions;
 using Assertive.Helpers;
 using Assertive.Interfaces;
@@ -169,7 +170,7 @@ namespace Assertive.Patterns
         }
 
         var differencesString = differences.Select(d =>
-            $"[{d.Index}]: {(d.HasValueSequence1 ? Serializer.Serialize(d.ValueSequence1) ?? "null" : "(no value)")} <> {(d.HasValueSequence2 ? Serializer.Serialize(d.ValueSequence2) ?? "null" : "(no value)")}")
+            $"[{d.Index}]: {(d.HasValueSequence1 ? Serializer.Serialize(d.ValueSequence1).ToString() ?? "null" : "(no value)")} {Configuration.Colors.Expression("<>")} {(d.HasValueSequence2 ? Serializer.Serialize(d.ValueSequence2).ToString() : "(no value)")}")
           .ToList();
 
         return new ExpectedAndActual()

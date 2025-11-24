@@ -42,7 +42,7 @@ namespace Assertive.Analyzers
 
       if (_assertion.Message != null)
       {
-        var messageContent = _assertion.Message is string s ? s : Serializer.Serialize(_assertion.Message);
+        var messageContent = _assertion.Message is string s ? s : Serializer.Serialize(_assertion.Message).ToString();
         result.Add($"""
                    {colors.MetadataHeader("MESSAGE")}
                    {colors.Highlight(messageContent)}
@@ -55,7 +55,7 @@ namespace Assertive.Analyzers
         var contextValue = Serializer.Serialize(EvaluateExpression(_assertion.Context.Body));
         result.Add($"""
                    {colors.MetadataHeader("CONTEXT")}
-                   {contextExpr} = {colors.LocalValue(contextValue)}
+                   {contextExpr} = {contextValue}
                    """);
       }
 

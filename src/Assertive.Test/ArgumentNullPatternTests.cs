@@ -11,7 +11,7 @@ namespace Assertive.Test
     {
       List<string>? items = null;
       
-      ShouldFail(() => items.Where(i => i.StartsWith("abc")).Any(), "ArgumentNullException caused by calling Where on items which was null.");
+      ShouldFail(() => items.Where(i => i.StartsWith("abc")).Any(), "ArgumentNullException caused by calling Where(i => i.StartsWith(\"abc\")) on items which was null.");
     }
     
     [Fact]
@@ -19,7 +19,7 @@ namespace Assertive.Test
     {
       List<string>? items = null;
 
-      ShouldFail(() => items.Where(i => i.StartsWith("abc")).Count(x => x.EndsWith("123")) == 0, "ArgumentNullException caused by calling Where on items which was null.");
+      ShouldFail(() => items.Where(i => i.StartsWith("abc")).Count(x => x.EndsWith("123")) == 0, "ArgumentNullException caused by calling Where(i => i.StartsWith(\"abc\")) on items which was null.");
     }
   }
 }

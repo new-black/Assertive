@@ -1,4 +1,3 @@
-using System;
 using Assertive.Analyzers;
 using Assertive.Interfaces;
 

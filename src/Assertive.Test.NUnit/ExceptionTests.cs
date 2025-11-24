@@ -1,5 +1,3 @@
-using NUnit.Framework.Internal;
-
 namespace Assertive.Test.NUnit;
 
 public class Tests

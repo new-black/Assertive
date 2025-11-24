@@ -2,28 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 using Assertive.Analyzers;
 using Assertive.Config;
-using Assertive.Expressions;
-using Assertive.Helpers;
 using Xunit;
 using static Assertive.DSL;
 
 namespace Assertive.Test
 {
-  public class LocalsTests : AssertionTestBase, IDisposable
+  public class LocalsTests : AssertionTestBase
   {
-    public LocalsTests()
-    {
-      Configuration.Colors.Enabled = false;
-    }
-
-    public void Dispose()
-    {
-      Configuration.Colors.Enabled = true;
-    }
-
     [Fact]
     public void Locals_are_rendered_correctly()
     {
@@ -73,7 +60,8 @@ namespace Assertive.Test
       }
       catch (Exception ex)
       {
-        Assert(() => ex.Message.Contains("""customers = [ { ID = 1, FirstName = "John" }, { ID = 2, FirstName = "Bob" }, { ID = 3, FirstName = "Alice " } ]"""));
+        Assert(() => StripAnsi(ex.Message)
+          .Contains("""customers = [ { ID = 1, FirstName = "John" }, { ID = 2, FirstName = "Bob" }, { ID = 3, FirstName = "Alice " } ]"""));
       }
     }
 
@@ -108,8 +96,8 @@ namespace Assertive.Test
       }
       catch (Exception ex)
       {
-        Assert(() => ex.Message.Contains("list = [ 0, 1, 2, 3, 4, 5, 6, 7 ]"));
-        Assert(() => ex.Message.EndsWith("""
+        Assert(() => StripAnsi(ex.Message).Contains("list = [ 0, 1, 2, 3, 4, 5, 6, 7 ]"));
+        Assert(() => StripAnsi(ex.Message).EndsWith("""
                                          list = [ 0, 1, 2, 3, 4, 5, 6, 7 ]
                                          expected = 25
                                          ················································································
@@ -131,8 +119,8 @@ namespace Assertive.Test
       }
       catch (Exception ex)
       {
-        Assert(() => ex.Message.Contains("list = [ 0, 1, 2, 3, 4, 5, 6, 7 ]"));
-        Assert(() => !ex.Message.Contains("six = 6"));
+        Assert(() => StripAnsi(ex.Message).Contains("list = [ 0, 1, 2, 3, 4, 5, 6, 7 ]"));
+        Assert(() => !StripAnsi(ex.Message).Contains("six = 6"));
       }
     }
 
@@ -140,7 +128,7 @@ namespace Assertive.Test
     {
       var result = LocalsProvider.LocalsToString(assertion, new HashSet<Expression>());
 
-      Assert.That(() => result == expected);
+      Assert.That(() => StripAnsi(result) == expected);
     }
   }
 }

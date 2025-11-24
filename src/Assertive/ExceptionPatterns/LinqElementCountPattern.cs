@@ -9,8 +9,6 @@ using Assertive.Expressions;
 using Assertive.Helpers;
 using Assertive.Interfaces;
 
-using static Assertive.Expressions.ExpressionStringBuilder;
-
 namespace Assertive.ExceptionPatterns
 {
   internal class LinqElementCountPattern : IExceptionHandlerPattern
@@ -25,8 +23,7 @@ namespace Assertive.ExceptionPatterns
 
       if (linqVisitor.CauseOfLinqException != null)
       {
-        var filtered = linqVisitor.CauseOfLinqException.Arguments.Count == 2 &&
-                       linqVisitor.CauseOfLinqException.Arguments[1] is LambdaExpression;
+        var filtered = linqVisitor.CauseOfLinqException.Arguments is [_, LambdaExpression];
         
         var instanceOfMethodCallExpression = ExpressionHelper.GetInstanceOfMethodCall(linqVisitor.CauseOfLinqException);
 
@@ -44,7 +41,7 @@ namespace Assertive.ExceptionPatterns
           {
             message = $@"{message}
 
-Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodCallExpression)}: {Serializer.Serialize(items)}";
+Value of {instanceOfMethodCallExpression}: {Serializer.Serialize(items)}";
           }
         }
 
@@ -102,10 +99,8 @@ Value of {(filter != null ? linqVisitor.CauseOfLinqException : instanceOfMethodC
       return items;
     }
     
-    private static Expression GetMethod(MethodCallExpression methodCallExpression)
-    {
-      return methodCallExpression;
-    }
+    private static Expression GetMethod(MethodCallExpression methodCallExpression) =>
+      StaticRenderMethodCallExpression.Wrap(methodCallExpression);
 
     private static FormattableString GetReasonMessage(MethodCallExpression methodCallExpression,
       LinqElementCountErrorTypes? error,
