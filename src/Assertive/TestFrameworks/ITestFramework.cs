@@ -12,7 +12,8 @@ namespace Assertive.TestFrameworks
     [
       new XUnitFramework(),
       new MSTestFramework(), 
-      new NUnitTestFramework()
+      new NUnitTestFramework(),
+      new TUnitFramework()
     ];
 
     private static ITestFramework? _activeTestFramework = null;
