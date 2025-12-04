@@ -29,13 +29,7 @@ As the null check [isn't necessary.](#nullreferenceexceptions)
 
 If the assertion fails you will get this output in your test runner:
 
-> Expected payment.Amount to equal 50 but payment.Amount was 51.
->
-> Assertion: payment.Amount == 50
->
-> Locals:
->
-> - payment = { Amount = 51, Date = 2020-02-03T13:15:12.0000000, Customer = "John Doe" }
+<img width="646" height="218" alt="image" src="https://github.com/user-attachments/assets/0511b1fc-643b-45bc-b70b-9596d141fb4c" />
 
 ## How is this different from using Assert.IsTrue?
 
@@ -85,11 +79,7 @@ Assert(() => list.Count == 1 && list[0].StartsWith("foo"));
 
 This assertion would fail with the message:
 
-> Expected list[0] to start with "foo".
->
-> Value of list[0]: "bar"
->
-> Assertion: list[0].StartsWith("foo")
+<img width="658" height="220" alt="image" src="https://github.com/user-attachments/assets/29fb06cf-e1f2-48c6-814e-cb2978da2954" />
 
 Short-circuiting works as you would expect, if the first assertion fails then the second one is not evaluated.
 
@@ -292,18 +282,16 @@ Example:
 ```csharp
 var names = GetNames();
 
-Assert(() => names.Single(n => n == "Bob"))
+Assert(() => names.Single() == "Bob");
 ```
 
 Message if `names` is empty:
 
-> InvalidOperationException caused by calling Single on names which contains no elements.
+<img width="776" height="418" alt="image" src="https://github.com/user-attachments/assets/6fb7d74e-5330-4626-97dd-aef7e1cd2435" />
 
 However if `names` has more than one element:
 
-> InvalidOperationException caused by calling Single on names which contains more than one element. Actual element count: 2.
-> 
-> Value of names: ["Bob", "John"]
+<img width="999" height="485" alt="image" src="https://github.com/user-attachments/assets/f992f5b8-8a7a-44c3-bf23-e0038c04e69a" />
 
 ### Custom messages
 
