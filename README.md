@@ -227,7 +227,8 @@ In this imagined scenario, it's important that BeforePrice and AfterPrice are th
 To go even further, you can register a validator for each placeholder type:
 
 ```csharp
-Configuration.Snapshots.Normalization.RegisterPlaceholderValidator("price", value => decimal.TryParse(value, out var price) && price > 0, "Price must be a positive number.");
+Configuration.Snapshots.Normalization
+  .RegisterPlaceholderValidator("price", value => decimal.TryParse(value, out var price) && price > 0, "Price must be a positive number.");
 ```
 
 
@@ -342,9 +343,7 @@ Assert(() => orders.All(o => o.PaidAmount > 100));
 
 Assuming the 29th order (starting from zero) in this collection did not meet this condition, the message will be something like this:
 
-> Expected all items of orders to match the filter o.PaidAmount > 100, but this item did not: { ID = 54, PaidAmount = 50 }
->
-> orders[29] - Expected item.PaidAmount to be greater than 100, but item.PaidAmount was 50.
+<img width="656" height="662" alt="image" src="https://github.com/user-attachments/assets/c7c3c85a-0e82-4724-82ce-41c57331dd46" />
 
 ### Contents of locals used in your assertion are rendered to the output
 
@@ -352,13 +351,7 @@ If you have an assertion like `Assert(() => customers.Count() == expectedCustome
 
 For example:
 
-> Expected customers to have a count equal to expectedCustomers (value: 2) but the actual count was 3.
->
-> Assertion: customers.Count() == expectedCustomers
->
-> Locals:
->
-> - customers = [ { ID = 1, FirstName = "John" }, { ID = 2, FirstName = "Bob" }, { ID = 3, FirstName = "Alice " } ]
+<img width="871" height="221" alt="image" src="https://github.com/user-attachments/assets/19d5f4b8-28a8-4e57-82ad-762851522cc9" />
 
 But note how only `customers` is rendered as the value of `expectedCustomers` is already displayed in the message at some other point.
 
