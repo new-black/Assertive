@@ -37,11 +37,7 @@ While `Assert.IsTrue(a == b)` would have the same result for a passing test, it 
 
 Because Assertive accepts an expression it will analyze the expression and output an error message like this:
 
-```
-Expected a to equal b but a was 20 while b was 24.
-
-Assertion: a == b
-```
+<img width="642" height="181" alt="image" src="https://github.com/user-attachments/assets/324a8471-d4c5-4c71-b70b-b1b493c7832a" />
 
 Assertive has a number of built-in patterns that it recognizes, which currently consists of:
 
