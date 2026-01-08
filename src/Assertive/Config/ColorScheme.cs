@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Assertive.Helpers;
 
 namespace Assertive.Config
 {
@@ -273,6 +274,10 @@ namespace Assertive.Config
         var overrideColors = Environment.GetEnvironmentVariable("ASSERTIVE_COLORS_ENABLED");
         if (IsTruthy(overrideColors)) return true;
         if (IsFalsey(overrideColors)) return false;
+        
+        var nunitIsActive = TestFrameworkHelper.TryGetType("nunit.framework", "NUnit.Framework.AssertionException") != null;
+
+        if (nunitIsActive) return false;
 
         if (Environment.GetEnvironmentVariable("NO_COLOR") != null) return false;
         if (IsTruthy(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"))) return false;

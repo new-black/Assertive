@@ -6,4 +6,4 @@ cd "$ROOT_DIR"
 
 dotnet restore src/Assertive.sln
 dotnet build src/Assertive.sln -c Release --no-restore
-dotnet test src/Assertive.sln -c Release --no-build
+dotnet test src/Assertive.sln -c Release --no-build --filter "FullyQualifiedName!~Assertive.Examples"

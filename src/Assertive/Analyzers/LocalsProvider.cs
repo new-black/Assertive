@@ -53,22 +53,5 @@ namespace Assertive.Analyzers
         return null;
       }
     }
-
-    /// <summary>
-    /// Gets the local variables formatted as a string (for backward compatibility).
-    /// </summary>
-    [Obsolete("Use GetLocals() instead for structured data")]
-    public static string? LocalsToString(Expression expression, HashSet<Expression> evaluatedExpressions)
-    {
-      var locals = GetLocals(expression, evaluatedExpressions);
-
-      if (locals == null)
-      {
-        return null;
-      }
-
-      var lines = locals.Select(local => $"- {local.Name} = {local.Value}");
-      return string.Join(Environment.NewLine, lines);
-    }
   }
 }

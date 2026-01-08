@@ -74,9 +74,9 @@ namespace Assertive.Test
         Assert.That(() => StripAnsi(ex.Message).Contains("""
                                                          e.Message == "wrong"
                                                          
-                                                         [EXPECTED]
+                                                          ✓ EXPECTED                                                                     
                                                          e.Message: "wrong"
-                                                         [ACTUAL]
+                                                          ✗ ACTUAL                                                                       
                                                          e.Message: "boom"
                                                          """));
       }
@@ -85,8 +85,10 @@ namespace Assertive.Test
     [Fact]
     public async Task Throws_additional_assertion_failure_is_reported_async()
     {
+      var originalColorSetting = Configuration.Colors.Enabled;
       try
       {
+        Configuration.Colors.Enabled = false;
         await Assert.Throws<InvalidOperationException>(() => ThrowAsyncException(), e => e.Message == "wrong");
         Xunit.Assert.Fail("Expected assertion to fail.");
       }
@@ -102,6 +104,10 @@ namespace Assertive.Test
                                                          - [E1] [-wr-]on[-g-]
                                                          + [A1] [+an excepti+]on
                                                          """));
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColorSetting;
       }
     }
 

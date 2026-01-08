@@ -99,7 +99,7 @@ namespace Assertive.Analyzers
 
       foreach (var local in locals)
       {
-        lines.Add($"{colors.LocalName(local.Name)} = {colors.LocalValue(local.Value)}");
+        lines.Add($"{colors.LocalName(local.Name)}: {colors.LocalValue(local.Value)}");
       }
 
       return string.Join(Environment.NewLine, lines);

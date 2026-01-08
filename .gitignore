@@ -16,3 +16,5 @@ src/Assertive.xUnit/obj/
 **/.DS_Store
 src/Assertive.Test.TUnit/obj/*
 src/Assertive.Test.TUnit/bin/*
+src/Assertive.Examples/bin/*
+src/Assertive.Examples/obj/*

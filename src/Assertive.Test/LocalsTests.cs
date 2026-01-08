@@ -21,18 +21,19 @@ namespace Assertive.Test
 
       var value = "4";
 
-      ShouldEqual(() => list.Any(l => l == value), @"- list = [ ""1"", ""2"", ""3"" ]
-- value = ""4""");
+      ShouldEqual(() => list.Any(l => l == value), @"list: [ ""1"", ""2"", ""3"" ]
+value: ""4""");
 
-      ShouldEqual(() => list.Any(l => l == "4"), @"- list = [ ""1"", ""2"", ""3"" ]");
+      ShouldEqual(() => list.Any(l => l == "4"), @"list: [ ""1"", ""2"", ""3"" ]");
 
       var length = 2;
       var ending = "4";
 
       ShouldEqual(() => list.Count(l => l.Length == length && l.EndsWith(ending)) == 1,
-        @"- list = [ ""1"", ""2"", ""3"" ]
-- length = 2
-- ending = ""4""");
+        @"list: [ ""1"", ""2"", ""3"" ]
+length: 2
+ending: ""4""
+");
     }
 
     private class Customer
@@ -61,7 +62,7 @@ namespace Assertive.Test
       catch (Exception ex)
       {
         Assert(() => StripAnsi(ex.Message)
-          .Contains("""customers = [ { ID = 1, FirstName = "John" }, { ID = 2, FirstName = "Bob" }, { ID = 3, FirstName = "Alice " } ]"""));
+          .Contains("""customers: [ { ID = 1, FirstName = "John" }, { ID = 2, FirstName = "Bob" }, { ID = 3, FirstName = "Alice " } ]"""));
       }
     }
 
@@ -96,10 +97,10 @@ namespace Assertive.Test
       }
       catch (Exception ex)
       {
-        Assert(() => StripAnsi(ex.Message).Contains("list = [ 0, 1, 2, 3, 4, 5, 6, 7 ]"));
+        Assert(() => StripAnsi(ex.Message).Contains("list: [ 0, 1, 2, 3, 4, 5, 6, 7 ]"));
         Assert(() => StripAnsi(ex.Message).EndsWith("""
-                                         list = [ 0, 1, 2, 3, 4, 5, 6, 7 ]
-                                         expected = 25
+                                         list: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+                                         expected: 25
                                          ················································································
                                          
                                          """));
@@ -119,16 +120,23 @@ namespace Assertive.Test
       }
       catch (Exception ex)
       {
-        Assert(() => StripAnsi(ex.Message).Contains("list = [ 0, 1, 2, 3, 4, 5, 6, 7 ]"));
-        Assert(() => !StripAnsi(ex.Message).Contains("six = 6"));
+        Assert(() => StripAnsi(ex.Message).Contains("list: [ 0, 1, 2, 3, 4, 5, 6, 7 ]"));
+        Assert(() => !StripAnsi(ex.Message).Contains("six: 6"));
       }
     }
 
     private void ShouldEqual(Expression<Func<bool>> assertion, string expected)
     {
-      var result = LocalsProvider.LocalsToString(assertion, new HashSet<Expression>());
+      try
+      {
+        Assert(assertion);
+        Xunit.Assert.Fail("Expected assertion to fail.");
+      }
+      catch (Exception ex)
+      { 
+        Assert.That(() => StripAnsi(ex.Message).Trim().Contains(expected.Trim()));
+      }
 
-      Assert.That(() => StripAnsi(result) == expected);
     }
   }
 }
