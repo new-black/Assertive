@@ -76,9 +76,9 @@ namespace Assertive.Test
         Assert.That(() => StripAnsi(ex.Message).Contains("""
                                                          e.Message == "wrong"
                                                          
-                                                          ✓ EXPECTED                                                                     
+                                                         [EXPECTED]
                                                          e.Message: "wrong"
-                                                          ✗ ACTUAL                                                                       
+                                                         [ACTUAL]
                                                          e.Message: "boom"
                                                          """));
       }
