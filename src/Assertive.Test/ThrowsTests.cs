@@ -64,8 +64,10 @@ namespace Assertive.Test
     [Fact]
     public void Throws_additional_assertion_failure_is_reported_sync()
     {
+      var originalColorSetting = Configuration.Colors.Enabled;
       try
       {
+        Configuration.Colors.Enabled = false;
         Assert.Throws<InvalidOperationException>(() => ThrowInvalidOperation("boom"), e => e.Message == "wrong");
         Xunit.Assert.Fail("Expected assertion to fail.");
       }
@@ -79,6 +81,10 @@ namespace Assertive.Test
                                                           ✗ ACTUAL                                                                       
                                                          e.Message: "boom"
                                                          """));
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColorSetting;
       }
     }
 
