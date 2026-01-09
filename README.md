@@ -2,6 +2,10 @@
 
 Assertive is a free, open source library available on [NuGet](https://www.nuget.org/packages/Assertive/) for easily writing test assertions using the power of the C# language and aims to be the easiest possible way to write assertions while still providing useful and contextual error information. It's not a test framework of itself, it's meant to be used in conjunction with a test framework like xUnit, NUnit, TUnit or MSTest.
 
+```csharp
+Assert(() => order.Status == OrderStatus.Paid && order.Items.All(i => i.Quantity > 0));
+```
+
 Assertive does away with a long list of possible assertion methods or "fluent" assertion chaining and only provides a single `Assert.That` method (or just `Assert()` if you add `using static Assertive.DSL`).
 
 ## Installation
