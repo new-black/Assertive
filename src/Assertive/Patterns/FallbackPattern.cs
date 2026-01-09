@@ -1,6 +1,7 @@
-using System;
+using System.Linq;
 using Assertive.Analyzers;
 using Assertive.Interfaces;
+using Assertive.Plugin;
 
 namespace Assertive.Patterns
 {
@@ -11,12 +12,23 @@ namespace Assertive.Patterns
       return true;
     }
 
-    public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual? TryGetFriendlyMessage(FailedAssertion assertion)
     {
       return null;
     }
 
-    public IFriendlyMessagePattern[] SubPatterns { get; } =
+    public IFriendlyMessagePattern[] SubPatterns
+    {
+      get
+      {
+        // Custom patterns are evaluated first (user-defined, more specific)
+        var customPatterns = CustomPatternRegistry.GetPatterns();
+
+        return customPatterns.Concat(BuiltInPatterns).ToArray();
+      }
+    }
+
+    private static readonly IFriendlyMessagePattern[] BuiltInPatterns =
     [
       new BoolPattern(),
       new ComparisonPattern(),

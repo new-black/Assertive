@@ -1,4 +1,3 @@
-using System;
 using Assertive.Analyzers;
 using Assertive.Interfaces;
 
@@ -12,9 +11,9 @@ namespace Assertive.Patterns
              || LessThanOrGreaterThanPattern.IsNumericalComparison(failedAssertion.Expression);
     }
 
-    public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual? TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      return default;
+      return null;
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } =

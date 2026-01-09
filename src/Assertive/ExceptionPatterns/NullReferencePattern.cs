@@ -2,6 +2,7 @@ using System;
 using System.Linq.Expressions;
 using System.Reflection;
 using Assertive.Analyzers;
+using Assertive.Config;
 using Assertive.Interfaces;
 
 namespace Assertive.ExceptionPatterns
@@ -44,12 +45,12 @@ namespace Assertive.ExceptionPatterns
 
     private static FormattableString GetReasonMessageInternalException(MemberExpression expression)
     {
-      return $"NullReferenceException was thrown inside {expression.Member.Name} on {expression}.";
+      return $"NullReferenceException was thrown inside {Configuration.Colors.Expression(expression.Member.Name)} on {expression}.";
     }
 
     private static FormattableString GetReasonMessageInternalException(MethodCallExpression expression)
     {
-      return $"NullReferenceException was thrown inside {expression.Method.Name} on {expression}.";
+      return $"NullReferenceException was thrown inside {Configuration.Colors.Expression(expression.Method.Name)} on {expression}.";
     }
 
     private static FormattableString GetReasonMessage(UnaryExpression causeOfNullReference)
@@ -67,13 +68,13 @@ namespace Assertive.ExceptionPatterns
     private static FormattableString GetReasonMessage(MemberExpression causeOfNullReference)
     {
       return
-        $"NullReferenceException caused by accessing {causeOfNullReference.Member.Name} on {causeOfNullReference.Expression} which was null.";
+        $"NullReferenceException caused by accessing {Configuration.Colors.Expression(causeOfNullReference.Member.Name)} on {causeOfNullReference.Expression} which was null.";
     }
 
     private static FormattableString GetReasonMessage(MethodCallExpression causeOfNullReference)
     {
       return
-        $"NullReferenceException caused by calling {causeOfNullReference.Method.Name} on {causeOfNullReference.Object} which was null.";
+        $"NullReferenceException caused by calling {Configuration.Colors.Expression(causeOfNullReference.Method.Name)} on {causeOfNullReference.Object} which was null.";
     }
 
     private class NullReferenceVisitor : ExpressionVisitor

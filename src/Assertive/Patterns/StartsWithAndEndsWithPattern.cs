@@ -1,4 +1,3 @@
-using System;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
 using Assertive.Expressions;
@@ -20,7 +19,7 @@ namespace Assertive.Patterns
              && methodCallExpression.Arguments[0].Type == typeof(string);
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var startsWith = IsStartsOrEndsWithCall(assertion.Expression);
 
@@ -32,17 +31,27 @@ namespace Assertive.Patterns
       var arg = methodCallExpression.Arguments[0];
 
       var instance = GetInstanceOfMethodCall(methodCallExpression);
-
       if (IsConstantExpression(arg))
       {
-        return $@"Expected {instance} to{(startsWith ? " " : " not ")}{method} {arg}.
+        return new ExpectedAndActual()
+        {
+          Expected = $"""
+                      {instance}: should{(startsWith ? " " : " not ")}{method} {arg}.
+                      """,
+          Actual = $"{instance}: {instance?.ToValue()}"
 
-Value of {instance}: {instance?.ToValue()}";  
+        };
       }
-      
-      return $@"Expected {instance} to{(startsWith ? " " : " not ")}{method} {arg} (value: {arg.ToValue()}).
 
-Value of {instance}: {instance?.ToValue()}";   
+      return new ExpectedAndActual()
+      {
+        Expected = $"""
+                    {instance}: should{(startsWith ? " " : " not ")}{method} {arg}.
+
+                    {arg}: {arg.ToValue()}
+                    """,
+        Actual = $"{instance}: {instance?.ToValue()}"
+      };
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = [];

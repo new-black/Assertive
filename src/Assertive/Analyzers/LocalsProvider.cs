@@ -9,7 +9,11 @@ namespace Assertive.Analyzers
 {
   internal static class LocalsProvider
   {
-    public static string? LocalsToString(Expression expression, HashSet<Expression> evaluatedExpressions)
+    /// <summary>
+    /// Gets the local variables used in an expression.
+    /// </summary>
+    /// <returns>A list of local variables, or null if there are none or an error occurred.</returns>
+    public static List<LocalVariable>? GetLocals(Expression expression, HashSet<Expression> evaluatedExpressions)
     {
       try
       {
@@ -24,7 +28,7 @@ namespace Assertive.Analyzers
           return null;
         }
 
-        var localsToString = new List<string>();
+        var localVariables = new List<LocalVariable>();
 
         foreach (var local in locals.Values)
         {
@@ -32,21 +36,21 @@ namespace Assertive.Analyzers
           {
             continue;
           }
-          
-          localsToString.Add(
-            $"- {local.Name} = {Serializer.Serialize(ExpressionHelper.EvaluateExpression(local.Expression))}");
+
+          var value = Serializer.Serialize(ExpressionHelper.EvaluateExpression(local.Expression));
+          localVariables.Add(new LocalVariable(local.Name, value.ToString()));
         }
 
-        if (localsToString.Count == 0)
+        if (localVariables.Count == 0)
         {
           return null;
         }
 
-        return string.Join(Environment.NewLine, localsToString);
+        return localVariables;
       }
       catch
       {
-        return "<exception gathering locals>";
+        return null;
       }
     }
   }

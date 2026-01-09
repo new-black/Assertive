@@ -8,8 +8,15 @@ using static Assertive.DSL;
 
 namespace Assertive.Test
 {
-  public class SerializerTests
+  public class SerializerTests : IDisposable
   {
+    private readonly bool originalColors;
+    
+    public void Dispose()
+    {
+      Assertive.Config.Configuration.Colors.Enabled = originalColors;
+    }
+
     private class ThrowsClass
     {
       public string Throws => throw new Exception();
@@ -21,12 +28,18 @@ namespace Assertive.Test
       public string Description => throw new Exception("exception");
     }
 
+    public SerializerTests()
+    {
+      originalColors = Assertive.Config.Configuration.Colors.Enabled;
+      Assertive.Config.Configuration.Colors.Enabled = false;
+    }
+
     [Fact]
     public void Exception_inside_serialization_doesnt_throw()
     {
       var obj = new ThrowsClass();
 
-      var result = Serializer.Serialize(obj);
+      var result = Serializer.Serialize(obj).ToString();
 
       Assert(() => result == "{ Throws = <exception serializing = Exception> }");
     }
@@ -36,7 +49,7 @@ namespace Assertive.Test
     {
       var obj = new HasThrowingProperty();
 
-      var result = Serializer.Serialize(obj);
+      var result = Serializer.Serialize(obj).ToString();
 
       Assert(() => result == "{ ID = 10, Description = <exception serializing = Exception> }");
     }
@@ -60,9 +73,9 @@ namespace Assertive.Test
     [Fact]
     public void Primitives_are_serialized_directly()
     {
-      Assert(() => Serializer.Serialize(1) == "1");
-      Assert(() => Serializer.Serialize(true) == "True");
-      Assert(() => Serializer.Serialize("my value") == @"""my value""");
+      Assert(() => Serializer.Serialize(1).ToString() == "1");
+      Assert(() => Serializer.Serialize(true).ToString() == "True");
+      Assert(() => Serializer.Serialize("my value").ToString() == @"""my value""");
     }
 
     class RecursiveReference
@@ -79,7 +92,7 @@ namespace Assertive.Test
       obj.Self = obj;
       obj.Selfs = [obj];
 
-      var result = Serializer.Serialize(obj);
+      var result = Serializer.Serialize(obj).ToString();
 
       Assert(() => result == "{ Self = <infinite recursion>, Selfs = [ <infinite recursion> ] }");
     }
@@ -97,7 +110,7 @@ namespace Assertive.Test
 
       obj.Since = new DateTime(2020, 1, 1);
 
-      var result = Serializer.Serialize(obj);
+      var result = Serializer.Serialize(obj).ToString();
 
       Assert(() => result == @"{ Since = 2020-01-01T00:00:00.0000000, Other = 0001-01-01T00:00:00.0000000 }");
     }
@@ -105,7 +118,7 @@ namespace Assertive.Test
     [Fact]
     public void Enumerable_property_of_complex_type_is_serialized()
     {
-      var result = Serializer.Serialize(new ClassWithComplexEnumerable());
+      var result = Serializer.Serialize(new ClassWithComplexEnumerable()).ToString();
 
       Assert(() =>
         result ==
@@ -115,7 +128,7 @@ namespace Assertive.Test
     [Fact]
     public void Enumerable_property_is_serialized()
     {
-      var result = Serializer.Serialize(new ClassWithEnumerable());
+      var result = Serializer.Serialize(new ClassWithEnumerable()).ToString();
 
       Assert(() => result == "{ Items = [ 0, 1, 2, 3, 4 ] }");
     }
@@ -123,7 +136,7 @@ namespace Assertive.Test
     [Fact]
     public void List_is_serialized()
     {
-      var result = Serializer.Serialize(new List<int>() { 1, 2, 3, 4 });
+      var result = Serializer.Serialize(new List<int>() { 1, 2, 3, 4 }).ToString();
 
       Assert(() => result == "[ 1, 2, 3, 4 ]");
     }
@@ -137,7 +150,7 @@ namespace Assertive.Test
         D = "ABC"
       };
 
-      var result = Serializer.Serialize(c);
+      var result = Serializer.Serialize(c).ToString();
 
       Assert(() => result == @"{ D = ""ABC"", G = ""123"" }");
     }
@@ -163,7 +176,7 @@ namespace Assertive.Test
         O = "abcedghijklmnopqrstuvwxyz",
       };
 
-      var result = Serializer.Serialize(c);
+      var result = Serializer.Serialize(c).ToString();
 
       Assert(() => result == @"{
  A = ""abcedghijklmnopqrstuvwxyz"",
@@ -225,7 +238,7 @@ namespace Assertive.Test
         }
       };
       
-      var result = Serializer.Serialize(c);
+      var result = Serializer.Serialize(c).ToString();
       
       Assert(() => result == "{ InterfaceDict = { [\"test\"] = 123, [\"abc\"] = 456 }, DictWithArray = { [1234] = [ \"abc\" ], [45678] = [ \"def\" ] } }");
     }
@@ -239,7 +252,7 @@ namespace Assertive.Test
         ["def"] = ["4567"]
       };
 
-      var result = Serializer.Serialize(dict);
+      var result = Serializer.Serialize(dict).ToString();
 
       Assert(() => result == "{ [\"abc\"] = [ \"1234\" ], [\"def\"] = [ \"4567\" ] }");
     }
@@ -247,7 +260,7 @@ namespace Assertive.Test
     [Fact]
     public void Doubles_are_serialized_correctly()
     {
-      Assert(() => Serializer.Serialize(52.438) == "52.438");
+      Assert(() => Serializer.Serialize(52.438).ToString() == "52.438");
     }
 
     public struct MyStruct
@@ -267,7 +280,7 @@ namespace Assertive.Test
         C = 3
       };
       
-      var result = Serializer.Serialize(s);
+      var result = Serializer.Serialize(s).ToString();
 
       Assert(() => result == "{ A = 1, B = 2, C = 3 }");
     }
@@ -280,13 +293,13 @@ namespace Assertive.Test
         Data = Encoding.UTF8.GetBytes("hello world"),
       };
       
-      var result = Serializer.Serialize(d);
+      var result = Serializer.Serialize(d).ToString();
 
       Assert(() => result == "{ Data = aGVsbG8gd29ybGQ= }");
 
       d.Data = Encoding.UTF8.GetBytes(
         "hello worldhello worldhello worldhello worldhello worldhello worldhello worldhello worldhello worldhello worldhello world");
-      result = Serializer.Serialize(d);
+      result = Serializer.Serialize(d).ToString();
 
       Assert(() => result == @"{
  Data = aGVsbG8gd29ybGRoZWxsbyB3b3JsZGhlbGxvIHdvcmxkaGVsbG8gd29ybGRoZWxsbyB3b3JsZGhlbGxvIHdvcmxkaGVsbG8gd29ybGRoZWxsbyB3b3JsZGhlbGxvIHdvcmxkaGVsbG8gd29ybGRoZWxsbyB3b3JsZA==...
@@ -298,5 +311,6 @@ namespace Assertive.Test
     {
       public byte[] Data { get; set; }
     }
+
   }
 }

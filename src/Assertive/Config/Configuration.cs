@@ -10,7 +10,10 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Assertive.Config
 {
-  public static class Configuration
+  /// <summary>
+  /// Global configuration settings for Assertive assertions.
+  /// </summary>
+  public static partial class Configuration
   {
     /// <summary>
     /// Determines if and how assertion expressions in the test output should be quoted.
@@ -33,14 +36,66 @@ namespace Assertive.Config
       }
     }
 
+    /// <summary>
+    /// Delegate for customizing how property values are rendered in snapshot output.
+    /// </summary>
+    /// <param name="property">The property being serialized.</param>
+    /// <param name="obj">The object containing the property.</param>
+    /// <param name="value">The current value of the property.</param>
+    /// <returns>The value to render (return the input value for no change, null to insert null).</returns>
     public delegate object? ValueRenderer(JsonPropertyInfo property, object obj, object? value);
+
+    /// <summary>
+    /// Delegate for customizing how exceptions are rendered when property access fails during serialization.
+    /// </summary>
+    /// <param name="property">The property that threw the exception.</param>
+    /// <param name="obj">The object containing the property.</param>
+    /// <param name="exception">The exception that was thrown.</param>
+    /// <returns>The value to render in place of the exception.</returns>
     public delegate object ExceptionRenderer(JsonPropertyInfo property, object obj, Exception exception);
+
+    /// <summary>
+    /// Delegate for determining whether a property should be excluded from snapshot output.
+    /// </summary>
+    /// <param name="property">The property being considered.</param>
+    /// <param name="obj">The object containing the property.</param>
+    /// <param name="value">The current value of the property.</param>
+    /// <returns>True to exclude the property from output, false to include it.</returns>
     public delegate bool ShouldIgnore(JsonPropertyInfo property, object obj, object? value);
+
+    /// <summary>
+    /// Delegate for determining how to handle properties in the actual object that don't exist in the expected snapshot.
+    /// </summary>
+    /// <param name="propertyName">The name of the extraneous property.</param>
+    /// <param name="value">The value of the extraneous property.</param>
+    /// <returns>How to handle the extraneous property.</returns>
     public delegate ExtraneousPropertiesOptions ExtraneousProperties(string propertyName, object? value);
+
+    /// <summary>
+    /// Delegate for launching an external diff tool when snapshots differ.
+    /// </summary>
+    /// <param name="actual">Path to the file containing the actual value.</param>
+    /// <param name="expected">Path to the file containing the expected value.</param>
     public delegate void LaunchDiffTool(string actual, string expected);
+
+    /// <summary>
+    /// Delegate for resolving the directory where expected snapshot files should be stored.
+    /// </summary>
+    /// <param name="testMethod">The test method performing the snapshot assertion.</param>
+    /// <param name="sourceFileLocation">The source file containing the test.</param>
+    /// <returns>The directory path where the expected snapshot file should be located.</returns>
     public delegate string ExpectedFileDirectoryResolver(MethodInfo testMethod, FileInfo sourceFileLocation);
+
+    /// <summary>
+    /// Delegate for validating placeholder values in expected snapshots.
+    /// </summary>
+    /// <param name="value">The actual value to validate against the placeholder.</param>
+    /// <returns>True if the value is valid for the placeholder, false otherwise.</returns>
     public delegate bool PlaceholderValidator(string? value);
 
+    /// <summary>
+    /// Configuration settings for snapshot comparison assertions.
+    /// </summary>
     public record CompareSnapshotsConfiguration
     {
       /// <summary>
@@ -73,8 +128,14 @@ namespace Assertive.Config
       /// </summary>
       public ExpectedFileDirectoryResolver? ExpectedFileDirectoryResolver { get; set; }
 
+      /// <summary>
+      /// Settings for normalizing values during snapshot comparison.
+      /// </summary>
       public NormalizationConfiguration Normalization { get; set; } = new ();
 
+      /// <summary>
+      /// Configuration for value normalization during snapshot comparison.
+      /// </summary>
       public record NormalizationConfiguration
       {
         /// <summary>
@@ -100,6 +161,9 @@ namespace Assertive.Config
         
         internal Dictionary<string, (PlaceholderValidator, string)> PlaceholderValidatorsLookup { get; } = new();
 
+        /// <summary>
+        /// Gets or sets the registered placeholder validators.
+        /// </summary>
         public IEnumerable<PlaceholderValidatorDefinition> PlaceholderValidators
         {
           get
@@ -130,6 +194,12 @@ namespace Assertive.Config
         }
       }
       
+      /// <summary>
+      /// Defines a placeholder validator with its associated validation message.
+      /// </summary>
+      /// <param name="Placeholder">The placeholder name without the prefix.</param>
+      /// <param name="Validator">The validation function.</param>
+      /// <param name="InvalidValueMessage">The message shown when validation fails.</param>
       public record PlaceholderValidatorDefinition(string Placeholder, PlaceholderValidator Validator, string InvalidValueMessage);
       
       /// <summary>
@@ -175,14 +245,29 @@ namespace Assertive.Config
       }
     }
 
+    /// <summary>
+    /// Specifies how to handle properties in the actual object that don't exist in the expected snapshot.
+    /// </summary>
     public enum ExtraneousPropertiesOptions
     {
+      /// <summary>Fail the assertion if extraneous properties are found.</summary>
       Disallow,
+      /// <summary>Ignore extraneous properties and don't include them in comparison.</summary>
       Ignore,
+      /// <summary>Automatically add extraneous properties to the expected snapshot file.</summary>
       AutomaticUpdate
     }
     
+    /// <summary>
+    /// Global configuration for snapshot assertions.
+    /// </summary>
     public static CompareSnapshotsConfiguration Snapshots { get; } = new ();
+
+    /// <summary>
+    /// Color scheme configuration for assertion failure messages.
+    /// Set <see cref="ColorScheme.Enabled"/> to false to disable all colorization.
+    /// </summary>
+    public static ColorScheme Colors { get; } = new ();
 
     private static string? _expressionQuotationPattern;
   }

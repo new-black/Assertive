@@ -1,6 +1,6 @@
 using System;
+using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading;
 using Assertive.Analyzers;
 using Assertive.Config;
 using Assertive.Patterns;
@@ -9,7 +9,7 @@ using static Assertive.DSL;
 
 namespace Assertive.Test
 {
-  public class EqualsPatternTests : AssertionTestBase
+  public  class EqualsPatternTests : AssertionTestBase
   {
     [Fact]
     public void EqualsPattern_tests()
@@ -22,23 +22,23 @@ namespace Assertive.Test
 
       var foo = "foo";
       var bar = "bar";
-      
+
       int? nullableInt = null;
-      ShouldFail(() => nullableInt == 1, "Expected nullableInt to equal 1 but nullableInt was null.");
+      ShouldFail(() => nullableInt == 1, "nullableInt: 1", "nullableInt: null");
       Assert.That(() => a != b);
       Assert.That(() => a == "A");
       Assert.That(() => x != y);
       Assert.That(() => x == 1);
       Assert.That(() => foo + bar == "foobar");
-      
-      ShouldFail(() => a == b, @"Expected a to equal b but a was ""A"" while b was ""B"".");
-      ShouldFail(() => nullableInt == x, "Expected nullableInt to equal x but nullableInt was null while x was 1.");
 
-      ShouldFail(() => x == y, "Expected x to equal y but x was 1 while y was 2.");
+      ShouldFail(() => a == b, @"a: ""B""", @"a: ""A""");
+      ShouldFail(() => nullableInt == x, "nullableInt: 1", "nullableInt: null");
+
+      ShouldFail(() => x == y, "x: 2", "x: 1");
       ShouldFail(() => foo + bar == "barfoo",
-        @"Expected foo + bar to equal ""barfoo"" but foo + bar was ""foobar"".");
-      ShouldFail(() => a == "B", @"Expected a to equal ""B"" but a was ""A"".");
-      ShouldFail(() => a.Equals(b), @"Expected a to equal b but a was ""A"" while b was ""B"".");
+        @"foo + bar: ""barfoo""", @"foo + bar: ""foobar""");
+      ShouldFail(() => a == "B", @"a: ""B""", @"a: ""A""");
+      ShouldFail(() => a.Equals(b), @"a: ""B""", @"a: ""A""");
     }
 
     [Fact]
@@ -53,12 +53,12 @@ namespace Assertive.Test
       var foo = "foo";
       var bar = "bar";
 
-      ShouldFail(() => a != b, @"Expected a to not equal b (value: ""A"").");
-      ShouldFail(() => x != y, @"Expected x to not equal y (value: 1).");
+      ShouldFail(() => a != b, @"a: should not equal ""A"".", @"a: ""A""");
+      ShouldFail(() => x != y, "x: should not equal 1.", "x: 1");
       ShouldFail(() => foo + bar != "foobar",
-        @"Expected foo + bar to not equal ""foobar"".");
-      ShouldFail(() => a != "A", @"Expected a to not equal ""A"".");
-      ShouldFail(() => !a.Equals(b), @"Expected a to not equal b (value: ""A"").");
+        @"foo + bar: should not equal ""foobar"".", @"foo + bar: ""foobar""");
+      ShouldFail(() => a != "A", @"a: should not equal ""A"".", @"a: ""A""");
+      ShouldFail(() => !a.Equals(b), @"a: should not equal ""A"".", @"a: ""A""");
     }
 
     private (string a, string b) GetTuple()
@@ -69,7 +69,7 @@ namespace Assertive.Test
     [Fact]
     public void Tuple_names_test_from_method()
     {
-      ShouldFail(() => GetTuple().a == GetTuple().b, @"Expected GetTuple().a to equal GetTuple().b but GetTuple().a was ""a"" while GetTuple().b was ""b"".");
+      ShouldFail(() => GetTuple().a == GetTuple().b, @"GetTuple().a: ""b""", @"GetTuple().a: ""a""");
     }
 
     [Fact]
@@ -77,7 +77,7 @@ namespace Assertive.Test
     {
       var s = (a: "foo", b: "bar");
 
-      ShouldFail(() => s.a == s.b, @"Expected s.a to equal s.b but s.a was ""foo"" while s.b was ""bar"".");
+      ShouldFail(() => s.a == s.b, @"s.a: ""bar""", @"s.a: ""foo""");
     }
 
     [Fact]
@@ -91,7 +91,7 @@ namespace Assertive.Test
       foreach (var s in strings)
       {
         var foo = s.Item1;
-        ShouldFail(() => foo == s.bar, @"Expected foo to equal s.bar but foo was ""foo"" while s.bar was ""bar"".");
+        ShouldFail(() => foo == s.bar, @"foo: ""bar""", @"foo: ""foo""");
       }
     }
 
@@ -101,7 +101,8 @@ namespace Assertive.Test
       var a = "A";
       var b = "B";
 
-      var failures = new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => a == b, null, null), null)).AnalyzeAssertionFailures();
+      var failures =
+        new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => a == b, null, null), null)).AnalyzeAssertionFailures();
       Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is EqualsPattern);
     }
 
@@ -115,7 +116,7 @@ namespace Assertive.Test
       };
 
       ShouldFail(() => a.Equals(b),
-        @"Expected a to equal b but a was { } while b was { A = ""this is a string"" }.");
+        @"a: { A = ""this is a string"" }", "a: { }");
     }
 
     [Fact]
@@ -124,7 +125,7 @@ namespace Assertive.Test
       var a = MyEnum.A;
       var b = MyEnum.B;
 
-      ShouldFail(() => a == b, "Expected a to equal b but a was MyEnum.A while b was MyEnum.B.");
+      ShouldFail(() => a == b, "a: MyEnum.B", "a: MyEnum.A");
     }
 
     [Fact]
@@ -133,11 +134,11 @@ namespace Assertive.Test
       var a = MyEnum.A;
       MyEnum? b = MyEnum.B;
 
-      ShouldFail(() => a == b, "Expected a to equal b but a was MyEnum.A while b was MyEnum.B.");
+      ShouldFail(() => a == b, "a: MyEnum.B", "a: MyEnum.A");
 
       b = null;
-      
-      ShouldFail(() => a == b, "Expected a to equal b but a was MyEnum.A while b was null.");
+
+      ShouldFail(() => a == b, "a: null", "a: MyEnum.A");
     }
 
     [Fact]
@@ -146,7 +147,7 @@ namespace Assertive.Test
       MyEnum? a = MyEnum.A;
       //MyEnum b = MyEnum.B;
 
-      ShouldFail(() => a == MyEnum.B, "Expected a to equal MyEnum.B but a was MyEnum.A.");
+      ShouldFail(() => a == MyEnum.B, "a: MyEnum.B", "a: MyEnum.A");
     }
 
     [Fact]
@@ -155,27 +156,305 @@ namespace Assertive.Test
       MyEnum? a = null;
       //MyEnum b = MyEnum.B;
 
-      ShouldFail(() => a == MyEnum.B, "Expected a to equal MyEnum.B but a was null.");
+      ShouldFail(() => a == MyEnum.B, "a: MyEnum.B", "a: null");
     }
 
     [Fact]
     public void Enum_in_function_call_works()
     {
       ShouldFail(() => DoIt(MyEnum.A) == MyEnum.B,
-        "Expected DoIt(MyEnum.A) to equal MyEnum.B but DoIt(MyEnum.A) was MyEnum.A.");
+        "DoIt(MyEnum.A): MyEnum.B", "DoIt(MyEnum.A): MyEnum.A");
     }
 
     [Fact]
     public void Nullable_bool_false()
     {
       bool? success = null;
-      
-      ShouldFail(() => success == false, "Expected success to equal false but success was null.");
+
+      ShouldFail(() => success == false, "success: false", "success: null");
     }
-    
+
     private MyEnum DoIt(MyEnum x)
     {
       return x;
+    }
+
+    [Fact]
+    public void String_diff_shows_position_of_difference()
+    {
+      var actual = "Hello World";
+      var expected = "Hallo World";
+
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+        Xunit.Assert.Contains("String diff (expected vs actual):", message);
+        Xunit.Assert.Contains("Legend:", message);
+        Xunit.Assert.Contains("- [E1] H[-a-]llo World", message);
+        Xunit.Assert.Contains("+ [A1] H[+e+]llo World", message);
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void EqualsPattern_without_colors_uses_plain_messages()
+    {
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var actual = "apple";
+        var expected = "orange";
+
+        ShouldFail(() => actual == expected,
+          @"actual: ""orange""",
+          @"actual: ""apple""");
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void EqualsPattern_without_colors_handles_long_strings()
+    {
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var actual = "This is a long string with apple inside.";
+        var expected = "This is a long string with orange inside.";
+
+        ShouldFail(() => actual == expected,
+          @"actual: ""This is a long string with orange inside.""",
+          @"actual: ""This is a long string with apple inside.""");
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void String_diff_shows_difference_in_long_strings()
+    {
+      var actual = """
+                   The quick brown fox jumps over the lazy dog
+                   The quick brown fox jumps over the lazy dog
+                   The quick brown fox jumps over the lazy dog
+                   """;
+      var expected = """
+                     The quick brown fox jumps over the lazy dog
+                     The quick brown cat jumps over the lazy god
+                     The quick brown fox jumps over the lazy dog
+                     """;
+      
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+        Xunit.Assert.Contains("String diff (expected vs actual):", message);
+        Xunit.Assert.Contains("cat jumps over the lazy god", message);
+        Xunit.Assert.Contains("fox jumps over the lazy dog", message);
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void String_diff_shows_length_difference()
+    {
+      var actual = "Short";
+      var expected = "Short string";
+
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+        Xunit.Assert.Contains("String diff (expected vs actual):", message);
+        Xunit.Assert.Contains("Legend:", message);
+        Xunit.Assert.Contains("- [E1] Shor[-t s-]t[-ring-]", message);
+        Xunit.Assert.Contains("+ [A1] Short", message);
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void EqualsPattern_full_output_without_colors_matches_expected()
+    {
+      var actual = "ABCDEFGHIJK";
+      var expected = "ABXXEFGHIJK";
+
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+
+        var expectedMessage = """
+
+actual == expected
+
+[EXPECTED]
+actual: "ABXXEFGHIJK"
+[ACTUAL]
+actual: "ABCDEFGHIJK"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] AB[-XX-]EFGHIJK
++ [A1] AB[+CD+]EFGHIJK
+
+
+················································································
+
+""";
+
+        Xunit.Assert.Equal(expectedMessage, message);
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void String_diff_limits_context_for_long_lines()
+    {
+      var actual = "Start " +
+                   new string('a', 60) +
+                   " MIDDLE_one " +
+                   new string('b', 60) +
+                   " MIDDLE_two " +
+                   new string('c', 60) +
+                   " End";
+      var expected = "Start " +
+                     new string('a', 60) +
+                     " middle_one " +
+                     new string('b', 60) +
+                     " middle-two " +
+                     new string('c', 60) +
+                     " End";
+
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+      try
+      {
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+
+        var lines = message.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var expectedLine = lines.First(l => l.StartsWith("- [E1]"));
+        var actualLine = lines.First(l => l.StartsWith("+ [A1]"));
+
+        // We should show both differences with trimmed context (no full 60-char runs).
+        Xunit.Assert.True(expectedLine.Split("...", StringSplitOptions.None).Length - 1 >= 2);
+        Xunit.Assert.True(actualLine.Split("...", StringSplitOptions.None).Length - 1 >= 2);
+
+        Xunit.Assert.Contains("middle", expectedLine, StringComparison.OrdinalIgnoreCase);
+        Xunit.Assert.Contains("one", expectedLine, StringComparison.OrdinalIgnoreCase);
+        Xunit.Assert.Contains("two", expectedLine, StringComparison.OrdinalIgnoreCase);
+
+        Xunit.Assert.Contains("middle", actualLine, StringComparison.OrdinalIgnoreCase);
+        Xunit.Assert.Contains("one", actualLine, StringComparison.OrdinalIgnoreCase);
+        Xunit.Assert.Contains("two", actualLine, StringComparison.OrdinalIgnoreCase);
+
+        Xunit.Assert.DoesNotContain(new string('a', 40), expectedLine);
+        Xunit.Assert.DoesNotContain(new string('b', 40), expectedLine);
+        Xunit.Assert.DoesNotContain(new string('c', 40), expectedLine);
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void String_diff_limits_context_for_many_lines()
+    {
+      var actualLines = Enumerable.Range(1, 60).Select(i => $"Line {i}").ToArray();
+      actualLines[5] = "Line six (actual)";
+      actualLines[30] = "Line thirty-one (actual)";
+      actualLines[FiftyFiveIndex()] = "Line fifty-six (actual)";
+
+      var expectedLines = Enumerable.Range(1, 60).Select(i => $"Line {i}").ToArray();
+      expectedLines[5] = "Line six (expected)";
+      expectedLines[30] = "Line thirty-one (expected)";
+      expectedLines[FiftyFiveIndex()] = "Line fifty-six (expected)";
+
+      var actual = string.Join("\n", actualLines);
+      var expected = string.Join("\n", expectedLines);
+
+      var originalColors = Configuration.Colors.Enabled;
+
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+
+        var diffBlock = message.Split("String diff (expected vs actual):", StringSplitOptions.None)[1];
+        var lines = diffBlock.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        Xunit.Assert.Contains(lines, l => l.Contains("Line six", StringComparison.OrdinalIgnoreCase));
+        Xunit.Assert.Contains(lines, l => l.Contains("Line thirty-one", StringComparison.OrdinalIgnoreCase));
+        Xunit.Assert.Contains(lines, l => l.Contains("Line fifty-six", StringComparison.OrdinalIgnoreCase));
+
+        // Ensure we didn't dump all intervening unchanged lines
+        Xunit.Assert.Contains(lines, l => l.Contains("..."));
+        Xunit.Assert.DoesNotContain(lines, l => l.Contains("Line 1"));
+        Xunit.Assert.DoesNotContain(lines, l => l.Contains("Line 60"));
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+
+      static int FiftyFiveIndex() => 55 - 1; // zero-based index for 55
+    }
+
+    [Fact]
+    public void String_diff_escapes_special_characters()
+    {
+      var actual = "Line 1\nLine 2\nLine 3";
+      var expected = "Line 1\nLine 2\rLine 3";
+
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        Xunit.Assert.Contains("String diff (expected vs actual):", ex.Message);
+        Xunit.Assert.Contains("\\r", ex.Message);
+        Xunit.Assert.Contains("\\n", ex.Message);
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
     }
 
     private enum MyEnum

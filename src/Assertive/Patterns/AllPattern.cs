@@ -25,7 +25,7 @@ namespace Assertive.Patterns
              && lambdaExpression.ReturnType == typeof(bool);
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var methodCallExpression = (MethodCallExpression)assertion.Expression;
 
@@ -75,8 +75,14 @@ namespace Assertive.Patterns
               if (failure.Message != null)
               {
                 subMessages.Add(collectionExpression is MethodCallExpression
-                  ? $"[{index}] - {failure.Message}"
-                  : (FormattableString)$"{collectionExpression?.ToUnquoted()}[{index}] - {failure.Message}");
+                  ? $"""
+                     [{index}]
+                     {failure.Message}
+                     """
+                  : (FormattableString)$"""
+                                        {collectionExpression?.ToUnquoted()}[{index}]
+                                        {failure.Message}
+                                        """);
               }
             }
           }
@@ -90,30 +96,46 @@ namespace Assertive.Patterns
         return subMessages.Count switch
         {
           0 => $"",
-          1 when invalidCount == 1 => $@"
+          1 when invalidCount == 1 => $"""
 
-{subMessages[0]}",
-          _ => $@"
 
-Messages per item:
+                                       {subMessages[0]}
+                                       """,
+          _ => $"""
 
-{subMessages}"
+
+                Messages per item:
+
+                {subMessages}
+                """
         };
       }
+
+      FormattableString expected = $"All items of {collectionExpression} should match the filter {filter.Body}";
       
       if (invalidCount == 1)
       {
-        return
-          $@"Expected all items of {collectionExpression} to match the filter {filter.Body}, but this item did not: {invalidMatches[0]}{MessagesPerItem()}";
+        return new ExpectedAndActual()
+        {
+          Expected = expected,
+          Actual = $"""
+                    This item did not: 
+                    {invalidMatches[0]}{MessagesPerItem()}
+                    """
+        };
       }
 
-      var invalidMatchesString = $"but these {invalidCount} items did not{(moreItems ? " (first 10)" : "")}:";
-      
       var items = invalidMatches.Select((obj, i) => $"[{i}]: {Serializer.Serialize(obj)}").ToList();
 
-      return $@"Expected all items of {collectionExpression} to match the filter {filter.Body}, {invalidMatchesString}
+      return new ExpectedAndActual()
+      {
+        Expected = expected,
+        Actual = $"""
+                  These {invalidCount} items did not{(moreItems ? " (first 10)" : "")}:
 
-{string.Join("," + Environment.NewLine, items)}{MessagesPerItem()}";
+                  {string.Join("," + Environment.NewLine, items)}{MessagesPerItem()}
+                  """
+      };
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = [];

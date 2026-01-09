@@ -1,6 +1,6 @@
-using System;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
+using Assertive.Helpers;
 using Assertive.Interfaces;
 using static Assertive.Expressions.ExpressionHelper;
 
@@ -14,23 +14,47 @@ namespace Assertive.Patterns
              || EqualityPattern.EqualsMethodShouldBeTrue(failedAssertion.Expression);
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual? TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var left = EqualityPattern.GetLeftSide(assertion.Expression);
-      
+
       var right = left != null ? EqualityPattern.GetRightSide(assertion.Expression, left) : null;
 
-      if (right != null && right.NodeType == ExpressionType.Convert && right.Type == typeof(object))
+      if (right is { NodeType: ExpressionType.Convert } && right.Type == typeof(object))
       {
         right = ((UnaryExpression)right).Operand;
       }
 
-      if (right != null && IsConstantExpression(right))
+      object? expected = right != null && IsConstantExpression(right) ? right : right?.ToValue();
+      object? actual = left?.ToValue();
+      string diff = "";
+
+      // Check if both sides are strings and provide a smart diff
+      if (left != null && right != null &&
+          left.Type == typeof(string) && right.Type == typeof(string))
       {
-        return $"Expected {left} to equal {right} but {left} was {left?.ToValue()}.";
+        var leftValue = EvaluateExpression(left) as string;
+        var rightValue = EvaluateExpression(right) as string;
+
+        if (leftValue != null && rightValue != null && leftValue != rightValue
+            && (leftValue.Length > 10 || rightValue.Length > 10))
+        {
+          diff = StringDiffHelper.GetStringDiff(leftValue, rightValue);
+        }
       }
 
-      return $"Expected {left} to equal {right} but {left} was {left?.ToValue()} while {right} was {right?.ToValue()}.";
+      return new()
+      {
+        Expected = $"{left}: {expected}",
+        Actual = $"{left}: {actual}{diff}"
+      };
+    }
+
+    private static string EscapeString(string s)
+    {
+      return s.Replace("\r", "\\r")
+        .Replace("\n", "\\n")
+        .Replace("\t", "\\t");
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = [];

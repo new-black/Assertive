@@ -1,4 +1,3 @@
-using System;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
 using Assertive.Expressions;
@@ -27,7 +26,7 @@ namespace Assertive.Patterns
              && (b.Right is ConstantExpression { Value: null } || (b.Right is DefaultExpression && b.Right.Type.IsClass));
     }
 
-    public FormattableString? TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual? TryGetFriendlyMessage(FailedAssertion assertion)
     {
       bool expectedNull = false;
       Expression? expression = null;
@@ -56,11 +55,19 @@ namespace Assertive.Patterns
 
         if (expectedNull)
         {
-          return $"Expected {expression} to be null but it was {expression.ToValue()} instead.";
+          return new ExpectedAndActual()
+          {
+            Expected = $"{expression} should be null.",
+            Actual = $"{expression.ToValue()}"
+          };
         }
         else
         {
-          return $"Expected {expression} to not be null.";
+          return new ExpectedAndActual()
+          {
+            Expected = $"{expression} should not be null.",
+            Actual = $"null"
+          };
         }
       }
 

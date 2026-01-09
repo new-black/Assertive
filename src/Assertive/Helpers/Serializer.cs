@@ -8,6 +8,24 @@ using System.Text;
 
 namespace Assertive.Helpers
 {
+  internal class SerializerResult
+  {
+    private readonly string _value;
+    public SerializerResult(string value)
+    {
+      _value = value;
+    }
+
+    public override string ToString()
+    {
+      if (_value.Length < 100)
+      {
+        return Config.Configuration.Colors.Expression(_value);
+      }
+      
+      return _value;
+    }
+  }
   internal static class Serializer
   {
     private static readonly string[] _newLineSplitChars =
@@ -20,21 +38,23 @@ namespace Assertive.Helpers
       " "
     ];
 
-    public static string Serialize(object? o)
+    public static SerializerResult Serialize(object? o)
     {
       try
       {
-        return SerializeImpl(o, 0, null);
+        var result = SerializeImpl(o, 0, null);
+
+        return new SerializerResult(result);
       }
       catch(Exception ex)
       {
-        return $"<exception serializing = {ex.InnerException?.GetType().Name ?? ex.GetType().Name}>";
+        return new SerializerResult($"<exception serializing = {ex.InnerException?.GetType().Name ?? ex.GetType().Name}>");
       }
     }
 
     private class Ellipsis
     {
-      private int? _remaining;
+      private readonly int? _remaining;
 
       public Ellipsis(int? remaining)
       {
@@ -63,7 +83,37 @@ namespace Assertive.Helpers
       }
 
       var type = o.GetType();
-      
+
+      // Handle Newtonsoft.Json types by using their ToString() which returns proper JSON
+      // We check by namespace to avoid a direct dependency on the Newtonsoft.Json package
+      if (type.Namespace == "Newtonsoft.Json.Linq")
+      {
+        return o.ToString() ?? "";
+      }
+
+      // Handle System.Text.Json.Nodes types (JsonObject, JsonArray, JsonValue, JsonNode)
+      if (type.Namespace == "System.Text.Json.Nodes")
+      {
+        return o.ToString() ?? "";
+      }
+
+      // Handle System.Text.Json types (JsonElement, JsonDocument)
+      if (type.FullName == "System.Text.Json.JsonElement")
+      {
+        return o.ToString() ?? "";
+      }
+
+      if (type.FullName == "System.Text.Json.JsonDocument")
+      {
+        // JsonDocument doesn't have a useful ToString, so we get the RootElement
+        var rootElementProp = type.GetProperty("RootElement");
+        if (rootElementProp != null)
+        {
+          var rootElement = rootElementProp.GetValue(o);
+          return rootElement?.ToString() ?? "";
+        }
+      }
+
       if (o is IConvertible c)
       {
         return c.ToString(CultureInfo.InvariantCulture);

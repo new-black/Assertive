@@ -2,12 +2,24 @@ using System;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
+using Assertive.Config;
 
 namespace Assertive.Test
 {
-  public class ThrowsTests : AssertionTestBase
+  public class ThrowsTests : AssertionTestBase, IDisposable
   {
+    private readonly bool originalColors;
+
+    public ThrowsTests()
+    {
+      originalColors = Configuration.Colors.Enabled;
+    }
     
+    public void Dispose()
+    {
+      Configuration.Colors.Enabled = originalColors;
+    }
+
     [Fact]
     public void Assertion_that_throw_tests()
     {
@@ -34,6 +46,75 @@ namespace Assertive.Test
       Assert.Throws<IndexOutOfRangeException>(() => array[1]);
       Assert.Throws<FormatException>(() => int.Parse("abc"));
       await Assert.Throws<InvalidOperationException>(() => ThrowAsyncException());
+    }
+
+    [Fact]
+    public async Task Throws_supports_additional_assertion_and_returns_exception()
+    {
+      var ex = Assert.Throws<InvalidOperationException>(() => ThrowInvalidOperation("boom"), e => e.Message == "boom");
+      Xunit.Assert.Equal("boom", ex.Message);
+
+      var baseEx = Assert.Throws(() => ThrowApplicationException("oops"), e => e.GetType() == typeof(ApplicationException) && ((ApplicationException)e).Message == "oops");
+      Xunit.Assert.Equal("oops", baseEx.Message);
+
+      var asyncEx = await Assert.Throws<InvalidOperationException>(() => ThrowAsyncException(), e => e.Message.Contains("an exception"));
+      Xunit.Assert.Contains("an exception", asyncEx.Message);
+    }
+
+    [Fact]
+    public void Throws_additional_assertion_failure_is_reported_sync()
+    {
+      var originalColorSetting = Configuration.Colors.Enabled;
+      try
+      {
+        Configuration.Colors.Enabled = false;
+        Assert.Throws<InvalidOperationException>(() => ThrowInvalidOperation("boom"), e => e.Message == "wrong");
+        Xunit.Assert.Fail("Expected assertion to fail.");
+      }
+      catch (Exception ex)
+      {
+        Assert.That(() => StripAnsi(ex.Message).Contains("""
+                                                         e.Message == "wrong"
+                                                         
+                                                         [EXPECTED]
+                                                         e.Message: "wrong"
+                                                         [ACTUAL]
+                                                         e.Message: "boom"
+                                                         """));
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColorSetting;
+      }
+    }
+
+    [Fact]
+    public async Task Throws_additional_assertion_failure_is_reported_async()
+    {
+      var originalColorSetting = Configuration.Colors.Enabled;
+      try
+      {
+        Configuration.Colors.Enabled = false;
+        await Assert.Throws<InvalidOperationException>(() => ThrowAsyncException(), e => e.Message == "wrong");
+        Xunit.Assert.Fail("Expected assertion to fail.");
+      }
+      catch (Exception ex)
+      {
+        Assert.That(() => StripAnsi(ex.Message).Contains("""
+                                                         [EXPECTED]
+                                                         e.Message: "wrong"
+                                                         [ACTUAL]
+                                                         e.Message: "an exception"
+                                                         String diff (expected vs actual):
+                                                         Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+                                                         - [E1] [-wr-]on[-g-]
+                                                         + [A1] [+an excepti+]on
+                                                         """));
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColorSetting;
+      }
     }
 
     [Fact]
@@ -67,7 +148,7 @@ namespace Assertive.Test
 
     private async Task ThrowAsyncException()
     {
-      await Task.Delay(30);
+      await Task.Yield();
       
       throw new InvalidOperationException("an exception");
     }
@@ -76,5 +157,9 @@ namespace Assertive.Test
     {
       await Task.Delay(30);
     }
+
+    private static void ThrowInvalidOperation(string message) => throw new InvalidOperationException(message);
+
+    private static void ThrowApplicationException(string message) => throw new ApplicationException(message);
   }
 }

@@ -19,7 +19,7 @@ namespace Assertive.Patterns
       return expression is MethodCallExpression { Method.Name: nameof(Enumerable.Any) };
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var notAny = assertion.IsNegated;
 
@@ -38,35 +38,39 @@ namespace Assertive.Patterns
       
       FormattableString filterString;
 
-      if (methodCallExpression.Arguments.Count == 2 && methodCallExpression.Arguments[1] is LambdaExpression lambdaExpression)
+      bool isFiltered;
+
+      if (methodCallExpression.Arguments is [_, LambdaExpression lambdaExpression])
       {
         filterString = $" that match the filter {lambdaExpression.Body}";
+        isFiltered = true;
       }
       else
       {
+        isFiltered = false;
         filterString = $"";
       }
-
-      string actualCountString = "";
+      
       
       if (notAny)
       {
         var actualCount = collection != null ? ExpressionHelper.GetCollectionItemCount(collection, methodCallExpression) : 0;
-        actualCountString = $" but it actually contained {actualCount} {(actualCount == 1 ? "item" : "items")}";
-      }
-      
-      
-      FormattableString result = $"Expected {collection} to {(notAny ? "not " : "")}contain {(notAny ? "any " : "")}items{filterString}{actualCountString}.";
 
-      if (notAny)
+        return new ExpectedAndActual()
+        {
+          Expected = $"Collection {collection} should not contain any items{filterString}.",
+          Actual = $"It contained {actualCount} {(actualCount == 1 ? "item" : "items")}"
+        };
+      }
+      else
       {
-        result = $@"{result}
-
-Value of {collection}:
-";
+        var actualCount = collection != null ? ExpressionHelper.GetCollectionItemCount(collection) : 0;
+        return new ExpectedAndActual()
+        {
+          Expected = $"Collection {collection} should contain some items{filterString}.",
+          Actual = !isFiltered || actualCount == 0 ? $"It contained no items." : (FormattableString)$"It contained no items matching the filter."
+        };
       }
-
-      return result;
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = [];

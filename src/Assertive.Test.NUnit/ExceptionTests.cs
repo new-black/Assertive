@@ -1,5 +1,3 @@
-using NUnit.Framework.Internal;
-
 namespace Assertive.Test.NUnit;
 
 public class Tests
@@ -36,5 +34,29 @@ public class Tests
     }
     
     global::NUnit.Framework.Assert.True(throws);
+  }
+  
+  [Test]
+  public void Colors_are_disabled_by_default()
+  {
+    DSL.Assert(() => !Config.Configuration.Colors.Enabled);
+
+    var expected = "abc";
+    var actual = "def";
+
+    try
+    {
+      DSL.Assert(() => expected == actual);
+      global::NUnit.Framework.Assert.Fail();
+    }
+    catch(Exception ex)
+    {
+      DSL.Assert(() => ex.Message.Contains("""
+                                            [EXPECTED]
+                                            expected: "def"
+                                            [ACTUAL]
+                                            expected: "abc"
+                                            """));
+    }
   }
 }

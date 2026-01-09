@@ -1,8 +1,65 @@
 # About Assertive
 
-Assertive is a free, open source library available on [NuGet](https://www.nuget.org/packages/Assertive/) for easily writing test assertions using the power of the C# language and aims to be the easiest possible way to write assertions while still providing useful and contextual error information. It's not a test framework of itself, it's meant to be used in conjunction with a test framework like xUnit or MSTest. 
+Assertive is a free, open source library available on [NuGet](https://www.nuget.org/packages/Assertive/) for easily writing test assertions using the power of the C# language and aims to be the easiest possible way to write assertions while still providing useful and contextual error information. It's not a test framework of itself, it's meant to be used in conjunction with a test framework like xUnit, NUnit, TUnit or MSTest.
+
+```csharp
+Assert(() => order.Status == OrderStatus.Paid && order.Items.All(i => i.Quantity > 0));
+```
 
 Assertive does away with a long list of possible assertion methods or "fluent" assertion chaining and only provides a single `Assert.That` method (or just `Assert()` if you add `using static Assertive.DSL`).
+
+## Installation
+
+```
+dotnet add package Assertive
+```
+
+Or add to your project file:
+
+```xml
+<PackageReference Include="Assertive" Version="0.16.0" />
+```
+
+For snapshot testing with xUnit, also add:
+
+```
+dotnet add package Assertive.xUnit
+```
+
+## Contents
+
+- [Installation](#installation)
+- [What it looks like](#what-it-looks-like)
+- [Using the DSL](#using-the-dsl)
+- [How is this different from using Assert.IsTrue?](#how-is-this-different-from-using-assertistrue)
+- [Features](#features)
+  - [Multiple assertions](#multiple-assertions)
+  - [Exception assertions](#exception-assertions)
+  - [Snapshot testing](#snapshot-testing)
+    - [Configuration](#configuration)
+    - [Expected files](#expected-files)
+    - [Normalization](#normalization)
+    - [Placeholders](#placeholders)
+    - [Advanced configuration](#advanced-configuration)
+  - [Exception handling](#exception-handling)
+    - [NullReferenceExceptions](#nullreferenceexceptions)
+    - [IndexOutOfRangeException](#indexoutofrangeexception)
+    - [InvalidOperationException caused by Single/First](#invalidoperationexception-caused-by-singlefirst)
+  - [Custom messages](#custom-messages)
+  - [Analysis of each item when collection.All fails](#analysis-of-each-item-when-collectionall-fails)
+  - [Contents of locals used in your assertion are rendered to the output](#contents-of-locals-used-in-your-assertion-are-rendered-to-the-output)
+  - [Custom patterns](#custom-patterns)
+    - [Pattern matching](#pattern-matching)
+    - [Template placeholders](#template-placeholders)
+    - [Negation](#negation)
+- [Colors](#colors)
+  - [When colors are enabled](#when-colors-are-enabled)
+  - [When colors are disabled](#when-colors-are-disabled)
+  - [Configuration](#configuration-1)
+- [Compatibility](#compatibility)
+  - [.NET](#net)
+  - [Test frameworks](#test-frameworks)
+- [Limitations](#limitations)
 
 ## What it looks like
 
@@ -29,13 +86,23 @@ As the null check [isn't necessary.](#nullreferenceexceptions)
 
 If the assertion fails you will get this output in your test runner:
 
-> Expected payment.Amount to equal 50 but payment.Amount was 51.
->
-> Assertion: payment.Amount == 50
->
-> Locals:
->
-> - payment = { Amount = 51, Date = 2020-02-03T13:15:12.0000000, Customer = "John Doe" }
+<img width="646" height="218" alt="image" src="https://github.com/user-attachments/assets/0511b1fc-643b-45bc-b70b-9596d141fb4c" />
+
+## Using the DSL
+
+There are two ways to write assertions with Assertive:
+
+```csharp
+// Using the Assert class directly
+Assert.That(() => payment.Amount == 50);
+
+// Using the DSL for a more concise syntax
+using static Assertive.DSL;
+
+Assert(() => payment.Amount == 50);
+```
+
+The `using static Assertive.DSL` import allows you to write `Assert()` instead of `Assert.That()`. Both are functionally identical, so use whichever style you prefer.
 
 ## How is this different from using Assert.IsTrue?
 
@@ -43,11 +110,7 @@ While `Assert.IsTrue(a == b)` would have the same result for a passing test, it 
 
 Because Assertive accepts an expression it will analyze the expression and output an error message like this:
 
-```
-Expected a to equal b but a was 20 while b was 24.
-
-Assertion: a == b
-```
+<img width="642" height="181" alt="image" src="https://github.com/user-attachments/assets/324a8471-d4c5-4c71-b70b-b1b493c7832a" />
 
 Assertive has a number of built-in patterns that it recognizes, which currently consists of:
 
@@ -64,6 +127,8 @@ Assertive has a number of built-in patterns that it recognizes, which currently 
 - Type checks (`Assert(() => value is string)`)
 
 When there is no matching pattern for your assertion, it will simply report the assertion that failed plus whatever useful information can be distilled from the assertion.
+
+You can also define your own [custom patterns](#custom-patterns).
 
 ## Features
 
@@ -85,15 +150,54 @@ Assert(() => list.Count == 1 && list[0].StartsWith("foo"));
 
 This assertion would fail with the message:
 
-> Expected list[0] to start with "foo".
->
-> Value of list[0]: "bar"
->
-> Assertion: list[0].StartsWith("foo")
+<img width="658" height="220" alt="image" src="https://github.com/user-attachments/assets/29fb06cf-e1f2-48c6-814e-cb2978da2954" />
 
 Short-circuiting works as you would expect, if the first assertion fails then the second one is not evaluated.
 
-Likewise, it's possible to use a bitwise AND (`&`) to force evaluation of both sides. 
+Likewise, it's possible to use a bitwise AND (`&`) to force evaluation of both sides.
+
+### Exception assertions
+
+To assert that code throws an exception, use `Assert.Throws`:
+
+```csharp
+// Assert that any exception is thrown
+var ex = Assert.Throws(() => SomeMethodThatThrows());
+
+// Assert that a specific exception type is thrown
+var ex = Assert.Throws<ArgumentException>(() => Validate(null));
+
+// Assert exception type and validate the exception
+var ex = Assert.Throws<ArgumentException>(
+    () => Validate(null),
+    e => e.ParamName == "input"
+);
+```
+
+The thrown exception is returned, so you can perform additional assertions on it:
+
+```csharp
+var ex = Assert.Throws<InvalidOperationException>(() => Process());
+Assert(() => ex.Message.Contains("not initialized"));
+```
+
+For async code, use the async overloads:
+
+```csharp
+var ex = await Assert.Throws<HttpRequestException>(
+    async () => await client.GetAsync("https://invalid.url")
+);
+```
+
+If the code doesn't throw (or throws the wrong exception type), Assertive reports exactly what happened:
+
+```csharp
+Assert.Throws<ArgumentException>(() => Validate("valid input"));
+// Fails with: Expected ArgumentException but no exception was thrown.
+
+Assert.Throws<ArgumentException>(() => ThrowsInvalidOperation());
+// Fails with: Expected ArgumentException but InvalidOperationException was thrown.
+```
 
 ### Snapshot testing
 
@@ -237,9 +341,69 @@ In this imagined scenario, it's important that BeforePrice and AfterPrice are th
 To go even further, you can register a validator for each placeholder type:
 
 ```csharp
-Configuration.Snapshots.Normalization.RegisterPlaceholderValidator("price", value => decimal.TryParse(value, out var price) && price > 0, "Price must be a positive number.");
+Configuration.Snapshots.Normalization
+  .RegisterPlaceholderValidator("price", value => decimal.TryParse(value, out var price) && price > 0, "Price must be a positive number.");
 ```
 
+#### Advanced configuration
+
+Several additional options are available for fine-tuning snapshot behavior:
+
+**Ignoring properties:**
+
+```csharp
+Configuration.Snapshots.ShouldIgnore = (property, obj, value) =>
+{
+    // Ignore all properties ending with "Id"
+    return property.Name.EndsWith("Id");
+};
+```
+
+**Handling extraneous properties:**
+
+When the actual object has properties that don't exist in the expected snapshot, you can control the behavior:
+
+```csharp
+// Fail the test (default)
+Configuration.Snapshots.ExtraneousProperties = (name, value) => ExtraneousPropertiesOptions.Disallow;
+
+// Ignore extra properties
+Configuration.Snapshots.ExtraneousProperties = (name, value) => ExtraneousPropertiesOptions.Ignore;
+
+// Auto-update the expected file with new properties
+Configuration.Snapshots.ExtraneousProperties = (name, value) => ExtraneousPropertiesOptions.AutomaticUpdate;
+```
+
+**Custom exception rendering:**
+
+When a property getter throws an exception during serialization:
+
+```csharp
+Configuration.Snapshots.ExceptionRenderer = (property, obj, exception) =>
+{
+    return $"<{exception.GetType().Name}>";
+};
+```
+
+**Custom expected file location:**
+
+```csharp
+Configuration.Snapshots.ExpectedFileDirectoryResolver = (testMethod, sourceFile) =>
+{
+    // Store all snapshots in a central __snapshots__ folder
+    return Path.Combine(sourceFile.DirectoryName!, "__snapshots__");
+};
+```
+
+**Bulk snapshot regeneration:**
+
+When you need to regenerate all expected files (e.g., after a major refactoring):
+
+```csharp
+Configuration.Snapshots.TreatAllSnapshotsAsCorrect = true;
+```
+
+This will auto-create expected files from actual values. Remember to set it back to `false` after regenerating.
 
 ### Exception handling
 
@@ -292,18 +456,16 @@ Example:
 ```csharp
 var names = GetNames();
 
-Assert(() => names.Single(n => n == "Bob"))
+Assert(() => names.Single() == "Bob");
 ```
 
 Message if `names` is empty:
 
-> InvalidOperationException caused by calling Single on names which contains no elements.
+<img width="776" height="418" alt="image" src="https://github.com/user-attachments/assets/6fb7d74e-5330-4626-97dd-aef7e1cd2435" />
 
 However if `names` has more than one element:
 
-> InvalidOperationException caused by calling Single on names which contains more than one element. Actual element count: 2.
-> 
-> Value of names: ["Bob", "John"]
+<img width="999" height="485" alt="image" src="https://github.com/user-attachments/assets/f992f5b8-8a7a-44c3-bf23-e0038c04e69a" />
 
 ### Custom messages
 
@@ -354,25 +516,151 @@ Assert(() => orders.All(o => o.PaidAmount > 100));
 
 Assuming the 29th order (starting from zero) in this collection did not meet this condition, the message will be something like this:
 
-> Expected all items of orders to match the filter o.PaidAmount > 100, but this item did not: { ID = 54, PaidAmount = 50 }
->
-> orders[29] - Expected item.PaidAmount to be greater than 100, but item.PaidAmount was 50.
+<img width="656" height="662" alt="image" src="https://github.com/user-attachments/assets/c7c3c85a-0e82-4724-82ce-41c57331dd46" />
 
 ### Contents of locals used in your assertion are rendered to the output
 
-If you have an assertion like `Assert(() => customers.Count() == expectedCustomers)` that references local variables and it fails, the contents of the locals you use in your assertion are rendered to the test output. 
+If you have an assertion like `Assert(() => customers.Count() == expectedCustomers)` that references local variables and it fails, the contents of the locals you use in your assertion are rendered to the test output.
 
 For example:
 
-> Expected customers to have a count equal to expectedCustomers (value: 2) but the actual count was 3.
->
-> Assertion: customers.Count() == expectedCustomers
->
-> Locals:
->
-> - customers = [ { ID = 1, FirstName = "John" }, { ID = 2, FirstName = "Bob" }, { ID = 3, FirstName = "Alice " } ]
+<img width="871" height="221" alt="image" src="https://github.com/user-attachments/assets/19d5f4b8-28a8-4e57-82ad-762851522cc9" />
 
 But note how only `customers` is rendered as the value of `expectedCustomers` is already displayed in the message at some other point.
+
+### Custom patterns
+
+If you have custom extension methods or properties that you use frequently in your assertions, you can register custom patterns to provide friendly error messages for them.
+
+For example, say you have a `None()` extension method that checks if a collection is empty:
+
+```csharp
+public static bool None<T>(this IEnumerable<T> source) => !source.Any();
+```
+
+You can register a pattern for it like this:
+
+```csharp
+Configuration.Patterns.Register("None", new PatternDefinition
+{
+    Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
+    AllowNegation = true,
+    Output = new OutputDefinition
+    {
+        Expected = "Collection {instance} should not contain any items.",
+        Actual = "It contained {instance.count} items."
+    },
+    OutputWhenNegated = new OutputDefinition
+    {
+        Expected = "Collection {instance} should contain at least one item.",
+        Actual = "It was empty."
+    }
+});
+```
+
+The first parameter is a unique name for the pattern. If you register a pattern with a name that already exists, the new pattern replaces the old one.
+
+You can also remove a pattern by name:
+
+```csharp
+Configuration.Patterns.Unregister("None");
+```
+
+Or remove all custom patterns:
+
+```csharp
+Configuration.Patterns.Clear();
+```
+
+Now when `Assert(() => list.None())` fails, you'll get a message like:
+
+> Collection list should not contain any items. It contained 3 items.
+
+And when `Assert(() => !list.None())` fails:
+
+> Collection list should contain at least one item. It was empty.
+
+#### Pattern matching
+
+The `Match` array contains predicates that must all match (AND logic). Available predicates:
+
+**Method matching:**
+- `Method.Name` - matches the method name exactly
+- `Method.ParameterCount` - matches methods with this exact parameter count
+- `Method.IsExtension` - matches only extension methods (true) or non-extension methods (false)
+
+**Property matching:**
+- `Property.Name` - matches a property access by name
+
+**Type and namespace:**
+- `DeclaringType` - matches the type that declares the method or property (by name or full name)
+- `Namespace` - matches the namespace of the declaring type
+- `InstanceType` - matches the type of the instance (supports generic types like `List`)
+
+#### Template placeholders
+
+Output templates support the following placeholders:
+
+**Instance:**
+- `{instance}` - the expression the method/property was called on (e.g., `list` in `list.None()`)
+- `{instance.value}` - the evaluated value of the instance
+- `{instance.type}` - the type name (e.g., `List<String>`)
+- `{instance.count}` - the count of items if the instance is a collection
+- `{instance.firstTenItems}` - the first 10 items of a collection (e.g., `[1, 2, 3] ...`)
+
+**Method arguments:**
+- `{arg0}`, `{arg1}`, etc. - argument expressions by position
+- `{arg0.value}`, `{arg1.value}`, etc. - evaluated argument values
+- `{arg0.type}`, `{arg1.type}`, etc. - argument type names
+
+**Other:**
+- `{method}` - the method name
+- `{property}` - the property name (for property patterns)
+- `{value}` - the property value (for property patterns)
+
+#### Negation
+
+When `AllowNegation` is `true`, the pattern will also match when the assertion is negated with `!`. Provide a separate `OutputWhenNegated` to customize the message for this case.
+
+## Colors
+
+Assertive uses ANSI color codes to make assertion failure messages easier to read, with syntax highlighting for C# expressions, color-coded expected/actual sections, and visual diff highlighting.
+
+### When colors are enabled
+
+Colors are **enabled by default** when running tests locally. This works well in most terminal-based test runners and IDEs that support ANSI codes.
+
+### When colors are disabled
+
+Colors are **automatically disabled** in the following situations:
+
+- **NUnit** - NUnit's test output doesn't handle ANSI escape codes well, so colors are disabled when NUnit is detected
+- **CI environments** - Colors are disabled when any of these environment variables are detected:
+  - `NO_COLOR` (any value)
+  - `CI`, `GITHUB_ACTIONS`, `TF_BUILD`, `GITLAB_CI`, `CIRCLECI`, `TRAVIS`, `TEAMCITY_VERSION`, `BUILDKITE`, `DRONE`, `APPVEYOR`
+  - `BUILD_BUILDID`, `JENKINS_HOME`, `HUDSON_URL`, `BITBUCKET_BUILD_NUMBER`, `BITBUCKET_PIPELINE_UUID`
+
+### Configuration
+
+You can override the automatic detection using the `ASSERTIVE_COLORS_ENABLED` environment variable:
+
+```bash
+# Force colors on
+ASSERTIVE_COLORS_ENABLED=true dotnet test
+
+# Force colors off
+ASSERTIVE_COLORS_ENABLED=false dotnet test
+```
+
+Or configure it programmatically:
+
+```csharp
+// Disable colors entirely
+Configuration.Colors.Enabled = false;
+
+// Disable only syntax highlighting (keep other colors)
+Configuration.Colors.UseSyntaxHighlighting = false;
+```
 
 ## Compatibility
 
@@ -386,11 +674,12 @@ Assertive is currently compatible with:
 
 - xUnit
 - MSTest
-- NUnit 
+- NUnit
+- TUnit
 
 It will work fine with any other test framework as well, but the exception that Assertive will throw will not be recognized by those test frameworks and likely not display quite as nicely.
 
-Snapshot testing is currently only supported on NUnit and xUnit. On xUnit it's required to have this attribute somewhere from the Assertive.xUnit package, otherwise it won't be able to detect the currently running test:
+Snapshot testing is currently only supported on NUnit, TUnit and xUnit. On xUnit it's required to have this attribute somewhere from the Assertive.xUnit package, otherwise it won't be able to detect the currently running test:
 
 ```csharp
 [assembly: EnableAssertiveSnapshots]

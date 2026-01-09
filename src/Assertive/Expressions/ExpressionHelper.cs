@@ -87,7 +87,7 @@ namespace Assertive.Expressions
 
       if (instance is IEnumerable && TypeHelper.GetTypeInsideEnumerable(instanceExpression.Type) is {} typeInsideEnumerable)
       {
-        var useLambdaOverload = node.Arguments.Count == 2 && node.Arguments[1] is LambdaExpression;
+        var useLambdaOverload = node.Arguments is [_, LambdaExpression];
 
         var parameters = useLambdaOverload
           ? new[] { instanceExpression, node.Arguments[1] }
@@ -147,7 +147,9 @@ namespace Assertive.Expressions
       
       var expressionAsString = rewritten != null ? ExpressionStringBuilder.ExpressionToString(rewritten) : "";
 
-      return string.Format(GetQuotationPattern(expression, allowQuotation), expressionAsString);
+      var result = string.Format(GetQuotationPattern(expression, allowQuotation), expressionAsString);
+
+      return Configuration.Colors.Expression(result);
     }
 
     public static Expression ReplaceParameter(Expression expression, ParameterExpression parameter,

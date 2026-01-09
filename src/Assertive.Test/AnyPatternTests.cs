@@ -14,7 +14,7 @@ namespace Assertive.Test
     {
       var list = new List<string>();
       
-      ShouldFail(() => list.Any(), "Expected list to contain items.");
+      ShouldFail(() => list.Any(), "Collection list should contain some items.", "It contained no items.");
     }
     
     [Fact]
@@ -25,7 +25,7 @@ namespace Assertive.Test
         1,2,3
       };
       
-      ShouldFail(() => list.Any(l => l > 3), "Expected list to contain items that match the filter l > 3.");
+      ShouldFail(() => list.Any(l => l > 3), "Collection list should contain some items that match the filter l > 3.", "It contained no items matching the filter.");
     }
     
     [Fact]
@@ -36,7 +36,7 @@ namespace Assertive.Test
         "a"
       };
       
-      ShouldFail(() => !list.Any(), "Expected list to not contain any items but it actually contained 1 item.");
+      ShouldFail(() => !list.Any(), "Collection list should not contain any items.", "It contained 1 item");
     }
 
     [Fact]

@@ -20,9 +20,9 @@ namespace Assertive.Test
 
       Configuration.ExpressionQuotationPattern = ExpressionQuotationPatterns.Backticks;
 
-      ShouldFail(() => list[0].Contains("foo"), @"Expected `list[0]` (value: ""a"") to contain ""foo"".");
-      ShouldFail(() => list[0].Contains(myValue), @"Expected `list[0]` (value: ""a"") to contain `myValue`");
-      ShouldFail(() => list.All(l => l.Length > 10), "Expected all items of `list` to match the filter `l.Length > 10`, but these 3 items did not:");
+      ShouldFail(() => list[0].Contains("foo"), @"`list[0]` should contain the substring ""foo"".", @"`list[0]`: ""a""");
+      ShouldFail(() => list[0].Contains(myValue), @"`list[0]` should contain the substring `myValue` (value: ""abc"").", @"`list[0]`: ""a""");
+      ShouldFail(() => list.All(l => l.Length > 10), "All items of `list` should match the filter `l.Length > 10`", @"These 3 items did not:");
     }
 
     public void Dispose()

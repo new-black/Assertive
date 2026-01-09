@@ -1,9 +1,24 @@
+using System;
+using Assertive.Config;
 using Xunit;
 
 namespace Assertive.Test
 {
-  public class AssertionContextTests : AssertionTestBase
+  public class AssertionContextTests : AssertionTestBase, IDisposable
   {
+    private readonly bool originalColors;
+
+    public AssertionContextTests()
+    {
+      originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+    }
+
+    public void Dispose()
+    {
+      Configuration.Colors.Enabled = originalColors;
+    }
+
     [Fact]
     public void Context_is_part_of_output()
     {
@@ -14,7 +29,10 @@ namespace Assertive.Test
         Amount = 10
       };
       
-      ShouldFail(() => order.Amount > 20, () => orderID, "Context: orderID = 10");
+      ShouldFail(() => order.Amount > 20, () => orderID, """
+                                                         [CONTEXT]
+                                                         orderID = 10
+                                                         """);
     }
     
     [Fact]
@@ -26,7 +44,10 @@ namespace Assertive.Test
         Amount = 10
       };
       
-      ShouldFail(() => order.Amount > 20, () => order, "Context: order = { ID = 99, Amount = 10 }");
+      ShouldFail(() => order.Amount > 20, () => order, """
+                                                       [CONTEXT]
+                                                       order = { ID = 99, Amount = 10 }
+                                                       """);
     }
 
     [Fact]
@@ -38,7 +59,10 @@ namespace Assertive.Test
         Amount = 10
       };
       
-      ShouldFail(() => order.Amount > 20, () => order, "Context: order = { ID = 99, Amount = 10 }");
+      ShouldFail(() => order.Amount > 20, () => order, """
+                                                       [CONTEXT]
+                                                       order = { ID = 99, Amount = 10 }
+                                                       """);
     }
     
     private class Order

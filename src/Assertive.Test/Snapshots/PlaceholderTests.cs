@@ -1,6 +1,5 @@
 using System;
 using Assertive.Config;
-using DiffEngine;
 using Xunit;
 using Xunit.Sdk;
 using static Assertive.DSL;

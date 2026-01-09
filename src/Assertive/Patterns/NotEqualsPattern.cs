@@ -1,4 +1,3 @@
-using System;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
 using Assertive.Interfaces;
@@ -14,7 +13,7 @@ namespace Assertive.Patterns
              || EqualityPattern.EqualsMethodShouldBeFalse(failedAssertion.Expression);
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual TryGetFriendlyMessage(FailedAssertion assertion)
     {
       var left = EqualityPattern.GetLeftSide(assertion.Expression);
       
@@ -24,13 +23,15 @@ namespace Assertive.Patterns
       {
         right = ((UnaryExpression)right).Operand;
       }
-
-      if (right is { NodeType: ExpressionType.Constant })
+      
+      object? expected = right != null && IsConstantExpression(right) ? right : right?.ToValue();
+      object? actual = left?.ToValue();
+      
+      return new()
       {
-        return $"Expected {left} to not equal {right}.";
-      }
-
-      return $"Expected {left} to not equal {right} (value: {left?.ToValue()}).";
+        Expected = $"{left}: should not equal {expected}.",
+        Actual = $"{left}: {actual}"
+      };
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } = [];

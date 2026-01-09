@@ -10,7 +10,8 @@ namespace Assertive.Test
       var instance1 = new object();
       var instance2 = new object();
       
-      ShouldFail(() => ReferenceEquals(instance1, instance2), "Expected instance1 and instance2 to be the same instance.");
+      ShouldFail(() => ReferenceEquals(instance1, instance2), "instance1 and instance2 should be the same instance.", @"instance1: System.Object
+instance2: System.Object");
     }
     
     [Fact]
@@ -19,7 +20,8 @@ namespace Assertive.Test
       var instance1 = new object();
       var instance2 = new object();
       
-      ShouldFail(() => object.ReferenceEquals(instance1, instance2), "Expected instance1 and instance2 to be the same instance.");
+      ShouldFail(() => object.ReferenceEquals(instance1, instance2), "instance1 and instance2 should be the same instance.", @"instance1: System.Object
+instance2: System.Object");
     }
     
     [Fact]
@@ -28,7 +30,7 @@ namespace Assertive.Test
       var instance1 = new object();
       var instance2 = instance1;
       
-      ShouldFail(() => !ReferenceEquals(instance1, instance2), "Expected instance1 and instance2 to be a different instances.");
+      ShouldFail(() => !ReferenceEquals(instance1, instance2), "instance1 and instance2 should be different instances.", "");
     }
   }
 }

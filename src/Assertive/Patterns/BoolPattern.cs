@@ -1,4 +1,3 @@
-using System;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
 using Assertive.Interfaces;
@@ -12,11 +11,19 @@ namespace Assertive.Patterns
       return failedAssertion.ExpressionWithoutNegation is MemberExpression;
     }
 
-    public FormattableString TryGetFriendlyMessage(FailedAssertion assertion)
+    public ExpectedAndActual TryGetFriendlyMessage(FailedAssertion assertion)
     {
-      return assertion.IsNegated ? 
-        $"Expected {assertion.NegatedExpression} to be false." 
-        : (FormattableString)$"Expected {assertion.Expression} to be true.";
+      return assertion.IsNegated
+        ? new ExpectedAndActual()
+        {
+          Expected = $"{assertion.NegatedExpression}: {Expression.Constant(false)}",
+          Actual = $"{Expression.Constant(true)}"
+        }
+        : new ExpectedAndActual()
+        {
+          Expected = $"{assertion.Expression}: {Expression.Constant(true)}",
+          Actual = $"{Expression.Constant(false)}"
+        };
     }
 
     public IFriendlyMessagePattern[] SubPatterns { get; } =

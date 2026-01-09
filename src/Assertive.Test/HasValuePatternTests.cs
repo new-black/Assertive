@@ -9,7 +9,7 @@ namespace Assertive.Test
     {
       int? a = null;
 
-      ShouldFail(() => a.HasValue, "Expected a to have a value.");
+      ShouldFail(() => a.HasValue, "a should have a value.", "It was null.");
     }
     
     [Fact]
@@ -17,7 +17,7 @@ namespace Assertive.Test
     {
       int? a = 1;
 
-      ShouldFail(() => !a.HasValue, @"Expected a to not have a value but its value was 1.");
+      ShouldFail(() => !a.HasValue, "a should not have a value.", "Value: 1.");
     }
   }
 }

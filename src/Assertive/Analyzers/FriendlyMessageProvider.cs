@@ -1,4 +1,5 @@
-﻿using Assertive.Interfaces;
+﻿using System;
+using Assertive.Interfaces;
 using Assertive.Patterns;
 
 namespace Assertive.Analyzers
@@ -31,10 +32,39 @@ namespace Assertive.Analyzers
               return message;
             }
           }
-          
-          var formattedMessage = FriendlyMessageFormatter.GetString(pattern.TryGetFriendlyMessage(_part), _context.EvaluatedExpressions);
 
-          return new FriendlyMessage(formattedMessage, pattern);
+          var expectedAndActual = pattern.TryGetFriendlyMessage(_part);
+
+          FormattableString? friendlyMessage;
+
+          var colors = Config.Configuration.Colors;
+
+          if (expectedAndActual == null)
+          {
+            friendlyMessage = null;
+          }
+          else if (expectedAndActual.Actual != null)
+          {
+            friendlyMessage = $"""
+                               {colors.ExpectedHeader()}
+                               {expectedAndActual.Expected}
+                               {colors.ActualHeader()}
+                               {expectedAndActual.Actual}
+                               
+                               """;
+          }
+          else
+          {
+            friendlyMessage = $"""
+                               {colors.ExpectedHeader()}
+                               {expectedAndActual.Expected}
+                               
+                               """;
+          }
+
+          var formattedMessage = FriendlyMessageFormatter.GetString(friendlyMessage, _context.EvaluatedExpressions);
+
+          return new FriendlyMessage(formattedMessage, pattern, expectedAndActual);
         }
       }
       catch
