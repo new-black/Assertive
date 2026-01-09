@@ -28,7 +28,9 @@ namespace Assertive.Plugin
     private static (Func<Expression, bool> matcher, bool matchesMethods, bool matchesProperties) CompileMatchers(MatchPredicate[] predicates)
     {
       if (predicates.Length == 0)
+      {
         return (_ => false, false, false);
+      }
 
       var matchers = new List<Func<Expression, bool>>();
       var matchesMethods = false;
@@ -86,7 +88,11 @@ namespace Assertive.Plugin
           matchers.Add(expr =>
           {
             var declaringType = GetDeclaringType(expr);
-            if (declaringType == null) return false;
+            if (declaringType == null)
+            {
+              return false;
+            }
+
             return string.Equals(declaringType.Name, typeName, StringComparison.Ordinal) ||
                    string.Equals(declaringType.FullName, typeName, StringComparison.Ordinal);
           });
@@ -99,7 +105,11 @@ namespace Assertive.Plugin
           matchers.Add(expr =>
           {
             var declaringType = GetDeclaringType(expr);
-            if (declaringType?.Namespace == null) return false;
+            if (declaringType?.Namespace == null)
+            {
+              return false;
+            }
+
             return string.Equals(declaringType.Namespace, ns, StringComparison.Ordinal) ||
                    declaringType.Namespace.StartsWith(ns + ".", StringComparison.Ordinal);
           });
@@ -112,7 +122,11 @@ namespace Assertive.Plugin
           matchers.Add(expr =>
           {
             var instanceType = GetInstanceType(expr);
-            if (instanceType == null) return false;
+            if (instanceType == null)
+            {
+              return false;
+            }
+
             return MatchesTypeName(instanceType, instanceTypeName);
           });
         }
@@ -126,10 +140,14 @@ namespace Assertive.Plugin
       }
 
       if (matchers.Count == 0)
+      {
         return (_ => true, matchesMethods, matchesProperties);
+      }
 
       if (matchers.Count == 1)
+      {
         return (matchers[0], matchesMethods, matchesProperties);
+      }
 
       // Combine all matchers with AND logic
       return (expr =>
@@ -137,7 +155,9 @@ namespace Assertive.Plugin
         foreach (var matcher in matchers)
         {
           if (!matcher(expr))
+          {
             return false;
+          }
         }
         return true;
       }, matchesMethods, matchesProperties);
@@ -183,7 +203,10 @@ namespace Assertive.Plugin
       // For extension methods, exclude the 'this' parameter
       var count = mce.Method.GetParameters().Length;
       if (IsExtensionMethod(mce))
+      {
         count--;
+      }
+
       return count;
     }
 
@@ -191,11 +214,15 @@ namespace Assertive.Plugin
     {
       // Match by simple name
       if (string.Equals(type.Name, typeName, StringComparison.Ordinal))
+      {
         return true;
+      }
 
       // Match by full name
       if (string.Equals(type.FullName, typeName, StringComparison.Ordinal))
+      {
         return true;
+      }
 
       // Match generic types (e.g., "List" matches List<T>)
       if (type.IsGenericType)
@@ -206,7 +233,9 @@ namespace Assertive.Plugin
         {
           genericName = genericName.Substring(0, backtickIndex);
           if (string.Equals(genericName, typeName, StringComparison.Ordinal))
+          {
             return true;
+          }
         }
       }
 
@@ -222,15 +251,25 @@ namespace Assertive.Plugin
       var isProperty = expr is MemberExpression me && me.Member is PropertyInfo;
 
       if (isMethodCall && !_matchesMethodCalls)
+      {
         return false;
+      }
+
       if (isProperty && !_matchesProperties)
+      {
         return false;
+      }
+
       if (!isMethodCall && !isProperty)
+      {
         return false;
+      }
 
       // If negated but negation not allowed, don't match
       if (failedAssertion.IsNegated && !_definition.AllowNegation)
+      {
         return false;
+      }
 
       return _compiledMatcher(expr);
     }
@@ -244,7 +283,9 @@ namespace Assertive.Plugin
         : _definition.Output;
 
       if (output == null)
+      {
         return null;
+      }
 
       var evaluator = expr switch
       {
@@ -254,7 +295,9 @@ namespace Assertive.Plugin
       };
 
       if (evaluator == null)
+      {
         return null;
+      }
 
       var expected = output.Expected != null
         ? evaluator.EvaluateToFormattable(output.Expected)

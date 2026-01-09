@@ -5,16 +5,37 @@
     <AssemblyName>Assertive</AssemblyName>
     <PackageId>Assertive</PackageId>
     <Company>New Black</Company>
-    <PackageVersion>0.15.0</PackageVersion>
-    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageVersion>0.16.0</PackageVersion>
     <PackageProjectUrl>https://github.com/new-black/Assertive</PackageProjectUrl>
     <RepositoryUrl>https://github.com/new-black/Assertive</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <Description>Better and more readable test assertions through the power of C# expressions.</Description>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <LangVersion>12</LangVersion>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- Source Link: enables stepping into source code from NuGet package -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+    <!-- Symbol package (.snupkg) for debugging -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <!-- Deterministic builds for reproducibility -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
+
   <ItemGroup>
-    <None Include="../LICENSE.txt" Pack="true" PackagePath="LICENSE.txt" />
+    <!-- Include README in package -->
+    <None Include="../../README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Source Link for GitHub -->
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
   </ItemGroup>
 </Project>

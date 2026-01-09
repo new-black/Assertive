@@ -13,9 +13,9 @@ namespace Assertive.Plugin
   /// <summary>
   /// Evaluates template strings with placeholders like {instance}, {instance.count}, {arg0}.
   /// </summary>
-  internal class TemplateEvaluator
+  internal partial class TemplateEvaluator
   {
-    private static readonly Regex PlaceholderPattern = new(@"\{([a-zA-Z0-9_.]+)\}", RegexOptions.Compiled);
+    private static readonly Regex _placeholderPattern = PlaceholderRegex();
 
     private readonly Dictionary<string, Func<string?>> _variables = new();
 
@@ -49,7 +49,11 @@ namespace Assertive.Plugin
         int argIndex;
         if (isExtensionMethod && methodCall.Object == null)
         {
-          if (i == 0) continue; // Skip first arg (instance) for extension methods
+          if (i == 0)
+          {
+            continue; // Skip first arg (instance) for extension methods
+          }
+
           argIndex = i - 1;
         }
         else
@@ -115,7 +119,7 @@ namespace Assertive.Plugin
     /// </summary>
     public string Evaluate(string template)
     {
-      return PlaceholderPattern.Replace(template, match =>
+      return _placeholderPattern.Replace(template, match =>
       {
         var placeholder = match.Groups[1].Value;
 
@@ -148,10 +152,14 @@ namespace Assertive.Plugin
     private static string FormatValue(object? value)
     {
       if (value == null)
+      {
         return "null";
+      }
 
       if (value is string s)
+      {
         return $"\"{s}\"";
+      }
 
       return value.ToString() ?? "";
     }
@@ -159,14 +167,16 @@ namespace Assertive.Plugin
     private static string FormatTypeName(Type type)
     {
       if (!type.IsGenericType)
+      {
         return type.Name;
+      }
 
       // Format generic types nicely (e.g., List<String> instead of List`1)
       var genericName = type.Name;
       var backtickIndex = genericName.IndexOf('`');
       if (backtickIndex > 0)
       {
-        genericName = genericName.Substring(0, backtickIndex);
+        genericName = genericName[..backtickIndex];
       }
 
       var genericArgs = type.GetGenericArguments();
@@ -182,14 +192,20 @@ namespace Assertive.Plugin
     private static string FormatFirstItems(object? value, int maxItems)
     {
       if (value == null)
+      {
         return "null";
+      }
 
       if (value is not IEnumerable enumerable)
+      {
         return FormatValue(value);
+      }
 
       // Don't enumerate strings as chars
       if (value is string s)
+      {
         return $"\"{s}\"";
+      }
 
       var items = new List<string>();
       var count = 0;
@@ -208,9 +224,14 @@ namespace Assertive.Plugin
 
       var result = "[" + string.Join(", ", items) + "]";
       if (hasMore)
+      {
         result += " ...";
+      }
 
       return result;
     }
-  }
+
+        [GeneratedRegex(@"\{([a-zA-Z0-9_.]+)\}", RegexOptions.Compiled)]
+        private static partial Regex PlaceholderRegex();
+    }
 }
