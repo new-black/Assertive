@@ -55,6 +55,8 @@ Assertive has a number of built-in patterns that it recognizes, which currently 
 
 When there is no matching pattern for your assertion, it will simply report the assertion that failed plus whatever useful information can be distilled from the assertion.
 
+You can also define your own [custom patterns](#custom-patterns).
+
 ## Features
 
 ### Multiple assertions
