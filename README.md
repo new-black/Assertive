@@ -343,13 +343,93 @@ Assuming the 29th order (starting from zero) in this collection did not meet thi
 
 ### Contents of locals used in your assertion are rendered to the output
 
-If you have an assertion like `Assert(() => customers.Count() == expectedCustomers)` that references local variables and it fails, the contents of the locals you use in your assertion are rendered to the test output. 
+If you have an assertion like `Assert(() => customers.Count() == expectedCustomers)` that references local variables and it fails, the contents of the locals you use in your assertion are rendered to the test output.
 
 For example:
 
 <img width="871" height="221" alt="image" src="https://github.com/user-attachments/assets/19d5f4b8-28a8-4e57-82ad-762851522cc9" />
 
 But note how only `customers` is rendered as the value of `expectedCustomers` is already displayed in the message at some other point.
+
+### Custom patterns
+
+If you have custom extension methods or properties that you use frequently in your assertions, you can register custom patterns to provide friendly error messages for them.
+
+For example, say you have a `None()` extension method that checks if a collection is empty:
+
+```csharp
+public static bool None<T>(this IEnumerable<T> source) => !source.Any();
+```
+
+You can register a pattern for it like this:
+
+```csharp
+Configuration.Patterns.Register(new PatternDefinition
+{
+    Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
+    AllowNegation = true,
+    Output = new OutputDefinition
+    {
+        Expected = "Collection {instance} should not contain any items.",
+        Actual = "It contained {instance.count} items."
+    },
+    OutputWhenNegated = new OutputDefinition
+    {
+        Expected = "Collection {instance} should contain at least one item.",
+        Actual = "It was empty."
+    }
+});
+```
+
+Now when `Assert(() => list.None())` fails, you'll get a message like:
+
+> Collection list should not contain any items. It contained 3 items.
+
+And when `Assert(() => !list.None())` fails:
+
+> Collection list should contain at least one item. It was empty.
+
+#### Pattern matching
+
+The `Match` array contains predicates that must all match (AND logic). Available predicates:
+
+**Method matching:**
+- `Method.Name` - matches the method name exactly
+- `Method.ParameterCount` - matches methods with this exact parameter count
+- `Method.IsExtension` - matches only extension methods (true) or non-extension methods (false)
+
+**Property matching:**
+- `Property.Name` - matches a property access by name
+
+**Type and namespace:**
+- `DeclaringType` - matches the type that declares the method or property (by name or full name)
+- `Namespace` - matches the namespace of the declaring type
+- `InstanceType` - matches the type of the instance (supports generic types like `List`)
+
+#### Template placeholders
+
+Output templates support the following placeholders:
+
+**Instance:**
+- `{instance}` - the expression the method/property was called on (e.g., `list` in `list.None()`)
+- `{instance.value}` - the evaluated value of the instance
+- `{instance.type}` - the type name (e.g., `List<String>`)
+- `{instance.count}` - the count of items if the instance is a collection
+- `{instance.firstTenItems}` - the first 10 items of a collection (e.g., `[1, 2, 3] ...`)
+
+**Method arguments:**
+- `{arg0}`, `{arg1}`, etc. - argument expressions by position
+- `{arg0.value}`, `{arg1.value}`, etc. - evaluated argument values
+- `{arg0.type}`, `{arg1.type}`, etc. - argument type names
+
+**Other:**
+- `{method}` - the method name
+- `{property}` - the property name (for property patterns)
+- `{value}` - the property value (for property patterns)
+
+#### Negation
+
+When `AllowNegation` is `true`, the pattern will also match when the assertion is negated with `!`. Provide a separate `OutputWhenNegated` to customize the message for this case.
 
 ## Compatibility
 
