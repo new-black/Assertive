@@ -21,7 +21,7 @@ namespace Assertive.Patterns
     {
       get
       {
-        // DSL patterns are evaluated first (user-defined, more specific)
+        // Custom patterns are evaluated first (user-defined, more specific)
         var customPatterns = CustomPatternRegistry.GetPatterns();
 
         return customPatterns.Concat(BuiltInPatterns).ToArray();

@@ -9,22 +9,31 @@ namespace Assertive.Plugin
   /// </summary>
   internal static class CustomPatternRegistry
   {
-    private static IFriendlyMessagePattern[] _patterns = [];
+    private static Dictionary<string, IFriendlyMessagePattern> _patterns = new();
     private static readonly object _lock = new();
 
-    internal static void Register(PatternDefinition definition)
+    internal static void Register(string name, PatternDefinition definition)
     {
       lock (_lock)
       {
-        _patterns = _patterns.Append(new CustomPattern(definition)).ToArray();
+        // Upsert: replace existing pattern with the same name
+        _patterns[name] = new CustomPattern(definition);
       }
     }
 
-    internal static IFriendlyMessagePattern[] GetPatterns()
+    internal static bool Unregister(string name)
     {
       lock (_lock)
       {
-        return _patterns.ToArray();
+        return _patterns.Remove(name);
+      }
+    }
+
+    internal static ICollection<IFriendlyMessagePattern> GetPatterns()
+    {
+      lock (_lock)
+      {
+        return _patterns.Values;
       }
     }
 
@@ -32,7 +41,7 @@ namespace Assertive.Plugin
     {
       lock (_lock)
       {
-        _patterns = [];
+        _patterns.Clear();
       }
     }
   }

@@ -541,7 +541,7 @@ public static bool None<T>(this IEnumerable<T> source) => !source.Any();
 You can register a pattern for it like this:
 
 ```csharp
-Configuration.Patterns.Register(new PatternDefinition
+Configuration.Patterns.Register("None", new PatternDefinition
 {
     Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
     AllowNegation = true,
@@ -556,6 +556,20 @@ Configuration.Patterns.Register(new PatternDefinition
         Actual = "It was empty."
     }
 });
+```
+
+The first parameter is a unique name for the pattern. If you register a pattern with a name that already exists, the new pattern replaces the old one.
+
+You can also remove a pattern by name:
+
+```csharp
+Configuration.Patterns.Unregister("None");
+```
+
+Or remove all custom patterns:
+
+```csharp
+Configuration.Patterns.Clear();
 ```
 
 Now when `Assert(() => list.None())` fails, you'll get a message like:

@@ -25,7 +25,7 @@ namespace Assertive.Test
     [Fact]
     public void Simple_method_pattern_matches()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
         AllowNegation = false,
@@ -44,7 +44,7 @@ namespace Assertive.Test
     [Fact]
     public void Pattern_with_negation_uses_alternate_output()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
         AllowNegation = true,
@@ -69,7 +69,7 @@ namespace Assertive.Test
     [Fact]
     public void Pattern_without_negation_still_matches_non_negated()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "NoneStrict" } }],
         AllowNegation = false,
@@ -89,7 +89,7 @@ namespace Assertive.Test
     [Fact]
     public void Multiple_patterns_can_be_registered()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("None", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
         AllowNegation = false,
@@ -100,7 +100,7 @@ namespace Assertive.Test
         }
       });
 
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("IsEmpty", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "IsEmpty" } }],
         AllowNegation = false,
@@ -121,7 +121,7 @@ namespace Assertive.Test
     [Fact]
     public void Pattern_with_declaring_type_constraint()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match =
         [
@@ -145,7 +145,7 @@ namespace Assertive.Test
     public void Reset_clears_all_patterns()
     {
       // First register a pattern and verify it works
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
         AllowNegation = false,
@@ -163,7 +163,7 @@ namespace Assertive.Test
       Configuration.Patterns.Clear();
 
       // Register a different pattern to prove reset worked
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
         AllowNegation = false,
@@ -180,7 +180,7 @@ namespace Assertive.Test
     [Fact]
     public void Pattern_with_instance_type_constraint()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match =
         [
@@ -203,7 +203,7 @@ namespace Assertive.Test
     [Fact]
     public void Pattern_with_namespace_constraint()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match =
         [
@@ -226,7 +226,7 @@ namespace Assertive.Test
     [Fact]
     public void Pattern_with_parameter_count_constraint()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match =
         [
@@ -248,7 +248,7 @@ namespace Assertive.Test
     [Fact]
     public void Pattern_with_extension_method_constraint()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match =
         [
@@ -270,7 +270,7 @@ namespace Assertive.Test
     [Fact]
     public void Pattern_with_argument_value_placeholder()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match =
         [
@@ -293,7 +293,7 @@ namespace Assertive.Test
     [Fact]
     public void Property_pattern_matches()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match =
         [
@@ -315,7 +315,7 @@ namespace Assertive.Test
     [Fact]
     public void Property_pattern_with_negation()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match =
         [
@@ -342,7 +342,7 @@ namespace Assertive.Test
     [Fact]
     public void Property_pattern_with_instance_type()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match =
         [
@@ -363,9 +363,68 @@ namespace Assertive.Test
     }
 
     [Fact]
+    public void Registering_pattern_with_same_name_replaces_existing()
+    {
+      // Register first pattern
+      Configuration.Patterns.Register("MyPattern", new PatternDefinition
+      {
+        Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
+        AllowNegation = false,
+        Output = new OutputDefinition
+        {
+          Expected = "First message.",
+          Actual = "First actual."
+        }
+      });
+
+      var list = new List<string> { "a" };
+      ShouldFail(() => list.None(), "First message.", "First actual.");
+
+      // Register pattern with same name - should replace
+      Configuration.Patterns.Register("MyPattern", new PatternDefinition
+      {
+        Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
+        AllowNegation = false,
+        Output = new OutputDefinition
+        {
+          Expected = "Replaced message.",
+          Actual = "Replaced actual."
+        }
+      });
+
+      ShouldFail(() => list.None(), "Replaced message.", "Replaced actual.");
+    }
+
+    [Fact]
+    public void Unregister_removes_pattern_by_name()
+    {
+      Configuration.Patterns.Register("ToRemove", new PatternDefinition
+      {
+        Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
+        AllowNegation = false,
+        Output = new OutputDefinition
+        {
+          Expected = "Custom message.",
+          Actual = "Custom actual."
+        }
+      });
+
+      var list = new List<string> { "a" };
+      ShouldFail(() => list.None(), "Custom message.", "Custom actual.");
+
+      // Unregister should return true for existing pattern
+      var result = Configuration.Patterns.Unregister("ToRemove");
+      Assert.That(() => result == true);
+
+      // Unregister should return false for non-existing pattern
+      var result2 = Configuration.Patterns.Unregister("NonExistent");
+      Assert.That(() => result2 == false);
+    }
+
+    [Fact]
     public void Pattern_with_floating_point_argument_uses_invariant_culture()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match =
         [

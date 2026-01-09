@@ -32,7 +32,7 @@ namespace Assertive.Test
     [Fact]
     public void BoolPattern_PropertyAccess_CanReplicate()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Property = new PropertyMatch { Name = "IsActive" } }],
         AllowNegation = true,
@@ -55,7 +55,7 @@ namespace Assertive.Test
     [Fact]
     public void BoolPattern_PropertyAccess_Negated_CanReplicate()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Property = new PropertyMatch { Name = "IsActive" } }],
         AllowNegation = true,
@@ -86,7 +86,7 @@ namespace Assertive.Test
     [Fact]
     public void ContainsPattern_Collection_CanReplicate()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "Contains" } }],
         AllowNegation = true,
@@ -109,7 +109,7 @@ namespace Assertive.Test
     [Fact]
     public void ContainsPattern_String_CanReplicate()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [
           new MatchPredicate { Method = new MethodMatch { Name = "Contains" } },
@@ -143,7 +143,7 @@ namespace Assertive.Test
     [Fact]
     public void AnyPattern_NoFilter_CanReplicate()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "Any", ParameterCount = 0 } }],
         AllowNegation = true,
@@ -167,7 +167,7 @@ namespace Assertive.Test
     public void AnyPattern_WithFilter_CanShowLambda()
     {
       // {arg0} renders the lambda expression as text
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "Any", ParameterCount = 1 } }],
         AllowNegation = true,
@@ -198,7 +198,7 @@ namespace Assertive.Test
     [Fact]
     public void StartsWithPattern_CanReplicate()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "StartsWith" } }],
         AllowNegation = true,
@@ -221,7 +221,7 @@ namespace Assertive.Test
     [Fact]
     public void EndsWithPattern_CanReplicate()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "EndsWith" } }],
         AllowNegation = true,
@@ -252,7 +252,7 @@ namespace Assertive.Test
     [Fact]
     public void SequenceEqualPattern_BasicMatch_CanReplicate()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "SequenceEqual" } }],
         AllowNegation = true,
@@ -285,7 +285,7 @@ namespace Assertive.Test
     [Fact]
     public void ReferenceEqualsPattern_CanReplicate()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "ReferenceEquals" } }],
         AllowNegation = true,
@@ -317,7 +317,7 @@ namespace Assertive.Test
     [Fact]
     public void AllPattern_CanShowLambda()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "All" } }],
         AllowNegation = true,
@@ -341,7 +341,7 @@ namespace Assertive.Test
     [Fact]
     public void AllPattern_CanShowFirstTenItems()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "All" } }],
         AllowNegation = true,
@@ -364,7 +364,7 @@ namespace Assertive.Test
     [Fact]
     public void FirstItems_ShowsEllipsisWhenMoreThanTen()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
         AllowNegation = false,
@@ -457,7 +457,7 @@ namespace Assertive.Test
     [Fact]
     public void HasValuePattern_CanReplicate()
     {
-      Configuration.Patterns.Register(new PatternDefinition
+      Configuration.Patterns.Register("test-pattern", new PatternDefinition
       {
         Match = [new MatchPredicate { Property = new PropertyMatch { Name = "HasValue" } }],
         AllowNegation = true,
