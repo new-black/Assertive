@@ -31,6 +31,10 @@ namespace Assertive.Config
       /// </summary>
       public bool Enabled { get; set; }
       
+      /// <summary>
+      /// Enables or disables C# syntax highlighting in expression output. Defaults to true.
+      /// Only applies when <see cref="Enabled"/> is also true.
+      /// </summary>
       public bool UseSyntaxHighlighting { get; set; } = true;
 
       public ColorScheme()

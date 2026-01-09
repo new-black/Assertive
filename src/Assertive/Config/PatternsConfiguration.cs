@@ -6,15 +6,20 @@ namespace Assertive.Config
   public static partial class Configuration
   {
     /// <summary>
-    /// Configuration for custom assertion patterns.
+    /// Provides methods for registering custom assertion patterns.
     /// </summary>
     public class PatternsConfiguration
     {
       /// <summary>
-      /// Register a custom pattern.
+      /// Registers a custom pattern that provides friendly error messages for specific assertions.
       /// </summary>
       /// <param name="pattern">The pattern definition.</param>
+      /// <exception cref="ArgumentException">
+      /// Thrown when <see cref="PatternDefinition.AllowNegation"/> is true
+      /// but <see cref="PatternDefinition.OutputWhenNegated"/> is not provided.
+      /// </exception>
       /// <example>
+      /// <code>
       /// Configuration.Patterns.Register(new PatternDefinition
       /// {
       ///   Match = [new MatchPredicate { Method = new MethodMatch { Name = "None" } }],
@@ -30,6 +35,7 @@ namespace Assertive.Config
       ///     Actual = "It was empty."
       ///   }
       /// });
+      /// </code>
       /// </example>
       public void Register(PatternDefinition pattern)
       {
@@ -44,7 +50,7 @@ namespace Assertive.Config
       }
 
       /// <summary>
-      /// Remove all registered custom patterns.
+      /// Removes all registered custom patterns. Useful for test isolation.
       /// </summary>
       public void Clear()
       {
@@ -53,8 +59,7 @@ namespace Assertive.Config
     }
 
     /// <summary>
-    /// Custom assertion pattern configuration.
-    /// Use this to register patterns that provide friendly messages for custom assertion methods.
+    /// Custom assertion patterns that provide friendly error messages for specific method calls or property accesses.
     /// </summary>
     public static PatternsConfiguration Patterns { get; } = new();
   }

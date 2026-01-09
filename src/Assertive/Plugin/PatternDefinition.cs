@@ -1,65 +1,69 @@
 namespace Assertive.Plugin
 {
   /// <summary>
-  /// Root definition for a custom assertion pattern.
+  /// Defines a custom assertion pattern that provides friendly error messages
+  /// for specific method calls or property accesses.
   /// </summary>
   public class PatternDefinition
   {
     /// <summary>
-    /// Array of predicates that must ALL match (AND logic).
+    /// Predicates that must all match for this pattern to apply (AND logic).
     /// </summary>
     public MatchPredicate[] Match { get; set; } = [];
 
     /// <summary>
-    /// Whether this pattern can be negated with the ! operator.
+    /// Whether this pattern matches negated assertions (e.g., <c>!list.None()</c>).
+    /// When true, <see cref="OutputWhenNegated"/> must also be provided.
     /// </summary>
     public bool AllowNegation { get; set; }
 
     /// <summary>
-    /// Output when the pattern matches (non-negated case).
+    /// The message templates to use when the assertion fails.
     /// </summary>
     public OutputDefinition? Output { get; set; }
 
     /// <summary>
-    /// Output when the pattern matches and is negated.
-    /// Only used if AllowNegation is true.
+    /// The message templates to use when a negated assertion fails.
+    /// Required when <see cref="AllowNegation"/> is true.
     /// </summary>
     public OutputDefinition? OutputWhenNegated { get; set; }
   }
 
   /// <summary>
-  /// A single match predicate. Multiple predicates in the match array are AND'd together.
+  /// A predicate that constrains which expressions a pattern matches.
+  /// Multiple predicates in a pattern are combined with AND logic.
   /// </summary>
   public class MatchPredicate
   {
     /// <summary>
-    /// Match a method call.
+    /// Matches method calls. Set properties on this object to constrain which methods match.
     /// </summary>
     public MethodMatch? Method { get; set; }
 
     /// <summary>
-    /// Match a property access.
+    /// Matches property accesses. Set properties on this object to constrain which properties match.
     /// </summary>
     public PropertyMatch? Property { get; set; }
 
     /// <summary>
-    /// Match against the declaring type of the method or property.
+    /// Matches by the declaring type name (simple name or full name).
     /// </summary>
     public string? DeclaringType { get; set; }
 
     /// <summary>
-    /// Match against the namespace of the declaring type.
+    /// Matches by the namespace of the declaring type (exact match or prefix).
     /// </summary>
     public string? Namespace { get; set; }
 
     /// <summary>
-    /// Match against the type of the instance the method/property is called on.
+    /// Matches by the type of the instance the method or property is called on.
+    /// For generic types, the simple name without type parameters matches (e.g., "List" matches <c>List&lt;T&gt;</c>).
     /// </summary>
     public string? InstanceType { get; set; }
   }
 
   /// <summary>
-  /// Criteria for matching a method call.
+  /// Constraints for matching method calls.
   /// </summary>
   public class MethodMatch
   {
@@ -69,18 +73,18 @@ namespace Assertive.Plugin
     public string? Name { get; set; }
 
     /// <summary>
-    /// Match methods with this exact parameter count.
+    /// The number of parameters the method must have (excluding the instance for extension methods).
     /// </summary>
     public int? ParameterCount { get; set; }
 
     /// <summary>
-    /// Match only extension methods (true) or only non-extension methods (false).
+    /// If true, only matches extension methods. If false, only matches non-extension methods.
     /// </summary>
     public bool? IsExtension { get; set; }
   }
 
   /// <summary>
-  /// Criteria for matching a property access.
+  /// Constraints for matching property accesses.
   /// </summary>
   public class PropertyMatch
   {
@@ -91,19 +95,34 @@ namespace Assertive.Plugin
   }
 
   /// <summary>
-  /// Defines the expected/actual output messages.
+  /// Message templates for assertion failure output.
+  /// Templates support placeholders that are replaced with values at runtime.
   /// </summary>
+  /// <remarks>
+  /// Available placeholders:
+  /// <list type="bullet">
+  ///   <item><c>{instance}</c> - the expression the method/property was called on</item>
+  ///   <item><c>{instance.value}</c> - the evaluated value of the instance</item>
+  ///   <item><c>{instance.type}</c> - the type name of the instance</item>
+  ///   <item><c>{instance.count}</c> - the item count if the instance is a collection</item>
+  ///   <item><c>{instance.firstTenItems}</c> - the first 10 items of a collection</item>
+  ///   <item><c>{arg0}</c>, <c>{arg1}</c>, etc. - method argument expressions</item>
+  ///   <item><c>{arg0.value}</c>, <c>{arg1.value}</c>, etc. - evaluated argument values</item>
+  ///   <item><c>{arg0.type}</c>, <c>{arg1.type}</c>, etc. - argument type names</item>
+  ///   <item><c>{method}</c> - the method name</item>
+  ///   <item><c>{property}</c> - the property name (for property patterns)</item>
+  ///   <item><c>{value}</c> - the property value (for property patterns)</item>
+  /// </list>
+  /// </remarks>
   public class OutputDefinition
   {
     /// <summary>
-    /// Template for the "expected" message.
-    /// Supports placeholders like {instance}, {instance.count}, {arg0}, etc.
+    /// Template for the "expected" portion of the failure message.
     /// </summary>
     public string? Expected { get; set; }
 
     /// <summary>
-    /// Template for the "actual" message.
-    /// Supports placeholders like {instance}, {instance.count}, {arg0}, etc.
+    /// Template for the "actual" portion of the failure message.
     /// </summary>
     public string? Actual { get; set; }
   }
