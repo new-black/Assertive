@@ -4,17 +4,39 @@ Assertive is a free, open source library available on [NuGet](https://www.nuget.
 
 Assertive does away with a long list of possible assertion methods or "fluent" assertion chaining and only provides a single `Assert.That` method (or just `Assert()` if you add `using static Assertive.DSL`).
 
+## Installation
+
+```
+dotnet add package Assertive
+```
+
+Or add to your project file:
+
+```xml
+<PackageReference Include="Assertive" Version="0.16.0" />
+```
+
+For snapshot testing with xUnit, also add:
+
+```
+dotnet add package Assertive.xUnit
+```
+
 ## Contents
 
+- [Installation](#installation)
 - [What it looks like](#what-it-looks-like)
+- [Using the DSL](#using-the-dsl)
 - [How is this different from using Assert.IsTrue?](#how-is-this-different-from-using-assertistrue)
 - [Features](#features)
   - [Multiple assertions](#multiple-assertions)
+  - [Exception assertions](#exception-assertions)
   - [Snapshot testing](#snapshot-testing)
     - [Configuration](#configuration)
     - [Expected files](#expected-files)
     - [Normalization](#normalization)
     - [Placeholders](#placeholders)
+    - [Advanced configuration](#advanced-configuration)
   - [Exception handling](#exception-handling)
     - [NullReferenceExceptions](#nullreferenceexceptions)
     - [IndexOutOfRangeException](#indexoutofrangeexception)
@@ -61,6 +83,22 @@ As the null check [isn't necessary.](#nullreferenceexceptions)
 If the assertion fails you will get this output in your test runner:
 
 <img width="646" height="218" alt="image" src="https://github.com/user-attachments/assets/0511b1fc-643b-45bc-b70b-9596d141fb4c" />
+
+## Using the DSL
+
+There are two ways to write assertions with Assertive:
+
+```csharp
+// Using the Assert class directly
+Assert.That(() => payment.Amount == 50);
+
+// Using the DSL for a more concise syntax
+using static Assertive.DSL;
+
+Assert(() => payment.Amount == 50);
+```
+
+The `using static Assertive.DSL` import allows you to write `Assert()` instead of `Assert.That()`. Both are functionally identical, so use whichever style you prefer.
 
 ## How is this different from using Assert.IsTrue?
 
@@ -112,7 +150,50 @@ This assertion would fail with the message:
 
 Short-circuiting works as you would expect, if the first assertion fails then the second one is not evaluated.
 
-Likewise, it's possible to use a bitwise AND (`&`) to force evaluation of both sides. 
+Likewise, it's possible to use a bitwise AND (`&`) to force evaluation of both sides.
+
+### Exception assertions
+
+To assert that code throws an exception, use `Assert.Throws`:
+
+```csharp
+// Assert that any exception is thrown
+var ex = Assert.Throws(() => SomeMethodThatThrows());
+
+// Assert that a specific exception type is thrown
+var ex = Assert.Throws<ArgumentException>(() => Validate(null));
+
+// Assert exception type and validate the exception
+var ex = Assert.Throws<ArgumentException>(
+    () => Validate(null),
+    e => e.ParamName == "input"
+);
+```
+
+The thrown exception is returned, so you can perform additional assertions on it:
+
+```csharp
+var ex = Assert.Throws<InvalidOperationException>(() => Process());
+Assert(() => ex.Message.Contains("not initialized"));
+```
+
+For async code, use the async overloads:
+
+```csharp
+var ex = await Assert.Throws<HttpRequestException>(
+    async () => await client.GetAsync("https://invalid.url")
+);
+```
+
+If the code doesn't throw (or throws the wrong exception type), Assertive reports exactly what happened:
+
+```csharp
+Assert.Throws<ArgumentException>(() => Validate("valid input"));
+// Fails with: Expected ArgumentException but no exception was thrown.
+
+Assert.Throws<ArgumentException>(() => ThrowsInvalidOperation());
+// Fails with: Expected ArgumentException but InvalidOperationException was thrown.
+```
 
 ### Snapshot testing
 
@@ -260,6 +341,65 @@ Configuration.Snapshots.Normalization
   .RegisterPlaceholderValidator("price", value => decimal.TryParse(value, out var price) && price > 0, "Price must be a positive number.");
 ```
 
+#### Advanced configuration
+
+Several additional options are available for fine-tuning snapshot behavior:
+
+**Ignoring properties:**
+
+```csharp
+Configuration.Snapshots.ShouldIgnore = (property, obj, value) =>
+{
+    // Ignore all properties ending with "Id"
+    return property.Name.EndsWith("Id");
+};
+```
+
+**Handling extraneous properties:**
+
+When the actual object has properties that don't exist in the expected snapshot, you can control the behavior:
+
+```csharp
+// Fail the test (default)
+Configuration.Snapshots.ExtraneousProperties = (name, value) => ExtraneousPropertiesOptions.Disallow;
+
+// Ignore extra properties
+Configuration.Snapshots.ExtraneousProperties = (name, value) => ExtraneousPropertiesOptions.Ignore;
+
+// Auto-update the expected file with new properties
+Configuration.Snapshots.ExtraneousProperties = (name, value) => ExtraneousPropertiesOptions.AutomaticUpdate;
+```
+
+**Custom exception rendering:**
+
+When a property getter throws an exception during serialization:
+
+```csharp
+Configuration.Snapshots.ExceptionRenderer = (property, obj, exception) =>
+{
+    return $"<{exception.GetType().Name}>";
+};
+```
+
+**Custom expected file location:**
+
+```csharp
+Configuration.Snapshots.ExpectedFileDirectoryResolver = (testMethod, sourceFile) =>
+{
+    // Store all snapshots in a central __snapshots__ folder
+    return Path.Combine(sourceFile.DirectoryName!, "__snapshots__");
+};
+```
+
+**Bulk snapshot regeneration:**
+
+When you need to regenerate all expected files (e.g., after a major refactoring):
+
+```csharp
+Configuration.Snapshots.TreatAllSnapshotsAsCorrect = true;
+```
+
+This will auto-create expected files from actual values. Remember to set it back to `false` after regenerating.
 
 ### Exception handling
 
