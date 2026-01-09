@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -159,6 +160,12 @@ namespace Assertive.Plugin
       if (value is string s)
       {
         return $"\"{s}\"";
+      }
+
+      // Use InvariantCulture for numeric types to ensure consistent decimal separators
+      if (value is IConvertible convertible)
+      {
+        return convertible.ToString(CultureInfo.InvariantCulture);
       }
 
       return value.ToString() ?? "";

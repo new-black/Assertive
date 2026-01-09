@@ -8,6 +8,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -230,7 +231,18 @@ namespace Assertive.Expressions
     {
       if (node.Value != null)
       {
-        string? sValue = node.Value?.ToString();
+        string? sValue;
+
+        // Use InvariantCulture for numeric types to ensure consistent decimal separators
+        if (node.Value is IConvertible convertible)
+        {
+          sValue = convertible.ToString(CultureInfo.InvariantCulture);
+        }
+        else
+        {
+          sValue = node.Value.ToString();
+        }
+
         if (node.Value is string)
         {
           Out('\"');

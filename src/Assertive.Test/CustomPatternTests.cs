@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Assertive.Config;
 using Assertive.Plugin;
@@ -360,6 +361,46 @@ namespace Assertive.Test
 
       ShouldFail(() => obj.IsValid, "TestObject obj should be valid.", "It was not.");
     }
+
+    [Fact]
+    public void Pattern_with_floating_point_argument_uses_invariant_culture()
+    {
+      Configuration.Patterns.Register(new PatternDefinition
+      {
+        Match =
+        [
+          new MatchPredicate { Method = new MethodMatch { Name = "IsGreaterThan" } }
+        ],
+        AllowNegation = false,
+        Output = new OutputDefinition
+        {
+          Expected = "{instance} should be greater than {arg0.value}.",
+          Actual = "It was {instance.value}."
+        }
+      });
+
+      var originalCulture = CultureInfo.CurrentCulture;
+
+      try
+      {
+        // Set culture to German which uses comma as decimal separator
+        CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+
+        double value = 3.1;
+        double threshold = 5.5;
+
+        // Without the InvariantCulture fix, this would show "5,5" instead of "5.5"
+        ShouldFail(
+          () => value.IsGreaterThan(threshold),
+          "value should be greater than 5.5.",  // Period, not comma
+          "It was 3.1."  // Period, not comma
+        );
+      }
+      finally
+      {
+        CultureInfo.CurrentCulture = originalCulture;
+      }
+    }
   }
 
   public class TestObject
@@ -377,5 +418,6 @@ namespace Assertive.Test
     public static bool NoneForReset<T>(this IEnumerable<T> source) => !source.Any();
     public static bool IsEmpty<T>(this IEnumerable<T> source) => !source.Any();
     public static bool HasExactly<T>(this IEnumerable<T> source, int count) => source.Count() == count;
+    public static bool IsGreaterThan(this double value, double threshold) => value > threshold;
   }
 }
