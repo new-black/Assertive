@@ -83,7 +83,37 @@ namespace Assertive.Helpers
       }
 
       var type = o.GetType();
-      
+
+      // Handle Newtonsoft.Json types by using their ToString() which returns proper JSON
+      // We check by namespace to avoid a direct dependency on the Newtonsoft.Json package
+      if (type.Namespace == "Newtonsoft.Json.Linq")
+      {
+        return o.ToString() ?? "";
+      }
+
+      // Handle System.Text.Json.Nodes types (JsonObject, JsonArray, JsonValue, JsonNode)
+      if (type.Namespace == "System.Text.Json.Nodes")
+      {
+        return o.ToString() ?? "";
+      }
+
+      // Handle System.Text.Json types (JsonElement, JsonDocument)
+      if (type.FullName == "System.Text.Json.JsonElement")
+      {
+        return o.ToString() ?? "";
+      }
+
+      if (type.FullName == "System.Text.Json.JsonDocument")
+      {
+        // JsonDocument doesn't have a useful ToString, so we get the RootElement
+        var rootElementProp = type.GetProperty("RootElement");
+        if (rootElementProp != null)
+        {
+          var rootElement = rootElementProp.GetValue(o);
+          return rootElement?.ToString() ?? "";
+        }
+      }
+
       if (o is IConvertible c)
       {
         return c.ToString(CultureInfo.InvariantCulture);
