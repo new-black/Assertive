@@ -1,8 +1,39 @@
 # About Assertive
 
-Assertive is a free, open source library available on [NuGet](https://www.nuget.org/packages/Assertive/) for easily writing test assertions using the power of the C# language and aims to be the easiest possible way to write assertions while still providing useful and contextual error information. It's not a test framework of itself, it's meant to be used in conjunction with a test framework like xUnit, NUnit, TUnit or MSTest. 
+Assertive is a free, open source library available on [NuGet](https://www.nuget.org/packages/Assertive/) for easily writing test assertions using the power of the C# language and aims to be the easiest possible way to write assertions while still providing useful and contextual error information. It's not a test framework of itself, it's meant to be used in conjunction with a test framework like xUnit, NUnit, TUnit or MSTest.
 
 Assertive does away with a long list of possible assertion methods or "fluent" assertion chaining and only provides a single `Assert.That` method (or just `Assert()` if you add `using static Assertive.DSL`).
+
+## Contents
+
+- [What it looks like](#what-it-looks-like)
+- [How is this different from using Assert.IsTrue?](#how-is-this-different-from-using-assertistrue)
+- [Features](#features)
+  - [Multiple assertions](#multiple-assertions)
+  - [Snapshot testing](#snapshot-testing)
+    - [Configuration](#configuration)
+    - [Expected files](#expected-files)
+    - [Normalization](#normalization)
+    - [Placeholders](#placeholders)
+  - [Exception handling](#exception-handling)
+    - [NullReferenceExceptions](#nullreferenceexceptions)
+    - [IndexOutOfRangeException](#indexoutofrangeexception)
+    - [InvalidOperationException caused by Single/First](#invalidoperationexception-caused-by-singlefirst)
+  - [Custom messages](#custom-messages)
+  - [Analysis of each item when collection.All fails](#analysis-of-each-item-when-collectionall-fails)
+  - [Contents of locals used in your assertion are rendered to the output](#contents-of-locals-used-in-your-assertion-are-rendered-to-the-output)
+  - [Custom patterns](#custom-patterns)
+    - [Pattern matching](#pattern-matching)
+    - [Template placeholders](#template-placeholders)
+    - [Negation](#negation)
+- [Colors](#colors)
+  - [When colors are enabled](#when-colors-are-enabled)
+  - [When colors are disabled](#when-colors-are-disabled)
+  - [Configuration](#configuration-1)
+- [Compatibility](#compatibility)
+  - [.NET](#net)
+  - [Test frameworks](#test-frameworks)
+- [Limitations](#limitations)
 
 ## What it looks like
 
@@ -432,6 +463,46 @@ Output templates support the following placeholders:
 #### Negation
 
 When `AllowNegation` is `true`, the pattern will also match when the assertion is negated with `!`. Provide a separate `OutputWhenNegated` to customize the message for this case.
+
+## Colors
+
+Assertive uses ANSI color codes to make assertion failure messages easier to read, with syntax highlighting for C# expressions, color-coded expected/actual sections, and visual diff highlighting.
+
+### When colors are enabled
+
+Colors are **enabled by default** when running tests locally. This works well in most terminal-based test runners and IDEs that support ANSI codes.
+
+### When colors are disabled
+
+Colors are **automatically disabled** in the following situations:
+
+- **NUnit** - NUnit's test output doesn't handle ANSI escape codes well, so colors are disabled when NUnit is detected
+- **CI environments** - Colors are disabled when any of these environment variables are detected:
+  - `NO_COLOR` (any value)
+  - `CI`, `GITHUB_ACTIONS`, `TF_BUILD`, `GITLAB_CI`, `CIRCLECI`, `TRAVIS`, `TEAMCITY_VERSION`, `BUILDKITE`, `DRONE`, `APPVEYOR`
+  - `BUILD_BUILDID`, `JENKINS_HOME`, `HUDSON_URL`, `BITBUCKET_BUILD_NUMBER`, `BITBUCKET_PIPELINE_UUID`
+
+### Configuration
+
+You can override the automatic detection using the `ASSERTIVE_COLORS_ENABLED` environment variable:
+
+```bash
+# Force colors on
+ASSERTIVE_COLORS_ENABLED=true dotnet test
+
+# Force colors off
+ASSERTIVE_COLORS_ENABLED=false dotnet test
+```
+
+Or configure it programmatically:
+
+```csharp
+// Disable colors entirely
+Configuration.Colors.Enabled = false;
+
+// Disable only syntax highlighting (keep other colors)
+Configuration.Colors.UseSyntaxHighlighting = false;
+```
 
 ## Compatibility
 
