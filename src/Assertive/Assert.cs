@@ -190,7 +190,12 @@ namespace Assertive
     /// <param name="sourceFile">The source file path (automatically captured).</param>
     public static void Snapshot(object snapshot, AssertSnapshotOptions? options = null, [CallerArgumentExpression(nameof(snapshot))] string expression = "", [CallerFilePath] string sourceFile = "")
     {
-      AssertImpl.Snapshot(snapshot, options ?? AssertSnapshotOptions.Default, expression, sourceFile);
+      var exception = AssertImpl.Snapshot(snapshot, options ?? AssertSnapshotOptions.Default, expression, sourceFile);
+
+      if (exception != null)
+      {
+        throw exception;
+      }
     }
   }
 }

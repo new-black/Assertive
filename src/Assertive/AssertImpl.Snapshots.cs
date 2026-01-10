@@ -136,35 +136,88 @@ internal partial class AssertImpl
 
     var actualNode = JsonSerializer.SerializeToNode(actualObject, serializerOptions);
 
-    var context = new CheckSnapshotContext { ExpectedFileExists = expectedFileExists, UpdatedExpected = false, Configuration = options.Configuration };
-
-    CheckRecursive(context, expectedNode, actualNode, null);
-
-    if (options.Configuration.TreatAllSnapshotsAsCorrect && !expectedFileInfo.Exists)
+    // TreatAllSnapshotsAsCorrect: accept any snapshot (new or existing), overwriting expected files
+    if (options.Configuration.TreatAllSnapshotsAsCorrect)
     {
       EnsureExpectedDirectory(expectedFileInfo);
-
       File.WriteAllText(expectedFileInfo.FullName, SerializeActual(serializerOptions, actualNode));
       return null;
     }
 
+    // AcceptNewSnapshots: only accept new snapshots where no expected file exists
+    if (options.Configuration.AcceptNewSnapshots && !expectedFileInfo.Exists)
+    {
+      EnsureExpectedDirectory(expectedFileInfo);
+      File.WriteAllText(expectedFileInfo.FullName, SerializeActual(serializerOptions, actualNode));
+      return null;
+    }
+
+    var context = new CheckSnapshotContext { ExpectedFileExists = expectedFileExists, UpdatedExpected = false, Configuration = options.Configuration };
+
+    CheckRecursive(context, expectedNode, actualNode, "$");
+
     if (context.Errors.Count > 0)
     {
+      var colors = Config.Configuration.Colors;
       var sb = new StringBuilder();
-      sb.AppendLine("Check failed:");
+
+      if (!expectedFileExists)
+      {
+        sb.AppendLine();
+        sb.AppendLine(colors.Dimmed("No expected snapshot exists yet. Copy the actual value to the expected file to accept."));
+      }
+
       sb.AppendLine();
-      sb.AppendLine("Expected:");
-      sb.AppendLine(expectedFileExists ? expectedNode.ToJsonString(serializerOptions) : "No expected value found");
+      sb.AppendLine(colors.ExpectedHeader());
+
+      var expectedJson = expectedNode.ToJsonString(serializerOptions);
+
+      sb.AppendLine(expectedFileExists ? expectedJson.Length < 100 ? colors.Expression(expectedJson) : expectedJson : colors.Dimmed("(new snapshot)"));
+
       sb.AppendLine();
-      sb.AppendLine("Actual:");
-      sb.AppendLine(actualNode?.ToJsonString(serializerOptions));
+      sb.AppendLine(colors.ActualHeader());
+      var actualJson = actualNode?.ToJsonString(serializerOptions) ?? "null";
+      sb.AppendLine(actualJson.Length < 100 ? colors.Expression(actualJson) : actualJson);
+
       sb.AppendLine();
-      sb.AppendLine("Errors:");
+      sb.AppendLine(colors.MetadataHeader("ERRORS"));
 
       foreach (var error in context.Errors)
       {
-        sb.AppendLine($"- {error.Error}");
+        sb.AppendLine();
+        sb.AppendLine($"  {colors.Highlight(error.Path)}");
+
+        var description = error.Type switch
+        {
+          CheckErrorType.ValueMismatch => "Value mismatch",
+          CheckErrorType.TypeMismatch => "Type mismatch",
+          CheckErrorType.MissingProperty => "Missing property",
+          CheckErrorType.UnexpectedProperty => "Unexpected property",
+          CheckErrorType.ArrayLengthMismatch => "Array length mismatch",
+          CheckErrorType.NullMismatch => "Null mismatch",
+          CheckErrorType.PlaceholderValidation => error.Message ?? "Placeholder validation failed",
+          CheckErrorType.PlaceholderCountMismatch => error.Message ?? "Placeholder count mismatch",
+          _ => "Error"
+        };
+
+        sb.AppendLine($"  {colors.DiffHeader(description)}");
+
+        if (error.Expected != null)
+        {
+          sb.AppendLine($"    Expected: {colors.Expected(error.Expected)}");
+        }
+
+        if (error.Actual != null)
+        {
+          sb.AppendLine($"    Actual:   {colors.Actual(error.Actual)}");
+        }
       }
+
+      sb.AppendLine();
+      sb.AppendLine(colors.MetadataHeader("SNAPSHOT FILE"));
+      sb.AppendLine(colors.Highlight(expectedFileInfo.FullName));
+
+      sb.AppendLine(colors.Dimmed(new string('·', 80)));
 
       if (options.Configuration.LaunchDiffTool != null)
       {
@@ -176,7 +229,6 @@ internal partial class AssertImpl
         if (!expectedFileInfo.Exists)
         {
           EnsureExpectedDirectory(expectedFileInfo);
-
           File.WriteAllText(expectedFileInfo.FullName, "");
         }
 
@@ -185,7 +237,6 @@ internal partial class AssertImpl
       else if (!expectedFileInfo.Exists)
       {
         EnsureExpectedDirectory(expectedFileInfo);
-
         File.WriteAllText(expectedFileInfo.FullName, "");
       }
 
@@ -221,11 +272,40 @@ internal partial class AssertImpl
     public Dictionary<(string, int), string> CountedPlaceholderValues { get; } = new();
   }
 
-  private static void CheckRecursive(CheckSnapshotContext context, JsonNode? expected, JsonNode? actual, string? propertyName)
+  private enum CheckErrorType
+  {
+    ValueMismatch,
+    TypeMismatch,
+    MissingProperty,
+    UnexpectedProperty,
+    ArrayLengthMismatch,
+    NullMismatch,
+    PlaceholderValidation,
+    PlaceholderCountMismatch
+  }
+
+  private record CheckError(
+    CheckErrorType Type,
+    string Path,
+    string? Expected = null,
+    string? Actual = null,
+    string? Message = null
+  );
+
+  private static string BuildPath(string? basePath, string segment)
+  {
+    if (string.IsNullOrEmpty(basePath)) return segment;
+    if (segment.StartsWith("[")) return basePath + segment;
+    return basePath + "." + segment;
+  }
+
+  private static void CheckRecursive(CheckSnapshotContext context, JsonNode? expected, JsonNode? actual, string path)
   {
     if ((expected == null) != (actual == null))
     {
-      context.Errors.Add(new("Expected: " + (expected == null ? "null" : "not null") + ", got: " + (actual == null ? "null" : "not null")));
+      context.Errors.Add(new(CheckErrorType.NullMismatch, path,
+        Expected: expected == null ? "null" : "not null",
+        Actual: actual == null ? "null" : "not null"));
       return;
     }
 
@@ -239,29 +319,28 @@ internal partial class AssertImpl
       if (!(expected.GetValueKind() == JsonValueKind.String &&
             actual.GetValueKind() is JsonValueKind.Number or JsonValueKind.False or JsonValueKind.True))
       {
-        context.Errors.Add(new(propertyName != null
-          ? $"{propertyName} is {actual.GetValueKind()}, expected {expected.GetValueKind()}"
-          : $"Expected {expected.GetValueKind()}, got {actual.GetValueKind()}"));
-
+        context.Errors.Add(new(CheckErrorType.TypeMismatch, path,
+          Expected: expected.GetValueKind().ToString(),
+          Actual: actual.GetValueKind().ToString()));
         return;
       }
     }
 
     if (expected is JsonObject jsonObject)
     {
-      CheckObject(context, jsonObject, (JsonObject)actual);
+      CheckObject(context, jsonObject, (JsonObject)actual, path);
     }
     else if (expected is JsonArray jsonArray)
     {
-      CheckArray(context, jsonArray, (JsonArray)actual);
+      CheckArray(context, jsonArray, (JsonArray)actual, path);
     }
     else if (expected is JsonValue jsonValue)
     {
-      CheckValue(context, jsonValue, (JsonValue)actual);
+      CheckValue(context, jsonValue, (JsonValue)actual, path);
     }
   }
 
-  private static void CheckValue(CheckSnapshotContext context, JsonValue expected, JsonValue actual)
+  private static void CheckValue(CheckSnapshotContext context, JsonValue expected, JsonValue actual, string path)
   {
     if (!JsonNode.DeepEquals(expected, actual))
     {
@@ -293,7 +372,10 @@ internal partial class AssertImpl
 
             if (actualValue != previouslyEncounteredActualValue)
             {
-              context.Errors.Add(new($"Expected '{expected.GetValue<string>()}' to be {previouslyEncounteredActualValue} but it was {actualValue}"));
+              context.Errors.Add(new(CheckErrorType.PlaceholderCountMismatch, path,
+                Expected: previouslyEncounteredActualValue,
+                Actual: actualValue,
+                Message: $"Expected '{expected.GetValue<string>()}' to be {previouslyEncounteredActualValue} but was {actualValue}"));
             }
           }
 
@@ -305,14 +387,18 @@ internal partial class AssertImpl
             }
             catch (Exception e)
             {
-              context.Errors.Add(new($"Error while executing placeholder validator for '{withoutPrefix}': {e.Message}"));
+              context.Errors.Add(new(CheckErrorType.PlaceholderValidation, path,
+                Actual: actualValue,
+                Message: $"Error while executing placeholder validator for '{withoutPrefix}': {e.Message}"));
               return false;
             }
           }
 
           if (validator != default && !ExecuteValidator())
           {
-            context.Errors.Add(new($"Value '{actualValue}' is invalid: {validator.Item2}"));
+            context.Errors.Add(new(CheckErrorType.PlaceholderValidation, path,
+              Actual: actualValue,
+              Message: validator.Item2));
             emitComparisonError = false;
           }
           else
@@ -324,46 +410,54 @@ internal partial class AssertImpl
 
       if (emitComparisonError)
       {
-        context.Errors.Add(new($"Expected: {expected}, got: {actual}"));
+        context.Errors.Add(new(CheckErrorType.ValueMismatch, path,
+          Expected: expected.ToJsonString(),
+          Actual: actual.ToJsonString()));
       }
     }
   }
 
-  private static void CheckArray(CheckSnapshotContext context, JsonArray expected, JsonArray actual)
+  private static void CheckArray(CheckSnapshotContext context, JsonArray expected, JsonArray actual, string path)
   {
     if (expected.Count != actual.Count)
     {
-      context.Errors.Add(new($"Expected array length: {expected.Count}, got: {actual.Count}"));
+      context.Errors.Add(new(CheckErrorType.ArrayLengthMismatch, path,
+        Expected: expected.Count.ToString(),
+        Actual: actual.Count.ToString()));
     }
 
     for (var i = 0; i < expected.Count && i < actual.Count; i++)
     {
-      CheckRecursive(context, expected[i], actual[i], null);
+      CheckRecursive(context, expected[i], actual[i], BuildPath(path, $"[{i}]"));
     }
   }
 
-  private static void CheckObject(CheckSnapshotContext context, JsonObject expected, JsonObject actual)
+  private static void CheckObject(CheckSnapshotContext context, JsonObject expected, JsonObject actual, string path)
   {
     foreach (var property in expected)
     {
+      var propertyPath = BuildPath(path, property.Key);
+
       if (!actual.TryGetPropertyValue(property.Key, out var actualValue))
       {
-        context.Errors.Add(new($"Missing property: {property.Key}"));
+        context.Errors.Add(new(CheckErrorType.MissingProperty, propertyPath));
       }
 
-      CheckRecursive(context, property.Value, actualValue, property.Key);
+      CheckRecursive(context, property.Value, actualValue, propertyPath);
     }
 
     foreach (var property in actual)
     {
       if (!expected.TryGetPropertyValue(property.Key, out _))
       {
+        var propertyPath = BuildPath(path, property.Key);
         var handleExtraneousProperties = context.Configuration.ExtraneousProperties?.Invoke(property.Key, property.Value) ??
                                          Configuration.ExtraneousPropertiesOptions.Disallow;
 
         if (handleExtraneousProperties == Configuration.ExtraneousPropertiesOptions.Disallow || !context.ExpectedFileExists)
         {
-          context.Errors.Add(new($"Unexpected property: {property.Key}"));
+          context.Errors.Add(new(CheckErrorType.UnexpectedProperty, propertyPath,
+            Actual: property.Value?.ToJsonString()));
         }
         else
           switch (handleExtraneousProperties)
@@ -380,6 +474,4 @@ internal partial class AssertImpl
       }
     }
   }
-
-  private record CheckError(string Error);
 }

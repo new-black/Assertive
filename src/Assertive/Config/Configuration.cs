@@ -208,6 +208,14 @@ namespace Assertive.Config
       /// </summary>
       public bool TreatAllSnapshotsAsCorrect { get; set; }
 
+      /// <summary>
+      /// When true, new snapshots (where no expected file exists) are automatically accepted and the test passes.
+      /// Unlike <see cref="TreatAllSnapshotsAsCorrect"/>, this only affects new snapshots and won't overwrite existing ones.
+      /// Useful for AI agents and automated workflows where you want to generate snapshots on first run.
+      /// Defaults to false.
+      /// </summary>
+      public bool AcceptNewSnapshots { get; set; }
+
       private static readonly ConcurrentDictionary<object, JsonSerializerOptions> _jsonSerializerOptionsCache = new();
       
       internal JsonSerializerOptions GetJsonSerializerOptions()
@@ -268,6 +276,33 @@ namespace Assertive.Config
     /// Set <see cref="ColorScheme.Enabled"/> to false to disable all colorization.
     /// </summary>
     public static ColorScheme Colors { get; } = new ();
+
+    /// <summary>
+    /// Output formatting configuration for assertion failure messages.
+    /// </summary>
+    public static OutputConfiguration Output { get; } = new();
+
+    /// <summary>
+    /// Configuration for assertion failure message output formatting.
+    /// </summary>
+    public class OutputConfiguration
+    {
+      /// <summary>
+      /// Maximum number of characters to display for serialized values in Expected/Actual output.
+      /// When a value exceeds this length, it will be truncated with "..." appended.
+      /// Set to null (default) for unlimited output.
+      /// </summary>
+      /// <example>
+      /// <code>
+      /// // Limit output to 500 characters
+      /// Configuration.Output.MaxValueLength = 500;
+      ///
+      /// // Unlimited output (default)
+      /// Configuration.Output.MaxValueLength = null;
+      /// </code>
+      /// </example>
+      public int? MaxValueLength { get; set; }
+    }
 
     private static string? _expressionQuotationPattern;
   }

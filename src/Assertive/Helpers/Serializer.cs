@@ -18,12 +18,21 @@ namespace Assertive.Helpers
 
     public override string ToString()
     {
-      if (_value.Length < 100)
+      var maxLength = Config.Configuration.Output.MaxValueLength;
+      var value = _value;
+
+      // Apply truncation if configured
+      if (maxLength.HasValue && value.Length > maxLength.Value)
       {
-        return Config.Configuration.Colors.Expression(_value);
+        value = value[..maxLength.Value] + "...";
       }
-      
-      return _value;
+
+      if (value.Length < 100)
+      {
+        return Config.Configuration.Colors.Expression(value);
+      }
+
+      return value;
     }
   }
   internal static class Serializer
