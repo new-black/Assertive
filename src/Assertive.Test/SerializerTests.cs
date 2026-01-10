@@ -312,5 +312,48 @@ namespace Assertive.Test
       public byte[] Data { get; set; }
     }
 
+    [Fact]
+    public void MaxValueLength_truncates_long_output()
+    {
+      var originalMaxLength = Assertive.Config.Configuration.Output.MaxValueLength;
+
+      try
+      {
+        Assertive.Config.Configuration.Output.MaxValueLength = 50;
+
+        var longString = new string('x', 100);
+        var obj = new { Value = longString };
+        var result = Serializer.Serialize(obj).ToString();
+
+        // Should be truncated to 50 chars + "..."
+        Assert(() => result.Length == 53);
+        Assert(() => result.EndsWith("..."));
+      }
+      finally
+      {
+        Assertive.Config.Configuration.Output.MaxValueLength = originalMaxLength;
+      }
+    }
+
+    [Fact]
+    public void MaxValueLength_null_does_not_truncate()
+    {
+      var originalMaxLength = Assertive.Config.Configuration.Output.MaxValueLength;
+
+      try
+      {
+        Assertive.Config.Configuration.Output.MaxValueLength = null;
+
+        var obj = new { Name = "This is a very long string that should not be truncated" };
+        var result = Serializer.Serialize(obj).ToString();
+
+        Assert(() => result.Contains("should not be truncated"));
+      }
+      finally
+      {
+        Assertive.Config.Configuration.Output.MaxValueLength = originalMaxLength;
+      }
+    }
+
   }
 }

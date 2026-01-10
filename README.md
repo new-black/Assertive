@@ -56,6 +56,8 @@ dotnet add package Assertive.xUnit
   - [When colors are enabled](#when-colors-are-enabled)
   - [When colors are disabled](#when-colors-are-disabled)
   - [Configuration](#configuration-1)
+- [Output](#output)
+  - [Value length truncation](#value-length-truncation)
 - [Compatibility](#compatibility)
   - [.NET](#net)
   - [Test frameworks](#test-frameworks)
@@ -403,7 +405,27 @@ When you need to regenerate all expected files (e.g., after a major refactoring)
 Configuration.Snapshots.TreatAllSnapshotsAsCorrect = true;
 ```
 
-This will auto-create expected files from actual values. Remember to set it back to `false` after regenerating.
+This will overwrite ALL expected files with actual values - both new and existing. Remember to set it back to `false` after regenerating.
+
+**Auto-accepting new snapshots only:**
+
+When writing new tests (especially useful for AI agents and automated workflows), you can auto-accept new snapshots while still failing on changes to existing ones:
+
+```csharp
+Configuration.Snapshots.AcceptNewSnapshots = true;
+```
+
+Unlike `TreatAllSnapshotsAsCorrect`, this only affects new snapshots where no expected file exists yet. Existing snapshots are still compared normally - changes to existing snapshots will still fail the test.
+
+**New snapshot workflow:**
+
+When a snapshot assertion fails because no expected file exists, Assertive:
+
+1. Shows the expected file path in the error message
+2. Shows the actual JSON value that needs to be saved
+3. Creates an empty expected file (so the directory structure exists)
+
+To accept a new snapshot, copy the actual JSON from the error message to the expected file.
 
 ### Exception handling
 
@@ -660,6 +682,20 @@ Configuration.Colors.Enabled = false;
 
 // Disable only syntax highlighting (keep other colors)
 Configuration.Colors.UseSyntaxHighlighting = false;
+```
+
+## Output
+
+### Value length truncation
+
+By default, Assertive outputs the entire serialized value of objects in Expected/Actual sections. For large objects, this can produce very long output. You can limit the output length:
+
+```csharp
+// Limit serialized values to 500 characters (values exceeding this will be truncated with "...")
+Configuration.Output.MaxValueLength = 500;
+
+// Unlimited output (default)
+Configuration.Output.MaxValueLength = null;
 ```
 
 ## Compatibility
