@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Assertive.Analyzers;
 using Assertive.Expressions;
+using Assertive.Helpers;
 using Assertive.Interfaces;
 
 namespace Assertive.ExceptionPatterns
@@ -35,7 +36,7 @@ namespace Assertive.ExceptionPatterns
 
         indexExpression = b.Right;
         operand = b.Left;
-        actualLength = (int?)ExpressionHelper.EvaluateExpression(Expression.ArrayLength(operand));
+        actualLength = (int?)ExpressionHelper.EvaluateExpression(Expression.ArrayLength(visitor.ReplaceParametersWithBindings(operand)));
         lengthString = "length";
       }
       else if (assertion.Exception is ArgumentOutOfRangeException &&
@@ -43,7 +44,7 @@ namespace Assertive.ExceptionPatterns
       {
         indexExpression = methodCallExpression.Arguments[0];
         operand = methodCallExpression.Object;
-        actualLength = operand != null ? ExpressionHelper.GetCollectionItemCount(operand) : null;
+        actualLength = operand != null ? ExpressionHelper.GetCollectionItemCount(visitor.ReplaceParametersWithBindings(operand)) : null;
         lengthString = "count";
       }
       else
@@ -51,20 +52,29 @@ namespace Assertive.ExceptionPatterns
         return null;
       }
 
-      var indexExpressionString = ExpressionHelper.IsConstantExpression(indexExpression) ? 
-        $"{indexExpression}" 
+      var indexExpressionString = ExpressionHelper.IsConstantExpression(indexExpression)
+        ? $"{indexExpression}"
         : (FormattableString)$"{indexExpression} (value: {indexExpression.ToValue()})";
 
-      FormattableString message = 
+      FormattableString message =
         $"{assertion.Exception.GetType().Name} caused by accessing index {indexExpressionString} on {operand}, actual {lengthString} was {actualLength?.ToString() ?? "unknown"}.";
+
+      // Append lambda item context if available
+      if (visitor.LambdaItemIndex.HasValue)
+      {
+        var serializedItem = Serializer.Serialize(visitor.LambdaItem);
+        message = $"{message}{Environment.NewLine}{Environment.NewLine}On item [{visitor.LambdaItemIndex}] of {visitor.CollectionExpression}:{Environment.NewLine}{serializedItem}";
+      }
 
       return new HandledException(message, causeOfException);
     }
 
-    private class IndexOutOfRangeExceptionVisitor : ExpressionVisitor
+    private class IndexOutOfRangeExceptionVisitor : LambdaAwareExpressionVisitor
     {
       public Expression? CauseOfIndexOutOfRangeException { get; private set; }
-      
+
+      protected override bool HasFoundResult => CauseOfIndexOutOfRangeException != null;
+
       protected override Expression VisitBinary(BinaryExpression node)
       {
         if (node.NodeType != ExpressionType.ArrayIndex)
@@ -74,7 +84,7 @@ namespace Assertive.ExceptionPatterns
 
         var result = base.VisitBinary(node);
 
-        if (ThrowsIndexOufOfRangeException(result))
+        if (CauseOfIndexOutOfRangeException == null && ThrowsIndexOutOfRangeException(node))
         {
           CauseOfIndexOutOfRangeException = node;
         }
@@ -84,14 +94,19 @@ namespace Assertive.ExceptionPatterns
 
       protected override Expression VisitMethodCall(MethodCallExpression node)
       {
+        if (TryVisitLambdaMethodCall(node))
+        {
+          return node;
+        }
+
         var result = base.VisitMethodCall(node);
 
         if (node.Method.Name != "get_Item")
         {
           return result;
         }
-        
-        if (ThrowsIndexOufOfRangeException(result))
+
+        if (CauseOfIndexOutOfRangeException == null && ThrowsIndexOutOfRangeException(node))
         {
           CauseOfIndexOutOfRangeException = node;
         }
@@ -99,18 +114,21 @@ namespace Assertive.ExceptionPatterns
         return result;
       }
 
-      private static bool ThrowsIndexOufOfRangeException(Expression node)
+      private bool ThrowsIndexOutOfRangeException(Expression node)
       {
         try
         {
-          var lambda = Expression.Lambda(node);
-          lambda.Compile(ExpressionHelper.ShouldUseInterpreter(lambda)).DynamicInvoke();
-
+          EvaluateExpressionWithBindings(node);
           return false;
         }
         catch (TargetInvocationException ex) when (ex.InnerException is IndexOutOfRangeException or ArgumentOutOfRangeException)
         {
           return true;
+        }
+        catch (InvalidOperationException)
+        {
+          // Unbound parameters - can't evaluate
+          return false;
         }
       }
     }

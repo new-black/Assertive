@@ -123,7 +123,7 @@ Value of list: [ 1, 2, 3 ]");
     {
       public List<string> Items { get; set; }
     }
-    
+
     [Fact]
     public void List_of_list_works()
     {
@@ -132,11 +132,49 @@ Value of list: [ 1, 2, 3 ]");
         new Something(),
         new Something()
       };
-      
-      ShouldFail(() => list.Single().Items.Single() != null, 
+
+      ShouldFail(() => list.Single().Items.Single() != null,
         @"InvalidOperationException caused by calling Single() on list which contains more than one element. Actual element count: 2.
 
 Value of list: [ { }, { } ]");
+    }
+
+    [Fact]
+    public void Single_inside_lambda_on_empty_collection_is_caught()
+    {
+      var containers = new List<Something>
+      {
+        new Something { Items = new List<string> { "only-one" } },
+        new Something { Items = new List<string>() },  // Empty - will throw
+      };
+
+      ShouldFail(() => containers.Any(c => c.Items.Single() == "x"),
+        """
+        InvalidOperationException caused by calling Single() on c.Items which contains no elements.
+
+        On item [1] of containers:
+        { Items = [ ] }
+        """);
+    }
+
+    [Fact]
+    public void Single_inside_lambda_on_multiple_items_is_caught()
+    {
+      var containers = new List<Something>
+      {
+        new Something { Items = new List<string> { "only-one" } },
+        new Something { Items = new List<string> { "a", "b", "c" } },  // Multiple - will throw
+      };
+
+      ShouldFail(() => containers.Any(c => c.Items.Single() == "x"),
+        """
+        InvalidOperationException caused by calling Single() on c.Items which contains more than one element. Actual element count: 3.
+
+        Value of c.Items: [ "a", "b", "c" ]
+
+        On item [1] of containers:
+        { Items = [ "a", "b", "c" ] }
+        """);
     }
   }
 }
