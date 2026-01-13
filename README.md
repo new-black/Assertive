@@ -45,6 +45,11 @@ dotnet add package Assertive.xUnit
     - [NullReferenceExceptions](#nullreferenceexceptions)
     - [IndexOutOfRangeException](#indexoutofrangeexception)
     - [InvalidOperationException caused by Single/First](#invalidoperationexception-caused-by-singlefirst)
+    - [KeyNotFoundException](#keynotfoundexception)
+    - [InvalidCastException](#invalidcastexception)
+    - [FormatException](#formatexception)
+    - [DivideByZeroException](#dividebyzeroexception)
+    - [ArgumentOutOfRangeException](#argumentoutofrangeexception)
   - [Custom messages](#custom-messages)
   - [Analysis of each item when collection.All fails](#analysis-of-each-item-when-collectionall-fails)
   - [Contents of locals used in your assertion are rendered to the output](#contents-of-locals-used-in-your-assertion-are-rendered-to-the-output)
@@ -488,6 +493,93 @@ Message if `names` is empty:
 However if `names` has more than one element:
 
 <img width="999" height="485" alt="image" src="https://github.com/user-attachments/assets/f992f5b8-8a7a-44c3-bf23-e0038c04e69a" />
+
+#### KeyNotFoundException
+
+When a KeyNotFoundException is thrown because you access a dictionary key that doesn't exist, Assertive will identify the missing key and show the available keys in the dictionary.
+
+Example:
+
+```csharp
+var dict = new Dictionary<string, int>
+{
+    ["foo"] = 1,
+    ["bar"] = 2
+};
+
+var key = "missing";
+
+Assert(() => dict[key] == 3);
+```
+
+This will fail with a message of:
+
+> KeyNotFoundException caused by accessing key key (value: "missing") on dict. Available keys: "foo", "bar".
+
+#### InvalidCastException
+
+When an InvalidCastException is thrown because of a failed explicit cast, Assertive will show both the target type and the actual type of the object.
+
+Example:
+
+```csharp
+object obj = 42;
+
+Assert(() => (string)obj == "42");
+```
+
+This will fail with a message of:
+
+> InvalidCastException caused by casting obj to string. Actual type was int.
+
+#### FormatException
+
+When a FormatException is thrown by parsing methods like `int.Parse()` or `DateTime.Parse()`, Assertive will show the string that failed to parse and the expected type.
+
+Example:
+
+```csharp
+var input = "abc";
+
+Assert(() => int.Parse(input) == 123);
+```
+
+This will fail with a message of:
+
+> FormatException caused by calling int.Parse("abc"). "abc" is not a valid int.
+
+#### DivideByZeroException
+
+When a DivideByZeroException is thrown because of integer division or modulo by zero, Assertive will identify which expression evaluated to zero.
+
+Example:
+
+```csharp
+var a = 10;
+var b = 0;
+
+Assert(() => a / b == 0);
+```
+
+This will fail with a message of:
+
+> DivideByZeroException caused by dividing a by b (value: 0).
+
+#### ArgumentOutOfRangeException
+
+When an ArgumentOutOfRangeException is thrown by methods like `string.Substring()`, Assertive will show the method call, the arguments used, and relevant context like the string length.
+
+Example:
+
+```csharp
+var str = "hello";
+
+Assert(() => str.Substring(10) == "world");
+```
+
+This will fail with a message of:
+
+> ArgumentOutOfRangeException caused by calling Substring(10) on str (length: 5).
 
 ### Custom messages
 
