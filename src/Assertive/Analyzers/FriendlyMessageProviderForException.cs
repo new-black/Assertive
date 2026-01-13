@@ -13,7 +13,8 @@ namespace Assertive.Analyzers
       new NullReferencePattern(),
       new ArgumentNullParamSourcePattern(),
       new LinqElementCountPattern(),
-      new IndexOutOfRangeExceptionPattern()
+      new IndexOutOfRangeExceptionPattern(),
+      new KeyNotFoundPattern()
     ];
 
     public FriendlyMessageProviderForException(AssertionFailureContext context)
