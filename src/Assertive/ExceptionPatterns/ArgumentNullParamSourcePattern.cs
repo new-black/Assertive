@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Assertive.Analyzers;
 using Assertive.Expressions;
+using Assertive.Helpers;
 using Assertive.Interfaces;
 
 namespace Assertive.ExceptionPatterns
@@ -19,7 +20,14 @@ namespace Assertive.ExceptionPatterns
 
       if (nullVisitor.CauseOfArgumentNull != null)
       {
-        var message = GetReasonMessage(nullVisitor.CauseOfArgumentNull);
+        FormattableString message = GetReasonMessage(nullVisitor.CauseOfArgumentNull);
+
+        // Append lambda item context if available
+        if (nullVisitor.LambdaItemIndex.HasValue)
+        {
+          var serializedItem = Serializer.Serialize(nullVisitor.LambdaItem);
+          message = $"{message}{Environment.NewLine}{Environment.NewLine}On item [{nullVisitor.LambdaItemIndex}] of {nullVisitor.CollectionExpression}:{Environment.NewLine}{serializedItem}";
+        }
 
         return new HandledException(message, nullVisitor.CauseOfArgumentNull);
       }
@@ -33,12 +41,19 @@ namespace Assertive.ExceptionPatterns
         $"ArgumentNullException caused by calling {StaticRenderMethodCallExpression.Wrap(causeOfNullReference)} on {ExpressionHelper.GetInstanceOfMethodCall(causeOfNullReference)} which was null.";
     }
 
-    private class ArgumentNullVisitor : ExpressionVisitor
+    private class ArgumentNullVisitor : LambdaAwareExpressionVisitor
     {
       public MethodCallExpression? CauseOfArgumentNull { get; private set; }
 
+      protected override bool HasFoundResult => CauseOfArgumentNull != null;
+
       protected override Expression VisitMethodCall(MethodCallExpression node)
       {
+        if (TryVisitLambdaMethodCall(node))
+        {
+          return node;
+        }
+
         var result = base.VisitMethodCall(node);
 
         if (CauseOfArgumentNull != null)
@@ -46,7 +61,7 @@ namespace Assertive.ExceptionPatterns
           return result;
         }
 
-        // Only interested in static methods
+        // Only interested in static methods (extension methods)
         if (node.Object != null)
         {
           return result;
@@ -60,18 +75,21 @@ namespace Assertive.ExceptionPatterns
         return result;
       }
 
-      private static bool ThrowsArgumentNullException(Expression node)
+      private bool ThrowsArgumentNullException(Expression node)
       {
         try
         {
-          var lambda = Expression.Lambda(node);
-          lambda.Compile(ExpressionHelper.ShouldUseInterpreter(lambda)).DynamicInvoke();
-
+          EvaluateExpressionWithBindings(node);
           return false;
         }
         catch (TargetInvocationException ex) when (ex.InnerException is ArgumentNullException { ParamName: "source" })
         {
           return true;
+        }
+        catch (InvalidOperationException)
+        {
+          // Unbound parameters - can't evaluate
+          return false;
         }
       }
     }

@@ -24,18 +24,23 @@ namespace Assertive.ExceptionPatterns
       if (linqVisitor.CauseOfLinqException != null)
       {
         var filtered = linqVisitor.CauseOfLinqException.Arguments is [_, LambdaExpression];
-        
+
         var instanceOfMethodCallExpression = ExpressionHelper.GetInstanceOfMethodCall(linqVisitor.CauseOfLinqException);
 
-        var message = GetReasonMessage(linqVisitor.CauseOfLinqException, linqVisitor.Error, linqVisitor.ActualCount,
+        // Replace parameters with bindings for evaluation
+        var instanceForEval = instanceOfMethodCallExpression != null
+          ? linqVisitor.ReplaceParametersWithBindings(instanceOfMethodCallExpression)
+          : null;
+
+        FormattableString message = GetReasonMessage(linqVisitor.CauseOfLinqException, linqVisitor.Error, linqVisitor.ActualCount,
           filtered, instanceOfMethodCallExpression);
 
-        if ((linqVisitor.Error == LinqElementCountErrorTypes.TooFew && filtered) 
+        if ((linqVisitor.Error == LinqElementCountErrorTypes.TooFew && filtered)
             || linqVisitor.Error == LinqElementCountErrorTypes.TooMany)
-        { 
+        {
           var filter = filtered && linqVisitor.Error == LinqElementCountErrorTypes.TooMany ? (LambdaExpression)linqVisitor.CauseOfLinqException.Arguments[1] : null;
 
-          var items = instanceOfMethodCallExpression != null ? GetItems(filter, linqVisitor.CauseOfLinqException, instanceOfMethodCallExpression) : [];
+          var items = instanceForEval != null ? GetItems(filter, linqVisitor.CauseOfLinqException, instanceForEval) : [];
 
           if (items != null)
           {
@@ -43,6 +48,13 @@ namespace Assertive.ExceptionPatterns
 
 Value of {instanceOfMethodCallExpression}: {Serializer.Serialize(items)}";
           }
+        }
+
+        // Append lambda item context if available
+        if (linqVisitor.LambdaItemIndex.HasValue)
+        {
+          var serializedItem = Serializer.Serialize(linqVisitor.LambdaItem);
+          message = $"{message}{Environment.NewLine}{Environment.NewLine}On item [{linqVisitor.LambdaItemIndex}] of {linqVisitor.CollectionExpression}:{Environment.NewLine}{serializedItem}";
         }
 
         return new HandledException(message, linqVisitor.CauseOfLinqException);
@@ -98,7 +110,7 @@ Value of {instanceOfMethodCallExpression}: {Serializer.Serialize(items)}";
 
       return items;
     }
-    
+
     private static Expression GetMethod(MethodCallExpression methodCallExpression) =>
       StaticRenderMethodCallExpression.Wrap(methodCallExpression);
 
@@ -122,7 +134,7 @@ Value of {instanceOfMethodCallExpression}: {Serializer.Serialize(items)}";
       TooMany
     }
 
-    private class LinqElementCountVisitor : ExpressionVisitor
+    private class LinqElementCountVisitor : LambdaAwareExpressionVisitor
     {
       private readonly HashSet<string> _methodNames =
       [
@@ -132,40 +144,55 @@ Value of {instanceOfMethodCallExpression}: {Serializer.Serialize(items)}";
         nameof(Enumerable.FirstOrDefault)
       ];
 
+      public MethodCallExpression? CauseOfLinqException { get; private set; }
+      public int? ActualCount { get; private set; }
+      public LinqElementCountErrorTypes? Error { get; private set; }
+
+      protected override bool HasFoundResult => CauseOfLinqException != null;
+
       protected override Expression VisitMethodCall(MethodCallExpression node)
       {
+        if (TryVisitLambdaMethodCall(node))
+        {
+          return node;
+        }
+
         var result = base.VisitMethodCall(node);
-        
+
         if (CauseOfLinqException != null)
         {
           return result;
         }
-        
+
         if (_methodNames.Contains(node.Method.Name))
         {
           try
           {
-            var lambda = Expression.Lambda(node);
-            lambda.Compile(ExpressionHelper.ShouldUseInterpreter(lambda)).DynamicInvoke();
+            EvaluateExpressionWithBindings(node);
           }
           catch (TargetInvocationException ex) when (ex.InnerException is InvalidOperationException)
           {
             HandleException(node);
+          }
+          catch (InvalidOperationException)
+          {
+            // Unbound parameters - can't evaluate
           }
         }
 
         return result;
       }
 
-      public MethodCallExpression? CauseOfLinqException { get; private set; }
-      public int? ActualCount { get; private set; }
-      public LinqElementCountErrorTypes? Error { get; private set; }
-
       private void HandleException(MethodCallExpression node)
       {
         var instanceExpression = ExpressionHelper.GetInstanceOfMethodCall(node);
 
-        var count = instanceExpression != null ? ExpressionHelper.GetCollectionItemCount(instanceExpression, node) : 0;
+        // Replace parameters with bindings for counting
+        var instanceForCounting = instanceExpression != null
+          ? ReplaceParametersWithBindings(instanceExpression)
+          : null;
+
+        var count = instanceForCounting != null ? ExpressionHelper.GetCollectionItemCount(instanceForCounting, node) : 0;
 
         if (count == 0 && node.Method.Name is nameof(Enumerable.Single) or nameof(Enumerable.First))
         {

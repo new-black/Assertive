@@ -3,6 +3,8 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Assertive.Analyzers;
 using Assertive.Config;
+using Assertive.Expressions;
+using Assertive.Helpers;
 using Assertive.Interfaces;
 
 namespace Assertive.ExceptionPatterns
@@ -36,6 +38,13 @@ namespace Assertive.ExceptionPatterns
 
         if (message != null)
         {
+          // Append lambda item context if available
+          if (nullVisitor.LambdaItemIndex.HasValue)
+          {
+            var serializedItem = Serializer.Serialize(nullVisitor.LambdaItem);
+            message = $"{message}{Environment.NewLine}{Environment.NewLine}On item [{nullVisitor.LambdaItemIndex}] of {nullVisitor.CollectionExpression}:{Environment.NewLine}{serializedItem}";
+          }
+
           return new HandledException(message, nullVisitor.CauseOfNullReference);
         }
       }
@@ -77,10 +86,12 @@ namespace Assertive.ExceptionPatterns
         $"NullReferenceException caused by calling {Configuration.Colors.Expression(causeOfNullReference.Method.Name)} on {causeOfNullReference.Object} which was null.";
     }
 
-    private class NullReferenceVisitor : ExpressionVisitor
+    private class NullReferenceVisitor : LambdaAwareExpressionVisitor
     {
       public Expression? CauseOfNullReference { get; private set; }
       public bool ExceptionWasThrownInternally { get; private set; }
+
+      protected override bool HasFoundResult => CauseOfNullReference != null;
 
       protected override Expression VisitUnary(UnaryExpression node)
       {
@@ -90,12 +101,12 @@ namespace Assertive.ExceptionPatterns
         {
           return result;
         }
-        
+
         if (CauseOfNullReference != null)
         {
           return result;
         }
-        
+
         var (value, threwInternally) = EvaluateExpression(node.Operand);
 
         if (value == null)
@@ -120,12 +131,12 @@ namespace Assertive.ExceptionPatterns
         {
           return result;
         }
-        
+
         if (CauseOfNullReference != null)
         {
           return result;
         }
-        
+
         var (value, threwInternally) = EvaluateExpression(node.Left);
 
         if (value == null)
@@ -144,6 +155,11 @@ namespace Assertive.ExceptionPatterns
 
       protected override Expression VisitMethodCall(MethodCallExpression node)
       {
+        if (TryVisitLambdaMethodCall(node))
+        {
+          return node;
+        }
+
         var result = base.VisitMethodCall(node);
 
         if (CauseOfNullReference != null)
@@ -173,18 +189,22 @@ namespace Assertive.ExceptionPatterns
         return result;
       }
 
-      private static (object? value, bool threwInternally) EvaluateExpression(Expression node)
+      private (object? value, bool threwInternally) EvaluateExpression(Expression node)
       {
         try
         {
-          var lambda = Expression.Lambda(node);
-          var value = lambda.Compile(Expressions.ExpressionHelper.ShouldUseInterpreter(lambda)).DynamicInvoke();
-
+          var value = EvaluateExpressionWithBindings(node);
           return (value, false);
         }
         catch (TargetInvocationException ex) when (ex.InnerException is NullReferenceException)
         {
           return (null, true);
+        }
+        catch (InvalidOperationException)
+        {
+          // Expression contains unbound parameters that we don't have bindings for
+          // Return a non-null sentinel so this isn't treated as the cause
+          return (new object(), false);
         }
       }
 
