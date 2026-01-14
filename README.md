@@ -275,8 +275,8 @@ Normalization can be used to change volatile values such as identifiers, Guids, 
 This can be changed with:
 
 ```csharp
-Configration.Snapshots.Normalization.NormalizeGuid = false;
-Configration.Snapshots.Normalization.NormalizeDateTime = false;
+Configuration.Snapshots.Normalization.NormalizeGuid = false;
+Configuration.Snapshots.Normalization.NormalizeDateTime = false;
 ```
 
 More advanced configuration is also possible:
@@ -438,7 +438,7 @@ Assertive has special handling of certain common exceptions that occur when writ
 
 #### NullReferenceExceptions
 
-When a NullReferenceException occurs somewhere within your assertion (because the thing you thought wasn't going to be `null` was in fact `null`) Assertive will try to find the cause of that exception by looking at what you dereferenced and what part of that was `null` or returned `null`. 
+When a `NullReferenceException` occurs somewhere within your assertion (because the thing you thought wasn't going to be `null` was in fact `null`) Assertive will try to find the cause of that exception by looking at what you dereferenced and what part of that was `null` or returned `null`. 
 
 Example:
 
@@ -448,7 +448,7 @@ Foo foo = new Foo();
 Assert(() => foo.Bar.Value.Length == 1);
 ```
 
-Assuming foo.Bar was not initialized, this assertion will fail with a message of:
+Assuming `foo.Bar` was not initialized, this assertion will fail with a message of:
 
 > NullReferenceException caused by accessing Value on foo.Bar which was null.
 
@@ -458,7 +458,7 @@ Because of this, you can omit null checks in your assertions while still getting
 
 #### IndexOutOfRangeException
 
-When an IndexOutOfRangeException is thrown because you access an array or list index that is out of bounds, Assertive will try to find the cause of the exception by looking at where you accessed an index that was out of bounds.
+When an `IndexOutOfRangeException` is thrown because you access an array or list index that is out of bounds, Assertive will try to find the cause of the exception by looking at where you accessed an index that was out of bounds.
 
 Example:
 
@@ -476,7 +476,7 @@ Assuming `data` only has a length of 2 but `GetStartIndex()` returned 4, this wi
 
 #### InvalidOperationException caused by Single/First
 
-If you have a sequence that you thought was only going to contain one item but in fact contained multiple, or if you have a sequence that you thought was going to contain something but that was actually empty, an InvalidOperationException will be thrown. Assertive will try to find the cause of this exception and report the contents of the sequence.
+If you have a sequence that you thought was only going to contain one item but in fact contained multiple, or if you have a sequence that you thought was going to contain something but that was actually empty, an `InvalidOperationException` will be thrown. Assertive will try to find the cause of this exception and report the contents of the sequence.
 
 Example:
 
@@ -496,7 +496,7 @@ However if `names` has more than one element:
 
 #### KeyNotFoundException
 
-When a KeyNotFoundException is thrown because you access a dictionary key that doesn't exist, Assertive will identify the missing key and show the available keys in the dictionary.
+When a `KeyNotFoundException` is thrown because you access a dictionary key that doesn't exist, Assertive will identify the missing key and show the available keys in the dictionary.
 
 Example:
 
@@ -518,7 +518,7 @@ This will fail with a message of:
 
 #### InvalidCastException
 
-When an InvalidCastException is thrown because of a failed explicit cast, Assertive will show both the target type and the actual type of the object.
+When an `InvalidCastException` is thrown because of a failed explicit cast, Assertive will show both the target type and the actual type of the object.
 
 Example:
 
@@ -534,7 +534,7 @@ This will fail with a message of:
 
 #### FormatException
 
-When a FormatException is thrown by parsing methods like `int.Parse()` or `DateTime.Parse()`, Assertive will show the string that failed to parse and the expected type.
+When a `FormatException` is thrown by parsing methods like `int.Parse()` or `DateTime.Parse()`, Assertive will show the string that failed to parse and the expected type.
 
 Example:
 
@@ -550,7 +550,7 @@ This will fail with a message of:
 
 #### DivideByZeroException
 
-When a DivideByZeroException is thrown because of integer division or modulo by zero, Assertive will identify which expression evaluated to zero.
+When a `DivideByZeroException` is thrown because of integer division or modulo by zero, Assertive will identify which expression evaluated to zero.
 
 Example:
 
@@ -567,7 +567,7 @@ This will fail with a message of:
 
 #### ArgumentOutOfRangeException
 
-When an ArgumentOutOfRangeException is thrown by methods like `string.Substring()`, Assertive will show the method call, the arguments used, and relevant context like the string length.
+When an `ArgumentOutOfRangeException` is thrown by methods like `string.Substring()`, Assertive will show the method call, the arguments used, and relevant context like the string length.
 
 Example:
 
