@@ -56,11 +56,6 @@ namespace Assertive.ExceptionPatterns
       // Build argument string
       var argsString = BuildArgumentsString(methodCall, visitor);
 
-      // Get parameter name and value from the exception
-      var argException = assertion.Exception as ArgumentOutOfRangeException;
-      var paramName = argException?.ParamName ?? "";
-      var actualValue = argException?.ActualValue;
-
       FormattableString message;
 
       if (instance != null)

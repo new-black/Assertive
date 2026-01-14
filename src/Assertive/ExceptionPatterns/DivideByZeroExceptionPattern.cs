@@ -75,12 +75,9 @@ namespace Assertive.ExceptionPatterns
         }
 
         // Check for divide or modulo operations
-        if (node.NodeType is ExpressionType.Divide or ExpressionType.Modulo)
+        if (node.NodeType is ExpressionType.Divide or ExpressionType.Modulo && ThrowsDivideByZeroException(node))
         {
-          if (ThrowsDivideByZeroException(node))
-          {
-            CauseOfDivideByZero = node;
-          }
+          CauseOfDivideByZero = node;
         }
 
         return result;

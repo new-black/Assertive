@@ -103,12 +103,9 @@ namespace Assertive.ExceptionPatterns
         }
 
         // Check for dictionary indexer access (get_Item)
-        if (node.Method.Name == "get_Item" && node.Object != null && IsDictionaryType(node.Object.Type))
+        if (node.Method.Name == "get_Item" && node.Object != null && IsDictionaryType(node.Object.Type) && ThrowsKeyNotFoundException(node))
         {
-          if (ThrowsKeyNotFoundException(node))
-          {
-            CauseOfKeyNotFound = node;
-          }
+          CauseOfKeyNotFound = node;
         }
 
         return result;

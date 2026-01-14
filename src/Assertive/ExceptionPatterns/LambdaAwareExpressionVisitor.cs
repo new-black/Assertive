@@ -62,13 +62,24 @@ namespace Assertive.ExceptionPatterns
         return false;
       }
 
-      var parameter = lambda.Parameters[0];
+      var itemParameter = lambda.Parameters[0];
+
+      // Some LINQ methods have an overload with (item, index) - e.g., Select((x, i) => ...)
+      var indexParameter = lambda.Parameters.Count > 1 && lambda.Parameters[1].Type == typeof(int)
+        ? lambda.Parameters[1]
+        : null;
+
       var index = 0;
 
       // Iterate through collection to find the item that causes the issue
       foreach (var item in enumerable)
       {
-        _parameterBindings[parameter] = item;
+        _parameterBindings[itemParameter] = item;
+
+        if (indexParameter != null)
+        {
+          _parameterBindings[indexParameter] = index;
+        }
 
         Visit(lambda.Body);
 
@@ -81,7 +92,13 @@ namespace Assertive.ExceptionPatterns
           return true;
         }
 
-        _parameterBindings.Remove(parameter);
+        _parameterBindings.Remove(itemParameter);
+
+        if (indexParameter != null)
+        {
+          _parameterBindings.Remove(indexParameter);
+        }
+
         index++;
       }
 

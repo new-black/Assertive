@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
+using Xunit.Sdk;
 using static Assertive.DSL;
 
 namespace Assertive.Test
@@ -276,6 +277,102 @@ namespace Assertive.Test
         On item [2] of surveys:
         { Name = "foo" }
         """);
+    }
+
+    [Fact]
+    public void CauseOfNullReference_inside_lambda_with_index_parameter()
+    {
+      var surveys = new List<Survey>
+      {
+        new Survey { Category = new Survey.SurveyCategory { ID = 1 } },
+        new Survey { Category = null },
+        new Survey { Category = new Survey.SurveyCategory { ID = 3 } }
+      };
+
+      // Using Select overload with (item, index) to force evaluation of all items
+      ShouldFail(() => surveys.Select((s, i) => s.Category.ID + i).Sum() > 0,
+        """
+        NullReferenceException caused by accessing ID on s.Category which was null.
+
+        On item [1] of surveys:
+        { Name = "foo" }
+        """);
+    }
+
+    [Fact]
+    public void Lambda_with_three_parameters_still_works_when_third_param_not_used_in_failing_expression()
+    {
+      var surveys = new List<Survey>
+      {
+        new Survey { Category = null },  // Null first so it gets evaluated
+        new Survey { Category = new Survey.SurveyCategory { ID = 1 } }
+      };
+
+      // The third parameter (extra) is not used in the expression that fails (s.Category.ID),
+      // so Assertive can still analyze and provide a helpful message
+      ShouldFail(() => surveys.CustomAnyWithThreeParams((s, i, extra) => s.Category.ID > 0),
+        """
+        NullReferenceException caused by accessing ID on s.Category which was null.
+
+        On item [0] of surveys:
+        { Name = "foo" }
+        """);
+    }
+
+    [Fact]
+    public void Lambda_with_three_parameters_falls_back_to_generic_message_when_third_param_causes_exception()
+    {
+      var surveys = new List<Survey>
+      {
+        new Survey { Category = new Survey.SurveyCategory { ID = 1 } }
+      };
+
+      // The third parameter (extra) is null and accessing .Length throws NullReferenceException.
+      // Since Assertive can't bind the third parameter, it can't find the cause and falls back
+      // to a generic exception message. This test verifies Assertive doesn't crash internally.
+      var exception = Xunit.Assert.Throws<XunitException>(() =>
+        Assert.That(() => surveys.CustomAnyWithNullThirdParam((s, i, extra) => extra!.Length > 0)));
+
+      // Verify it's the generic fallback message (no specific cause identified)
+      Xunit.Assert.Contains("Assertion threw System.NullReferenceException", exception.Message);
+      Xunit.Assert.Contains("Object reference not set to an instance of an object", exception.Message);
+    }
+  }
+
+  internal static class ThreeParamLambdaExtensions
+  {
+    /// <summary>
+    /// Test extension method with a 3-parameter lambda to verify Assertive handles it gracefully.
+    /// </summary>
+    public static bool CustomAnyWithThreeParams<T>(this IEnumerable<T> source, Func<T, int, string, bool> predicate)
+    {
+      var index = 0;
+      foreach (var item in source)
+      {
+        if (predicate(item, index, "extra"))
+        {
+          return true;
+        }
+        index++;
+      }
+      return false;
+    }
+
+    /// <summary>
+    /// Test extension method with a 3-parameter lambda where the third param is null.
+    /// </summary>
+    public static bool CustomAnyWithNullThirdParam<T>(this IEnumerable<T> source, Func<T, int, string?, bool> predicate)
+    {
+      var index = 0;
+      foreach (var item in source)
+      {
+        if (predicate(item, index, null))  // Third param is null
+        {
+          return true;
+        }
+        index++;
+      }
+      return false;
     }
   }
 }

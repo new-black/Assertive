@@ -84,12 +84,9 @@ namespace Assertive.ExceptionPatterns
         }
 
         // Check for explicit cast (Convert or ConvertChecked)
-        if (node.NodeType is ExpressionType.Convert or ExpressionType.ConvertChecked)
+        if (node.NodeType is ExpressionType.Convert or ExpressionType.ConvertChecked && ThrowsInvalidCastException(node))
         {
-          if (ThrowsInvalidCastException(node))
-          {
-            CauseOfInvalidCast = node;
-          }
+          CauseOfInvalidCast = node;
         }
 
         return result;
