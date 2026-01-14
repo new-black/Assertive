@@ -5,7 +5,7 @@
     <AssemblyName>Assertive</AssemblyName>
     <PackageId>Assertive</PackageId>
     <Company>New Black</Company>
-    <PackageVersion>0.17.0</PackageVersion>
+    <PackageVersion>0.18.0</PackageVersion>
     <PackageProjectUrl>https://github.com/new-black/Assertive</PackageProjectUrl>
     <RepositoryUrl>https://github.com/new-black/Assertive</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
