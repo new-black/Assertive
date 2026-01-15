@@ -24,11 +24,11 @@ namespace Assertive.Patterns
         // Custom patterns are evaluated first (user-defined, more specific)
         var customPatterns = CustomPatternRegistry.GetPatterns();
 
-        return customPatterns.Concat(BuiltInPatterns).ToArray();
+        return customPatterns.Count == 0 ? _builtInPatterns : customPatterns.Concat(_builtInPatterns).ToArray();
       }
     }
 
-    private static readonly IFriendlyMessagePattern[] BuiltInPatterns =
+    private static readonly IFriendlyMessagePattern[] _builtInPatterns =
     [
       new BoolPattern(),
       new ComparisonPattern(),

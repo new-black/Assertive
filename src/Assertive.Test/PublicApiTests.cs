@@ -102,5 +102,13 @@ namespace Assertive.Test
 
       Assert(() => publicTypes.Count() == 2 && publicTypes.All(t => t.IsAbstract && t.IsSealed));
     }
+    
+    [Fact]
+    public void Only_five_types_are_exposed_publically_in_the_plugin_namespace()
+    {
+      var publicTypes = typeof(Assert).Assembly.GetTypes().Where(t => t is { IsPublic: true, Namespace: "Assertive.Plugin" });
+
+      Assert(() => publicTypes.Count() == 5);
+    }
   }
 }
