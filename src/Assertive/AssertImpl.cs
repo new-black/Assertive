@@ -1,6 +1,5 @@
 using System;
 using System.Linq.Expressions;
-using System.Reflection;
 using System.Threading.Tasks;
 using Assertive.Analyzers;
 using Assertive.Helpers;
@@ -50,19 +49,17 @@ namespace Assertive
       return exceptionToThrow;
     }
 
-    public static async Task<ThrowsResult> Throws(Expression<Func<Task>> expression,
+    public static async Task<ThrowsResult> Throws(Func<Task> action, string actionExpression,
       Type? expectedExceptionType = null, LambdaExpression? exceptionAssertion = null)
     {
       var threw = false;
+      var expressionBody = GetLambdaBody(actionExpression);
 
       Exception? thrownException = null;
-      var bodyExpression = GetBodyExpression(expression);
 
       try
       {
-        var task = (Task)expression.Compile(ShouldUseInterpreter(expression)).DynamicInvoke()!;
-
-        await task;
+        await action();
       }
       catch (Exception ex)
       {
@@ -72,13 +69,13 @@ namespace Assertive
         if (expectedExceptionType != null && !expectedExceptionType.IsInstanceOfType(ex))
         {
           return new ThrowsResult(ExceptionHelper.GetException(
-            $"Expected {ExpressionToString(bodyExpression)} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.GetType().FullName} instead."), thrownException);
+            $"Expected {expressionBody} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.GetType().FullName} instead."), thrownException);
         }
       }
 
       if (!threw)
       {
-        return new ThrowsResult(ExceptionHelper.GetException($"Expected {ExpressionToString(bodyExpression)} to throw an exception, but it did not."), null);
+        return new ThrowsResult(ExceptionHelper.GetException($"Expected {expressionBody} to throw an exception, but it did not."), null);
       }
 
       var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, thrownException!);
@@ -86,25 +83,24 @@ namespace Assertive
       return new ThrowsResult(assertionFailure, thrownException);
     }
 
-    public static ThrowsResult Throws(LambdaExpression expression,
+    public static ThrowsResult Throws(Action action, string actionExpression,
       Type? expectedExceptionType = null, LambdaExpression? exceptionAssertion = null)
     {
       var threw = false;
+      var expressionBody = GetLambdaBody(actionExpression);
       Exception? thrownException = null;
-
-      var bodyExpression = GetBodyExpression(expression);
 
       try
       {
-        expression.Compile(ShouldUseInterpreter(expression)).DynamicInvoke();
+        action();
       }
-      catch (TargetInvocationException ex)
+      catch (Exception ex)
       {
-        thrownException = ex.InnerException;
-        if (expectedExceptionType != null && !expectedExceptionType.IsInstanceOfType(ex.InnerException))
+        thrownException = ex;
+        if (expectedExceptionType != null && !expectedExceptionType.IsInstanceOfType(ex))
         {
           return new ThrowsResult(ExceptionHelper.GetException(
-            $"Expected {ExpressionToString(bodyExpression)} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.InnerException!.GetType().FullName} instead."), thrownException);
+            $"Expected {expressionBody} to throw an exception of type {expectedExceptionType.FullName}, but it threw an exception of type {ex.GetType().FullName} instead."), thrownException);
         }
 
         threw = true;
@@ -112,7 +108,7 @@ namespace Assertive
 
       if (!threw)
       {
-        return new ThrowsResult(ExceptionHelper.GetException($"Expected {ExpressionToString(bodyExpression)} to throw an exception, but it did not."), null);
+        return new ThrowsResult(ExceptionHelper.GetException($"Expected {expressionBody} to throw an exception, but it did not."), null);
       }
 
       var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, thrownException!);
@@ -120,22 +116,16 @@ namespace Assertive
       return new ThrowsResult(assertionFailure, thrownException);
     }
 
-    private static Expression GetBodyExpression(LambdaExpression expression)
+    private static string GetLambdaBody(string expression)
     {
-      Expression bodyExpression;
-
-      if (expression.Body.NodeType == ExpressionType.Convert
-          && expression.Body is UnaryExpression convertExpression
-          && expression.Body.Type == typeof(object))
+      // CallerArgumentExpression captures "() => expr" but we want just "expr"
+      const string lambdaPrefix = "() => ";
+      if (expression.StartsWith(lambdaPrefix))
       {
-        bodyExpression = convertExpression.Operand;
-      }
-      else
-      {
-        bodyExpression = expression.Body;
+        expression = expression.Substring(lambdaPrefix.Length);
       }
 
-      return bodyExpression;
+      return expression;
     }
 
     private static Exception? EvaluateExceptionAssertion(LambdaExpression? exceptionAssertion, Exception exception)
