@@ -74,7 +74,7 @@ namespace Assertive.Analyzers
                    {colors.MetadataHeader("EXCEPTION")}
                    {colors.Actual(originalException.Message)}
                    {colors.MetadataHeader("STACKTRACE")}
-                   {colors.Dimmed(originalException.StackTrace ?? "")}
+                   {colors.Dimmed(FilterStackTrace(originalException.StackTrace))}
                    """);
       }
 
@@ -91,6 +91,23 @@ namespace Assertive.Analyzers
       result.Add(colors.Dimmed(new string('·', 80)));
       
       return string.Join(Environment.NewLine, result) + Environment.NewLine;
+    }
+
+    private static string FilterStackTrace(string? stackTrace)
+    {
+      if (string.IsNullOrEmpty(stackTrace))
+      {
+        return "";
+      }
+
+      var lines = stackTrace.Split(Environment.NewLine, StringSplitOptions.None);
+      var filteredLines = lines.Where(line =>
+        !line.Contains("System.Linq.Expressions.Interpreter.") &&
+        !line.Contains("System.Dynamic.Utils.") &&
+        !line.Contains("Assertive.AssertImpl.") &&
+        !line.Contains("Assertive.Assert."));
+
+      return string.Join(Environment.NewLine, filteredLines);
     }
 
     private static string FormatLocals(System.Collections.Generic.List<LocalVariable> locals, Configuration.ColorScheme colors)

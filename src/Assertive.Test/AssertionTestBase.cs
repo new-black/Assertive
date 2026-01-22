@@ -1,5 +1,6 @@
 using System;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -9,7 +10,7 @@ namespace Assertive.Test
   {
     private static partial class AnsiHelper
     {
-      
+
       [GeneratedRegex(@"\u001b\[[0-9;]*[A-Za-z]")]
       public static partial Regex AnsiRegex();
 
@@ -19,13 +20,13 @@ namespace Assertive.Test
       return AnsiHelper.AnsiRegex().Replace(input, "");
     }
 
-    protected void ShouldThrow(Expression<Func<object>> assertion, string expectedMessage)
+    protected void ShouldThrow(Action action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "")
     {
       bool throws = false;
 
       try
       {
-        Assert.Throws(assertion);
+        Assert.Throws(action, null, actionExpression);
         Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
@@ -38,13 +39,13 @@ namespace Assertive.Test
       Xunit.Assert.True(throws);
     }
 
-    protected async Task ShouldThrow(Expression<Func<Task>> assertion, string expectedMessage)
+    protected void ShouldThrow(Func<object?> func, string expectedMessage, [CallerArgumentExpression(nameof(func))] string funcExpression = "")
     {
       bool throws = false;
 
       try
       {
-        await Assert.Throws(assertion);
+        Assert.Throws(func, null, funcExpression);
         Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
@@ -57,13 +58,32 @@ namespace Assertive.Test
       Xunit.Assert.True(throws);
     }
 
-    protected async Task ShouldThrow<T>(Expression<Func<Task>> assertion, string expectedMessage) where T : Exception
+    protected async Task ShouldThrow(Func<Task> action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "")
     {
       bool throws = false;
 
       try
       {
-        await Assert.Throws<T>(assertion);
+        await Assert.Throws(action, null, actionExpression);
+        Xunit.Assert.Fail("Should have thrown");
+      }
+      catch (Exception ex)
+      {
+        throws = true;
+
+        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+      }
+
+      Xunit.Assert.True(throws);
+    }
+
+    protected async Task ShouldThrow<T>(Func<Task> action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "") where T : Exception
+    {
+      bool throws = false;
+
+      try
+      {
+        await Assert.Throws<T>(action, null, actionExpression);
         Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
@@ -75,13 +95,31 @@ namespace Assertive.Test
       Xunit.Assert.True(throws);
     }
 
-    protected void ShouldThrow<T>(Expression<Func<object>> assertion, string expectedMessage) where T : Exception
+    protected void ShouldThrow<T>(Action action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "") where T : Exception
     {
       bool throws = false;
 
       try
       {
-        Assert.Throws<T>(assertion);
+        Assert.Throws<T>(action, null, actionExpression);
+        Xunit.Assert.Fail("Should have thrown");
+      }
+      catch (Exception ex)
+      {
+        throws = true;
+        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+      }
+
+      Xunit.Assert.True(throws);
+    }
+
+    protected void ShouldThrow<T>(Func<object?> func, string expectedMessage, [CallerArgumentExpression(nameof(func))] string funcExpression = "") where T : Exception
+    {
+      bool throws = false;
+
+      try
+      {
+        Assert.Throws<T>(func, null, funcExpression);
         Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
