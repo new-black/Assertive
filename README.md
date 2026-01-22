@@ -17,7 +17,7 @@ dotnet add package Assertive
 Or add to your project file:
 
 ```xml
-<PackageReference Include="Assertive" Version="0.18.0" />
+<PackageReference Include="Assertive" Version="0.19.0" />
 ```
 
 For [snapshot testing](#snapshot-testing) with xUnit, also add:
