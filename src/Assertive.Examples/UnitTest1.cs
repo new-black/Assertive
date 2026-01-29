@@ -1,4 +1,5 @@
 namespace Assertive.Examples;
+
 using static Assertive.DSL;
 
 public class Tests
@@ -82,7 +83,8 @@ public class Tests
   [Test]
   public void Test6()
   {
-    var customers = new List<Customer> { 
+    var customers = new List<Customer>
+    {
       new Customer { ID = 1, FirstName = "Bob" },
       new Customer { ID = 2, FirstName = "John" },
       new Customer { ID = 3, FirstName = "Alice" }
@@ -92,13 +94,45 @@ public class Tests
 
     Assert(() => customers.Count == expectedCount);
   }
-  
+
   [Test]
   public void Test7()
   {
     int a = 20;
     int b = 24;
-    
+
     Assert(() => a == b);
+  }
+
+  [Test]
+  public void Test8()
+  {
+    var actual = """
+                 The quick brown fox jumps over the lazy dog
+                 The quick brown fox jumps over the lazy dog
+                 The quick brown fox jumps over the lazy dog
+                 """;
+    var expected = """
+                   The quick brown fox jumps over the lazy dog
+                   The quick brown cat jumps over the lazy godF
+                   The quick brown fox jumps over the lazy dog
+                   """;
+    Assert(() => actual == expected);
+  }
+  
+  [Test]
+  public void Test9()
+  {
+    var actual = """
+                 The quick brown fox jumps over the lazy dog The quick brown fox jumps over the lazy dog The quick brown fox jumps over the lazy dog
+                 The quick brown fox jumps over the lazy dog The quick brown fox jumps over the lazy dog The quick brown fox jumps over the lazy dog
+                 The quick brown fox jumps over the lazy dog The quick brown fox jumps over the lazy dog The quick brown fox jumps over the lazy dog
+                 """;
+    var expected = """
+                   The quick brown fox jumps over the lazy dog The quick brown fox jumps over the lazy dog The quick brown fox jumps over the lazy dog
+                   The quick brown fox jumps over the lazy dog The quick brown cat jumps over the lazy godF The quick brown fox jumps over the lazy dog
+                   The quick brown fox jumps over the lazy dog The quick brown fox jumps over the lazy dog The quick brown fox jumps over the lazy dog
+                   """;
+    Assert(() => actual == expected);
   }
 }

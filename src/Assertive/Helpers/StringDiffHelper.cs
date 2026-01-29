@@ -400,6 +400,15 @@ namespace Assertive.Helpers
     private static string FormatContext(string value, Configuration.ColorScheme colors)
     {
       var escaped = EscapeForDisplay(value);
+
+      const int maxLength = 80;
+      const int contextLength = 38;
+
+      if (escaped.Length > maxLength)
+      {
+        escaped = escaped[..contextLength] + "..." + escaped[^contextLength..];
+      }
+
       return colors.Enabled ? colors.DiffContext(escaped) : escaped;
     }
 

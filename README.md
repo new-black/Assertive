@@ -349,7 +349,8 @@ To go even further, you can register a validator for each placeholder type:
 
 ```csharp
 Configuration.Snapshots.Normalization
-  .RegisterPlaceholderValidator("price", value => decimal.TryParse(value, out var price) && price > 0, "Price must be a positive number.");
+  .RegisterPlaceholderValidator("price", value => 
+    decimal.TryParse(value, out var price) && price > 0, "Price must be a positive number.");
 ```
 
 #### Advanced configuration
@@ -372,13 +373,16 @@ When the actual object has properties that don't exist in the expected snapshot,
 
 ```csharp
 // Fail the test (default)
-Configuration.Snapshots.ExtraneousProperties = (name, value) => ExtraneousPropertiesOptions.Disallow;
+Configuration.Snapshots.ExtraneousProperties = (name, value) => 
+    ExtraneousPropertiesOptions.Disallow;
 
 // Ignore extra properties
-Configuration.Snapshots.ExtraneousProperties = (name, value) => ExtraneousPropertiesOptions.Ignore;
+Configuration.Snapshots.ExtraneousProperties = (name, value) => 
+    ExtraneousPropertiesOptions.Ignore;
 
 // Auto-update the expected file with new properties
-Configuration.Snapshots.ExtraneousProperties = (name, value) => ExtraneousPropertiesOptions.AutomaticUpdate;
+Configuration.Snapshots.ExtraneousProperties = (name, value) => 
+    ExtraneousPropertiesOptions.AutomaticUpdate;
 ```
 
 **Custom exception rendering:**
@@ -410,7 +414,8 @@ When you need to regenerate all expected files (e.g., after a major refactoring)
 Configuration.Snapshots.TreatAllSnapshotsAsCorrect = true;
 ```
 
-This will overwrite ALL expected files with actual values - both new and existing. Remember to set it back to `false` after regenerating.
+This will overwrite ALL expected files with actual values - both new and existing. Remember to set it back to `false` after regenerating. Then, simply check the diff in whatever source-control tool you use
+to check that the new expected files match your assumptions.
 
 **Auto-accepting new snapshots only:**
 
@@ -588,7 +593,8 @@ In case you want to add more context to your assertion, or to document the inten
 Example:
 
 ```csharp
-Assert(() => order.Amount < 100, "Expected the discount on the order to reduce the amount to below 100");
+Assert(() => order.Amount < 100, 
+    "Expected the discount on the order to reduce the amount to below 100");
 ```
 
 Additionally, instead of a string, any object can be provided to provide more context:
@@ -783,7 +789,8 @@ Configuration.Colors.UseSyntaxHighlighting = false;
 By default, Assertive outputs the entire serialized value of objects in Expected/Actual sections. For large objects, this can produce very long output. You can limit the output length:
 
 ```csharp
-// Limit serialized values to 500 characters (values exceeding this will be truncated with "...")
+// Limit serialized values to 500 characters 
+// (values exceeding this will be truncated with "...")
 Configuration.Output.MaxValueLength = 500;
 
 // Unlimited output (default)

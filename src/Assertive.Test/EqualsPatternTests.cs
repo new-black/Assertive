@@ -391,8 +391,10 @@ Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
       }
     }
 
-    [Fact]
-    public void String_diff_limits_context_for_many_lines()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void String_diff_limits_context_for_many_lines(bool colorsEnabled)
     {
       var actualLines = Enumerable.Range(1, 60).Select(i => $"Line {i}").ToArray();
       actualLines[5] = "Line six (actual)";
@@ -409,7 +411,7 @@ Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
 
       var originalColors = Configuration.Colors.Enabled;
 
-      Configuration.Colors.Enabled = false;
+      Configuration.Colors.Enabled = colorsEnabled;
 
       try
       {
@@ -418,14 +420,14 @@ Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
 
         var diffBlock = message.Split("String diff (expected vs actual):", StringSplitOptions.None)[1];
         var lines = diffBlock.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        Xunit.Assert.Contains(lines, l => l.Contains("Line six", StringComparison.OrdinalIgnoreCase));
-        Xunit.Assert.Contains(lines, l => l.Contains("Line thirty-one", StringComparison.OrdinalIgnoreCase));
-        Xunit.Assert.Contains(lines, l => l.Contains("Line fifty-six", StringComparison.OrdinalIgnoreCase));
+        Assert(() => lines.Any(l => l.Contains("Line six", StringComparison.OrdinalIgnoreCase)));
+        Assert(() => lines.Any(l => l.Contains("Line thirty-one", StringComparison.OrdinalIgnoreCase)));
+        Assert(() => lines.Any(l => l.Contains("Line fifty-six", StringComparison.OrdinalIgnoreCase)));
 
         // Ensure we didn't dump all intervening unchanged lines
-        Xunit.Assert.Contains(lines, l => l.Contains("..."));
-        Xunit.Assert.DoesNotContain(lines, l => l.Contains("Line 1"));
-        Xunit.Assert.DoesNotContain(lines, l => l.Contains("Line 60"));
+        Assert(() => lines.Any(l => l.Contains("...")));
+        Assert(() => !lines.Any(l => l.Contains("Line 1")));
+        Assert(() => !lines.Any(l => l.Contains("Line 60")));
       }
       finally
       {
@@ -450,6 +452,41 @@ Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
         Xunit.Assert.Contains("String diff (expected vs actual):", ex.Message);
         Xunit.Assert.Contains("\\r", ex.Message);
         Xunit.Assert.Contains("\\n", ex.Message);
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void String_diff_truncates_long_unchanged_lines()
+    {
+      var longLine = "Prefix " + new string('x', 100) + " Suffix";
+      var actual = longLine + "\nChanged line actual\n" + longLine;
+      var expected = longLine + "\nChanged line expected\n" + longLine;
+
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+
+      try
+      {
+        var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert.That(() => actual == expected));
+        var message = StripAnsi(ex.Message);
+
+        var lines = message.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var unchangedLines = lines.Where(l => l.StartsWith("1:") || l.StartsWith("3:")).ToList();
+
+        // Unchanged lines should be truncated and contain ellipsis
+        Assert(() => unchangedLines.Count >= 2);
+        foreach (var line in unchangedLines)
+        {
+          Assert(() => line.Contains("..."));
+          Assert(() => line.Contains("Prefix"));
+          Assert(() => line.Contains("Suffix"));
+          // Should not contain the full 100-char run of x's
+          Assert(() => !line.Contains(new string('x', 50)));
+        }
       }
       finally
       {

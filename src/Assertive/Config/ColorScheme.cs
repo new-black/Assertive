@@ -199,7 +199,7 @@ namespace Assertive.Config
       {
         if (!Enabled) return "...";
 
-        return ApplyColor("⋯", $"{Dim}{BrightBlack}");
+        return ApplyColor("...", $"{Dim}{BrightBlack}");
       }
 
       /// <summary>
