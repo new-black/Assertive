@@ -1,3 +1,5 @@
+using Assertive.Config;
+
 namespace Assertive.Test.NUnit;
 
 public class Tests
@@ -51,12 +53,12 @@ public class Tests
     }
     catch(Exception ex)
     {
-      DSL.Assert(() => ex.Message.Contains("""
+      DSL.Assert(() =>  ex.Message.Contains(Configuration.ColorScheme.NormalizeLineEndings("""
                                             [EXPECTED]
                                             expected: "def"
                                             [ACTUAL]
                                             expected: "abc"
-                                            """));
+                                            """)));
     }
   }
 }

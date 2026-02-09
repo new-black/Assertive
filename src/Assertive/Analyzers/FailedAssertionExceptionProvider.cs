@@ -89,8 +89,10 @@ namespace Assertive.Analyzers
       }
 
       result.Add(colors.Dimmed(new string('·', 80)));
-      
-      return string.Join(Environment.NewLine, result) + Environment.NewLine;
+
+      var output = string.Join(Environment.NewLine, result) + Environment.NewLine;
+
+      return Configuration.ColorScheme.NormalizeLineEndings(output);
     }
 
     private static string FilterStackTrace(string? stackTrace)

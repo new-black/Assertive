@@ -1,0 +1,158 @@
+static class Assert
+  static void Snapshot(object snapshot, AssertSnapshotOptions options, string expression, string sourceFile)
+  static void That(Expression<Func<bool>> assertion)
+  static void That(Expression<Func<bool>> assertion, object message)
+  static void That(Expression<Func<bool>> assertion, Expression<Func<object>> context)
+  static void That(Expression<Func<bool>> assertion, object message, Expression<Func<object>> context)
+  static Exception Throws(Action action, Expression<Func<Exception, bool>> exceptionAssertion, string actionExpression)
+  static TException Throws<TException>(Action action, Expression<Func<TException, bool>> exceptionAssertion, string actionExpression)
+  static Exception Throws(Func<object> func, Expression<Func<Exception, bool>> exceptionAssertion, string funcExpression)
+  static TException Throws<TException>(Func<object> func, Expression<Func<TException, bool>> exceptionAssertion, string funcExpression)
+  static Task<Exception> Throws(Func<Task> action, Expression<Func<Exception, bool>> exceptionAssertion, string actionExpression)
+  static Task<TException> Throws<TException>(Func<Task> action, Expression<Func<TException, bool>> exceptionAssertion, string actionExpression)
+
+class AssertSnapshotOptions
+  .ctor()
+  CompareSnapshotsConfiguration Configuration { get; set; }
+  string SnapshotIdentifier { get; set; }
+
+static class Configuration
+  static ColorScheme Colors { get; }
+  static string ExpressionQuotationPattern { get; set; }
+  static OutputConfiguration Output { get; }
+  static PatternsConfiguration Patterns { get; }
+  static CompareSnapshotsConfiguration Snapshots { get; }
+
+class ColorScheme
+  .ctor()
+  bool Enabled { get; set; }
+  bool UseSyntaxHighlighting { get; set; }
+
+class CompareSnapshotsConfiguration
+  .ctor()
+  bool AcceptNewSnapshots { get; set; }
+  ExceptionRenderer ExceptionRenderer { get; set; }
+  bool ExcludeNullValues { get; set; }
+  ExpectedFileDirectoryResolver ExpectedFileDirectoryResolver { get; set; }
+  ExtraneousProperties ExtraneousProperties { get; set; }
+  LaunchDiffTool LaunchDiffTool { get; set; }
+  NormalizationConfiguration Normalization { get; set; }
+  ShouldIgnore ShouldIgnore { get; set; }
+  bool TreatAllSnapshotsAsCorrect { get; set; }
+  CompareSnapshotsConfiguration <Clone>$()
+  bool Equals(object obj)
+  bool Equals(CompareSnapshotsConfiguration other)
+  int GetHashCode()
+  string ToString()
+
+class NormalizationConfiguration
+  .ctor()
+  bool NormalizeDateTime { get; set; }
+  bool NormalizeGuid { get; set; }
+  string PlaceholderPrefix { get; set; }
+  IEnumerable<PlaceholderValidatorDefinition> PlaceholderValidators { get; set; }
+  ValueRenderer ValueRenderer { get; set; }
+  NormalizationConfiguration <Clone>$()
+  bool Equals(object obj)
+  bool Equals(NormalizationConfiguration other)
+  int GetHashCode()
+  void RegisterPlaceholderValidator(string placeholder, PlaceholderValidator validator, string invalidValueMessage)
+  string ToString()
+
+class PlaceholderValidatorDefinition
+  .ctor(string Placeholder, PlaceholderValidator Validator, string InvalidValueMessage)
+  string InvalidValueMessage { get; set; }
+  string Placeholder { get; set; }
+  PlaceholderValidator Validator { get; set; }
+  PlaceholderValidatorDefinition <Clone>$()
+  void Deconstruct(ref string Placeholder, ref PlaceholderValidator Validator, ref string InvalidValueMessage)
+  bool Equals(object obj)
+  bool Equals(PlaceholderValidatorDefinition other)
+  int GetHashCode()
+  string ToString()
+
+delegate object ExceptionRenderer(JsonPropertyInfo property, object obj, Exception exception)
+
+delegate string ExpectedFileDirectoryResolver(MethodInfo testMethod, FileInfo sourceFileLocation)
+
+delegate ExtraneousPropertiesOptions ExtraneousProperties(string propertyName, object value)
+
+enum ExtraneousPropertiesOptions
+  Disallow
+  Ignore
+  AutomaticUpdate
+
+delegate void LaunchDiffTool(string actual, string expected)
+
+class OutputConfiguration
+  .ctor()
+  int? MaxValueLength { get; set; }
+
+class PatternsConfiguration
+  .ctor()
+  void Clear()
+  void Register(string name, PatternDefinition pattern)
+  bool Unregister(string name)
+
+delegate bool PlaceholderValidator(string value)
+
+delegate bool ShouldIgnore(JsonPropertyInfo property, object obj, object value)
+
+delegate object ValueRenderer(JsonPropertyInfo property, object obj, object value)
+
+static class ExpressionQuotationPatterns
+  static const string AngleBrackets
+  static const string Backticks
+  static const string CurlyBrackets
+  static const string DoubleQuotes
+  static const string None
+  static const string RoundBrackets
+  static const string SingleQuotes
+  static const string SquareBrackets
+
+static class DSL
+  static void Assert(Expression<Func<bool>> assertion)
+  static void Assert(Expression<Func<bool>> assertion, object message)
+  static void Assert(Expression<Func<bool>> assertion, Expression<Func<object>> context)
+  static void Assert(Expression<Func<bool>> assertion, object message, Expression<Func<object>> context)
+  static void Assert(object snapshot, AssertSnapshotOptions options, string expression, string sourceFile)
+  static Exception Throws(Action action, Expression<Func<Exception, bool>> exceptionAssertion, string actionExpression)
+  static TException Throws<TException>(Action action, Expression<Func<TException, bool>> exceptionAssertion, string actionExpression)
+  static Exception Throws(Func<object> func, Expression<Func<Exception, bool>> exceptionAssertion, string funcExpression)
+  static TException Throws<TException>(Func<object> func, Expression<Func<TException, bool>> exceptionAssertion, string funcExpression)
+  static Task<TException> Throws<TException>(Func<Task> action, Expression<Func<TException, bool>> exceptionAssertion, string actionExpression)
+  static Task<Exception> Throws(Func<Task> action, Expression<Func<Exception, bool>> exceptionAssertion, string actionExpression)
+
+class UnquotedExpression
+  .ctor(Expression expression)
+  Expression Expression { get; }
+
+class MatchPredicate
+  .ctor()
+  string DeclaringType { get; set; }
+  string InstanceType { get; set; }
+  MethodMatch Method { get; set; }
+  string Namespace { get; set; }
+  PropertyMatch Property { get; set; }
+
+class MethodMatch
+  .ctor()
+  bool? IsExtension { get; set; }
+  string Name { get; set; }
+  int? ParameterCount { get; set; }
+
+class OutputDefinition
+  .ctor()
+  string Actual { get; set; }
+  string Expected { get; set; }
+
+class PatternDefinition
+  .ctor()
+  bool AllowNegation { get; set; }
+  MatchPredicate[] Match { get; set; }
+  OutputDefinition Output { get; set; }
+  OutputDefinition OutputWhenNegated { get; set; }
+
+class PropertyMatch
+  .ctor()
+  string Name { get; set; }

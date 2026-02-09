@@ -94,16 +94,32 @@ namespace Assertive.Config
       /// </summary>
       private string ApplyColor(string text, string colorCodes)
       {
-        if (!Enabled) return text;
+        if (!Enabled)
+        {
+          return text;
+        }
+
         return $"{colorCodes}{text}{Reset}";
       }
 
       /// <summary>
+      /// Normalizes line endings to \r\n for consistent rendering across environments.
+      /// </summary>
+      internal static string NormalizeLineEndings(string text)
+      {
+        return text.Replace("\r\n", "\n").Replace("\n", "\r\n");
+      }
+
+
+      /// <summary>
       /// Creates the "EXPECTED" header with fancy styling.
       /// </summary>
-      public string ExpectedHeader()
+      internal string ExpectedHeader()
       {
-        if (!Enabled) return "[EXPECTED]";
+        if (!Enabled)
+        {
+          return "[EXPECTED]";
+        }
 
         // Green background with black text, bold
         var header = ApplyColor(" ✓ EXPECTED".PadRight(80, ' '), $"{Bold}{Black}{BgBrightGreen}");
@@ -113,9 +129,12 @@ namespace Assertive.Config
       /// <summary>
       /// Creates the "ACTUAL" header with fancy styling.
       /// </summary>
-      public string ActualHeader()
+      internal string ActualHeader()
       {
-        if (!Enabled) return "[ACTUAL]";
+        if (!Enabled)
+        {
+          return "[ACTUAL]";
+        }
 
         // Red background with white text, bold
         var header = ApplyColor(" ✗ ACTUAL".PadRight(80, ' '), $"{Bold}{BrightWhite}{BgBrightRed}");
@@ -125,9 +144,12 @@ namespace Assertive.Config
       /// <summary>
       /// Highlights the expected value.
       /// </summary>
-      public string Expected(string text)
+      internal string Expected(string text)
       {
-        if (!Enabled) return text;
+        if (!Enabled)
+        {
+          return text;
+        }
 
         return ApplyColor(text, $"{Green}");
       }
@@ -135,9 +157,12 @@ namespace Assertive.Config
       /// <summary>
       /// Highlights the actual value.
       /// </summary>
-      public string Actual(string text)
+      internal string Actual(string text)
       {
-        if (!Enabled) return text;
+        if (!Enabled)
+        {
+          return text;
+        }
 
         return ApplyColor(text, $"{Red}");
       }
@@ -145,9 +170,12 @@ namespace Assertive.Config
       /// <summary>
       /// Highlights a difference or error.
       /// </summary>
-      public string Diff(string text)
+      internal string Diff(string text)
       {
-        if (!Enabled) return text;
+        if (!Enabled)
+        {
+          return text;
+        }
 
         return ApplyColor(text, $"{Bold}{BrightYellow}{BgBrightBlack}");
       }
@@ -155,9 +183,12 @@ namespace Assertive.Config
       /// <summary>
       /// Highlights important information.
       /// </summary>
-      public string Highlight(string text)
+      internal string Highlight(string text)
       {
-        if (!Enabled) return text;
+        if (!Enabled)
+        {
+          return text;
+        }
 
         return ApplyColor(text, $"{Bold}{BrightCyan}");
       }
@@ -165,18 +196,25 @@ namespace Assertive.Config
       /// <summary>
       /// Dims less important text.
       /// </summary>
-      public string Dimmed(string text)
+      internal string Dimmed(string text)
       {
-        if (!Enabled) return text;
+        if (!Enabled)
+        {
+          return text;
+        }
+
         return ApplyColor(text, Dim);
       }
 
       /// <summary>
       /// Formats a string diff section header.
       /// </summary>
-      public string DiffHeader(string text)
+      internal string DiffHeader(string text)
       {
-        if (!Enabled) return text;
+        if (!Enabled)
+        {
+          return text;
+        }
 
         var header = ApplyColor(text, $"{Bold}{BrightYellow}");
         return header;
@@ -185,9 +223,12 @@ namespace Assertive.Config
       /// <summary>
       /// Highlights matching context in diff.
       /// </summary>
-      public string DiffContext(string text)
+      internal string DiffContext(string text)
       {
-        if (!Enabled) return text;
+        if (!Enabled)
+        {
+          return text;
+        }
 
         return ApplyColor(text, $"{Dim}{BrightBlack}");
       }
@@ -195,19 +236,25 @@ namespace Assertive.Config
       /// <summary>
       /// Formats ellipsis in diff.
       /// </summary>
-      public string DiffEllipsis()
+      internal string DiffEllipsis()
       {
-        if (!Enabled) return "...";
+        if (!Enabled)
+        {
+          return "...";
+        }
 
-        return ApplyColor("⋯", $"{Dim}{BrightBlack}");
+        return ApplyColor("...", $"{Dim}{BrightBlack}");
       }
 
       /// <summary>
       /// Formats the "Expected:" label in diff.
       /// </summary>
-      public string DiffExpectedLabel()
+      internal string DiffExpectedLabel()
       {
-        if (!Enabled) return "Expected:";
+        if (!Enabled)
+        {
+          return "Expected:";
+        }
 
         return ApplyColor("  Expected ", $"{Bold}{BrightWhite}{BgGreen}") + " ";
       }
@@ -215,9 +262,12 @@ namespace Assertive.Config
       /// <summary>
       /// Formats the "Actual:" label in diff.
       /// </summary>
-      public string DiffActualLabel()
+      internal string DiffActualLabel()
       {
-        if (!Enabled) return "Actual:";
+        if (!Enabled)
+        {
+          return "Actual:";
+        }
 
         return ApplyColor("  Actual   ", $"{Bold}{BrightWhite}{BgRed}") + " ";
       }
@@ -225,9 +275,12 @@ namespace Assertive.Config
       /// <summary>
       /// Formats a removed line in a diff.
       /// </summary>
-      public string DiffRemovedLine(string text)
+      internal string DiffRemovedLine(string text)
       {
-        if (!Enabled) return text;
+        if (!Enabled)
+        {
+          return text;
+        }
 
         return ApplyColor(text, $"{Dim}{BrightBlack}{BgRed}");
       }
@@ -235,9 +288,12 @@ namespace Assertive.Config
       /// <summary>
       /// Formats an added line in a diff.
       /// </summary>
-      public string DiffAddedLine(string text)
+      internal string DiffAddedLine(string text)
       {
-        if (!Enabled) return text;
+        if (!Enabled)
+        {
+          return text;
+        }
 
         return ApplyColor(text, $"{Dim}{BrightBlack}{BgGreen}");
       }
@@ -251,7 +307,10 @@ namespace Assertive.Config
 
       internal string ApplyBackground(string text, string backgroundCodes)
       {
-        if (!Enabled) return text;
+        if (!Enabled)
+        {
+          return text;
+        }
 
         var rebased = text.Replace(ResetCode, $"{ResetCode}{backgroundCodes}");
         return $"{backgroundCodes}{rebased}{ResetCode}";
@@ -261,14 +320,22 @@ namespace Assertive.Config
       {
         static bool IsTruthy(string? value)
         {
-          if (string.IsNullOrEmpty(value)) return false;
+          if (string.IsNullOrEmpty(value))
+          {
+            return false;
+          }
+
           return !value.Equals("false", StringComparison.OrdinalIgnoreCase)
                  && !value.Equals("0", StringComparison.OrdinalIgnoreCase);
         }
 
         static bool IsFalsey(string? value)
         {
-          if (string.IsNullOrEmpty(value)) return false;
+          if (string.IsNullOrEmpty(value))
+          {
+            return false;
+          }
+
           return value.Equals("false", StringComparison.OrdinalIgnoreCase)
                  || value.Equals("0", StringComparison.OrdinalIgnoreCase);
         }
@@ -276,29 +343,108 @@ namespace Assertive.Config
         static bool IsSet(string? value) => !string.IsNullOrEmpty(value);
 
         var overrideColors = Environment.GetEnvironmentVariable("ASSERTIVE_COLORS_ENABLED");
-        if (IsTruthy(overrideColors)) return true;
-        if (IsFalsey(overrideColors)) return false;
-        
+        if (IsTruthy(overrideColors))
+        {
+          return true;
+        }
+
+        if (IsFalsey(overrideColors))
+        {
+          return false;
+        }
+
         var nunitIsActive = TestFrameworkHelper.TryGetType("nunit.framework", "NUnit.Framework.AssertionException") != null;
 
-        if (nunitIsActive) return false;
+        if (nunitIsActive)
+        {
+          return false;
+        }
 
-        if (Environment.GetEnvironmentVariable("NO_COLOR") != null) return false;
-        if (IsTruthy(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"))) return false;
-        if (IsTruthy(Environment.GetEnvironmentVariable("CI"))) return false;
-        if (IsTruthy(Environment.GetEnvironmentVariable("TF_BUILD"))) return false; // Azure Pipelines
-        if (IsSet(Environment.GetEnvironmentVariable("BUILD_BUILDID"))) return false; // Azure Pipelines legacy
-        if (IsTruthy(Environment.GetEnvironmentVariable("GITLAB_CI"))) return false;
-        if (IsTruthy(Environment.GetEnvironmentVariable("CIRCLECI"))) return false;
-        if (IsTruthy(Environment.GetEnvironmentVariable("TRAVIS"))) return false;
-        if (IsSet(Environment.GetEnvironmentVariable("JENKINS_HOME"))) return false;
-        if (IsSet(Environment.GetEnvironmentVariable("HUDSON_URL"))) return false;
-        if (IsTruthy(Environment.GetEnvironmentVariable("TEAMCITY_VERSION"))) return false;
-        if (IsTruthy(Environment.GetEnvironmentVariable("BUILDKITE"))) return false;
-        if (IsTruthy(Environment.GetEnvironmentVariable("DRONE"))) return false;
-        if (IsTruthy(Environment.GetEnvironmentVariable("APPVEYOR"))) return false;
-        if (IsTruthy(Environment.GetEnvironmentVariable("BITBUCKET_BUILD_NUMBER"))) return false;
-        if (IsTruthy(Environment.GetEnvironmentVariable("BITBUCKET_PIPELINE_UUID"))) return false;
+        // Visual Studio's test output doesn't render ANSI colors correctly
+        if (IsSet(Environment.GetEnvironmentVariable("VisualStudioVersion")))
+        {
+          return false;
+        }
+
+        if (Environment.GetEnvironmentVariable("NO_COLOR") != null)
+        {
+          return false;
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")))
+        {
+          return false;
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("CI")))
+        {
+          return false;
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("TF_BUILD")))
+        {
+          return false; // Azure Pipelines
+        }
+
+        if (IsSet(Environment.GetEnvironmentVariable("BUILD_BUILDID")))
+        {
+          return false; // Azure Pipelines legacy
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("GITLAB_CI")))
+        {
+          return false;
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("CIRCLECI")))
+        {
+          return false;
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("TRAVIS")))
+        {
+          return false;
+        }
+
+        if (IsSet(Environment.GetEnvironmentVariable("JENKINS_HOME")))
+        {
+          return false;
+        }
+
+        if (IsSet(Environment.GetEnvironmentVariable("HUDSON_URL")))
+        {
+          return false;
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("TEAMCITY_VERSION")))
+        {
+          return false;
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("BUILDKITE")))
+        {
+          return false;
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("DRONE")))
+        {
+          return false;
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("APPVEYOR")))
+        {
+          return false;
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("BITBUCKET_BUILD_NUMBER")))
+        {
+          return false;
+        }
+
+        if (IsTruthy(Environment.GetEnvironmentVariable("BITBUCKET_PIPELINE_UUID")))
+        {
+          return false;
+        }
 
         return true;
       }
@@ -306,9 +452,12 @@ namespace Assertive.Config
       /// <summary>
       /// Formats a metadata section header (Assertion, Locals, Message, etc.)
       /// </summary>
-      public string MetadataHeader(string header)
+      internal string MetadataHeader(string header)
       {
-        if (!Enabled) return $"[{header}]";
+        if (!Enabled)
+        {
+          return $"[{header}]";
+        }
 
         var icon = header switch
         {
@@ -323,9 +472,13 @@ namespace Assertive.Config
       /// <summary>
       /// Formats expression code with C# syntax highlighting.
       /// </summary>
-      public string Expression(string expression)
+      internal string Expression(string expression)
       {
-        if (!Enabled || !UseSyntaxHighlighting) return expression;
+        if (!Enabled || !UseSyntaxHighlighting)
+        {
+          return expression;
+        }
+
         return HighlightCSharpSyntax(expression);
       }
 
@@ -512,9 +665,12 @@ namespace Assertive.Config
       /// <summary>
       /// Formats a local variable name.
       /// </summary>
-      public string LocalName(string name)
+      internal string LocalName(string name)
       {
-        if (!Enabled) return name;
+        if (!Enabled)
+        {
+          return name;
+        }
 
         return ApplyColor(name, $"{Bold}{BrightMagenta}");
       }
@@ -522,9 +678,12 @@ namespace Assertive.Config
       /// <summary>
       /// Formats a local variable value.
       /// </summary>
-      public string LocalValue(string value)
+      internal string LocalValue(string value)
       {
-        if (!Enabled) return value;
+        if (!Enabled)
+        {
+          return value;
+        }
 
         return ApplyColor(value, $"{BrightWhite}");
       }

@@ -99,7 +99,10 @@ namespace Assertive.ExceptionPatterns
 
       for (int i = 0; i < methodCall.Arguments.Count; i++)
       {
-        if (i > 0) args.Append(", ");
+        if (i > 0)
+        {
+          args.Append(", ");
+        }
 
         var arg = methodCall.Arguments[i];
 

@@ -17,7 +17,9 @@ namespace Assertive.Test
     }
     protected static string StripAnsi(string input)
     {
-      return AnsiHelper.AnsiRegex().Replace(input, "");
+      // Strip ANSI codes and normalize line endings to \n for consistent test comparisons
+      var stripped = AnsiHelper.AnsiRegex().Replace(input, "");
+      return stripped.Replace("\r\n", "\n").Replace("\r", "\n");
     }
 
     protected void ShouldThrow(Action action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "")

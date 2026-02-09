@@ -38,7 +38,7 @@ internal partial class AssertImpl
   private static readonly ConditionalWeakTable<object, AssertionState> _assertionStates = new();
 
   private static string GetFileName(CurrentTestInfo currentTestInfo, string expression, AssertionState assertionState,
-    AssertSnapshotOptions? options, SnapshotType type)
+    AssertSnapshotOptions? options, SnapshotType type, bool isStringSnapshot = false)
   {
     string Identifier()
     {
@@ -62,8 +62,9 @@ internal partial class AssertImpl
       return $"{currentTestInfo.Name}({string.Join(", ", arguments)})";
     }
 
+    var extension = isStringSnapshot ? "txt" : "json";
     return EscapeFileName(
-      $"{currentTestInfo.ClassName}.{TestName()}#{Identifier()}.{(type == SnapshotType.Actual ? "actual" : "expected")}.json");
+      $"{currentTestInfo.ClassName}.{TestName()}#{Identifier()}.{(type == SnapshotType.Actual ? "actual" : "expected")}.{extension}");
   }
 
   private static AssertionState UpdateState(CurrentTestInfo currentTestInfo, string expression)
@@ -87,11 +88,17 @@ internal partial class AssertImpl
   {
     var testFramework = ITestFramework.GetActiveTestFramework();
 
-    if (testFramework == null) return ExceptionHelper.GetException("No test framework could be determined.");
+    if (testFramework == null)
+    {
+      return ExceptionHelper.GetException("No test framework could be determined.");
+    }
 
     var currentTestInfo = testFramework.GetCurrentTestInfo();
 
-    if (currentTestInfo == null) return ExceptionHelper.GetException("Could not detect the currently running test.");
+    if (currentTestInfo == null)
+    {
+      return ExceptionHelper.GetException("Could not detect the currently running test.");
+    }
 
     var assertionState = UpdateState(currentTestInfo, expression);
 
@@ -111,9 +118,31 @@ internal partial class AssertImpl
 
     var serializerOptions = options.Configuration.GetJsonSerializerOptions();
 
+    // Determine if this is a string snapshot to use the correct file extension
+    var isStringSnapshot = actualObject is string;
+
     var expectedFileInfo =
       new FileInfo(Path.Combine(GetExpectedFileDirectory(),
-        GetFileName(currentTestInfo, expression, assertionState, options, SnapshotType.Expected)));
+        GetFileName(currentTestInfo, expression, assertionState, options, SnapshotType.Expected, isStringSnapshot)));
+
+    // Handle string snapshots differently - store as plain text without JSON serialization
+    if (isStringSnapshot)
+    {
+      var actualString = (string)actualObject;
+      var expectedString = expectedFileInfo.Exists ? File.ReadAllText(expectedFileInfo.FullName) : "";
+
+      if (TryAcceptSnapshot(expectedFileInfo, options, actualString))
+      {
+        return null;
+      }
+
+      if (actualString == expectedString)
+      {
+        return null;
+      }
+
+      return BuildStringSnapshotError(actualString, expectedString, expectedFileInfo, options, currentTestInfo, expression, assertionState);
+    }
 
     JsonNode expectedNode = new JsonObject();
     bool expectedFileExists = false;
@@ -134,21 +163,11 @@ internal partial class AssertImpl
       expectedNode = new JsonObject();
     }
 
-    var actualNode = JsonSerializer.SerializeToNode(actualObject, serializerOptions);
+    var actualNode = SerializeToNode(actualObject, serializerOptions);
+    var actualJson = SerializeActual(serializerOptions, actualNode);
 
-    // TreatAllSnapshotsAsCorrect: accept any snapshot (new or existing), overwriting expected files
-    if (options.Configuration.TreatAllSnapshotsAsCorrect)
+    if (TryAcceptSnapshot(expectedFileInfo, options, actualJson))
     {
-      EnsureExpectedDirectory(expectedFileInfo);
-      File.WriteAllText(expectedFileInfo.FullName, SerializeActual(serializerOptions, actualNode));
-      return null;
-    }
-
-    // AcceptNewSnapshots: only accept new snapshots where no expected file exists
-    if (options.Configuration.AcceptNewSnapshots && !expectedFileInfo.Exists)
-    {
-      EnsureExpectedDirectory(expectedFileInfo);
-      File.WriteAllText(expectedFileInfo.FullName, SerializeActual(serializerOptions, actualNode));
       return null;
     }
 
@@ -176,7 +195,6 @@ internal partial class AssertImpl
 
       sb.AppendLine();
       sb.AppendLine(colors.ActualHeader());
-      var actualJson = actualNode?.ToJsonString(serializerOptions) ?? "null";
       sb.AppendLine(actualJson.Length < 100 ? colors.Expression(actualJson) : actualJson);
 
       sb.AppendLine();
@@ -219,26 +237,7 @@ internal partial class AssertImpl
 
       sb.AppendLine(colors.Dimmed(new string('·', 80)));
 
-      if (options.Configuration.LaunchDiffTool != null)
-      {
-        var tempDirectory = Path.GetTempPath();
-        var actualTempFile = Path.Combine(tempDirectory, GetFileName(currentTestInfo, expression, assertionState, options, SnapshotType.Actual));
-
-        File.WriteAllText(actualTempFile, SerializeActual(serializerOptions, actualNode));
-
-        if (!expectedFileInfo.Exists)
-        {
-          EnsureExpectedDirectory(expectedFileInfo);
-          File.WriteAllText(expectedFileInfo.FullName, "");
-        }
-
-        options.Configuration.LaunchDiffTool(actualTempFile, expectedFileInfo.FullName);
-      }
-      else if (!expectedFileInfo.Exists)
-      {
-        EnsureExpectedDirectory(expectedFileInfo);
-        File.WriteAllText(expectedFileInfo.FullName, "");
-      }
+      LaunchDiffToolIfConfigured(options, expectedFileInfo, actualJson, currentTestInfo, expression, assertionState, isStringSnapshot: false);
 
       return ExceptionHelper.GetException(sb.ToString());
     }
@@ -248,6 +247,187 @@ internal partial class AssertImpl
     }
 
     return null;
+  }
+
+  private static bool TryAcceptSnapshot(FileInfo expectedFileInfo, AssertSnapshotOptions options, string content)
+  {
+    // TreatAllSnapshotsAsCorrect: accept any snapshot (new or existing), overwriting expected files
+    if (options.Configuration.TreatAllSnapshotsAsCorrect)
+    {
+      EnsureExpectedDirectory(expectedFileInfo);
+      File.WriteAllText(expectedFileInfo.FullName, content);
+      return true;
+    }
+
+    // AcceptNewSnapshots: only accept new snapshots where no expected file exists
+    if (options.Configuration.AcceptNewSnapshots && !expectedFileInfo.Exists)
+    {
+      EnsureExpectedDirectory(expectedFileInfo);
+      File.WriteAllText(expectedFileInfo.FullName, content);
+      return true;
+    }
+
+    return false;
+  }
+
+  private static bool ShouldLaunchDiffTool()
+  {
+    // Don't launch diff tool if explicitly disabled
+    if (Environment.GetEnvironmentVariable("ASSERTIVE_DISABLE_DIFF_TOOL") != null)
+    {
+      return false;
+    }
+
+    // Don't launch diff tool when running in LLM/AI coding assistant contexts
+    if (Environment.GetEnvironmentVariable("CLAUDECODE") != null) // Claude Code
+    {
+      return false;
+    }
+
+    if (Environment.GetEnvironmentVariable("CURSOR_IDE") != null) // Cursor
+    {
+      return false;
+    }
+    
+    if (Environment.GetEnvironmentVariable("AIDER") != null) // Aider AI
+    {
+      return false;
+    }
+
+    if (Environment.GetEnvironmentVariable("CODEX_THREAD_ID") != null) // OpenAI Codex
+    {
+      return false;
+    }
+
+    if (Environment.GetEnvironmentVariable("CONTINUE_GLOBAL_DIR") != null) // Continue.dev
+    {
+      return false;
+    }
+
+    // Don't launch diff tool in CI/automated environments
+    if (Environment.GetEnvironmentVariable("CI") != null)
+    {
+      return false;
+    }
+
+    if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != null)
+    {
+      return false;
+    }
+
+    if (Environment.GetEnvironmentVariable("TF_BUILD") != null) // Azure Pipelines
+    {
+      return false;
+    }
+
+    if (Environment.GetEnvironmentVariable("JENKINS_URL") != null)
+    {
+      return false;
+    }
+
+    if (Environment.GetEnvironmentVariable("TEAMCITY_VERSION") != null)
+    {
+      return false;
+    }
+
+    // Check if running in a non-interactive terminal
+    try
+    {
+      if (!Environment.UserInteractive)
+      {
+        return false;
+      }
+    }
+    catch
+    {
+      // If we can't determine, assume non-interactive
+      return false;
+    }
+
+    return true;
+  }
+
+  private static void LaunchDiffToolIfConfigured(AssertSnapshotOptions options, FileInfo expectedFileInfo,
+    string actualContent, CurrentTestInfo currentTestInfo, string expression, AssertionState assertionState, bool isStringSnapshot)
+  {
+    if (options.Configuration.LaunchDiffTool != null && ShouldLaunchDiffTool())
+    {
+      var tempDirectory = Path.GetTempPath();
+      var actualTempFile = Path.Combine(tempDirectory, GetFileName(currentTestInfo, expression, assertionState, options, SnapshotType.Actual, isStringSnapshot));
+
+      File.WriteAllText(actualTempFile, actualContent);
+
+      if (!expectedFileInfo.Exists)
+      {
+        EnsureExpectedDirectory(expectedFileInfo);
+        File.WriteAllText(expectedFileInfo.FullName, "");
+      }
+
+      options.Configuration.LaunchDiffTool(actualTempFile, expectedFileInfo.FullName);
+    }
+    else if (!expectedFileInfo.Exists)
+    {
+      EnsureExpectedDirectory(expectedFileInfo);
+      File.WriteAllText(expectedFileInfo.FullName, "");
+    }
+  }
+
+  private static Exception BuildStringSnapshotError(string actualString, string expectedString, FileInfo expectedFileInfo,
+    AssertSnapshotOptions options, CurrentTestInfo currentTestInfo, string expression, AssertionState assertionState)
+  {
+    var colors = Config.Configuration.Colors;
+    var sb = new StringBuilder();
+    var expectedFileExists = expectedFileInfo.Exists;
+
+    if (!expectedFileExists)
+    {
+      sb.AppendLine();
+      sb.AppendLine(colors.Dimmed("No expected snapshot exists yet. Copy the actual value to the expected file to accept."));
+    }
+
+    // Use string diff for detailed comparison
+    sb.Append(StringDiffHelper.GetStringDiff(actualString, expectedString));
+
+    sb.AppendLine();
+    sb.AppendLine(colors.MetadataHeader("SNAPSHOT FILE"));
+    sb.AppendLine(colors.Highlight(expectedFileInfo.FullName));
+
+    sb.AppendLine(colors.Dimmed(new string('·', 80)));
+
+    LaunchDiffToolIfConfigured(options, expectedFileInfo, actualString, currentTestInfo, expression, assertionState, isStringSnapshot: true);
+
+    return ExceptionHelper.GetException(sb.ToString());
+  }
+
+  private static JsonNode? SerializeToNode(object actualObject, JsonSerializerOptions serializerOptions)
+  {
+    // System.Text.Json JsonNode types - use directly (DeepClone to detach from parent)
+    if (actualObject is JsonNode jsonNode)
+    {
+      return jsonNode.DeepClone();
+    }
+
+    // System.Text.Json JsonDocument - extract the root element
+    if (actualObject is JsonDocument jsonDocument)
+    {
+      return JsonNode.Parse(jsonDocument.RootElement.GetRawText());
+    }
+
+    // System.Text.Json JsonElement - parse from raw text
+    if (actualObject is JsonElement jsonElement)
+    {
+      return JsonNode.Parse(jsonElement.GetRawText());
+    }
+
+    // Newtonsoft.Json types - convert via their JSON string representation
+    // Check by namespace to avoid a direct dependency on Newtonsoft.Json
+    if (actualObject.GetType().Namespace == "Newtonsoft.Json.Linq")
+    {
+      var json = actualObject.ToString()!;
+      return JsonNode.Parse(json);
+    }
+
+    return JsonSerializer.SerializeToNode(actualObject, serializerOptions);
   }
 
   private static string SerializeActual(JsonSerializerOptions options, JsonNode? actualNode)
@@ -294,8 +474,16 @@ internal partial class AssertImpl
 
   private static string BuildPath(string? basePath, string segment)
   {
-    if (string.IsNullOrEmpty(basePath)) return segment;
-    if (segment.StartsWith("[")) return basePath + segment;
+    if (string.IsNullOrEmpty(basePath))
+    {
+      return segment;
+    }
+
+    if (segment.StartsWith("["))
+    {
+      return basePath + segment;
+    }
+
     return basePath + "." + segment;
   }
 
@@ -460,6 +648,7 @@ internal partial class AssertImpl
             Actual: property.Value?.ToJsonString()));
         }
         else
+        {
           switch (handleExtraneousProperties)
           {
             case Configuration.ExtraneousPropertiesOptions.Ignore:
@@ -471,6 +660,7 @@ internal partial class AssertImpl
             default:
               throw new ArgumentOutOfRangeException();
           }
+        }
       }
     }
   }
