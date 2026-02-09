@@ -12,8 +12,8 @@ VERSION=$1
 API_KEY=$2
 NUGET_SOURCE="https://api.nuget.org/v3/index.json"
 
-ASSERTIVE_PKG="src/Assertive/bin/Release/Assertive.${VERSION}.nupkg"
-XUNIT_PKG="src/Assertive.xUnit/bin/Release/Assertive.xUnit.${VERSION}.nupkg"
+ASSERTIVE_PKG="artifacts/Assertive.${VERSION}.nupkg"
+XUNIT_PKG="artifacts/Assertive.xUnit.${VERSION}.nupkg"
 
 echo "Pushing Assertive packages version ${VERSION} to NuGet..."
 
@@ -21,16 +21,16 @@ echo "Pushing Assertive packages version ${VERSION} to NuGet..."
 for pkg in "$ASSERTIVE_PKG" "$XUNIT_PKG"; do
     if [ ! -f "$pkg" ]; then
         echo "Error: Package not found: $pkg"
-        echo "Make sure to build in Release mode first: dotnet pack -c Release"
+        echo "Make sure to run ./pack.sh first"
         exit 1
     fi
 done
 
 # Note: dotnet nuget push automatically uploads .snupkg symbols if present in the same directory
 echo "Pushing Assertive.${VERSION}.nupkg..."
-dotnet nuget push "$ASSERTIVE_PKG" --api-key "$API_KEY" --source "$NUGET_SOURCE"
+dotnet nuget push "$ASSERTIVE_PKG" --api-key "$API_KEY" --source "$NUGET_SOURCE" --skip-duplicate
 
 echo "Pushing Assertive.xUnit.${VERSION}.nupkg..."
-dotnet nuget push "$XUNIT_PKG" --api-key "$API_KEY" --source "$NUGET_SOURCE"
+dotnet nuget push "$XUNIT_PKG" --api-key "$API_KEY" --source "$NUGET_SOURCE" --skip-duplicate
 
 echo "Done! All packages pushed successfully."
