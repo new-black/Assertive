@@ -467,6 +467,98 @@ namespace Assertive.Helpers
       return $"{(colors.Enabled ? colors.Dimmed("Legend:") : "Legend:")} {expectedLabel}, {actualLabel}, {contextLabel}";
     }
 
+    /// <summary>
+    /// Finds the closest matching substring of <paramref name="haystack"/> to <paramref name="needle"/>
+    /// using semi-global alignment, and returns a formatted inline diff.
+    /// Returns null if no sufficiently close match is found.
+    /// </summary>
+    public static string? GetClosestSubstringDiff(string haystack, string needle)
+    {
+      if (needle.Length < 5 || haystack.Length == 0)
+      {
+        return null;
+      }
+
+      // Performance guard: O(m*n) DP
+      if ((long)haystack.Length * needle.Length > 5_000_000)
+      {
+        return null;
+      }
+
+      int m = needle.Length;
+      int n = haystack.Length;
+
+      // Semi-global alignment: free to start matching anywhere in haystack
+      var dp = new int[m + 1, n + 1];
+
+      for (int i = 1; i <= m; i++)
+      {
+        dp[i, 0] = i;
+      }
+
+      // dp[0, j] = 0: starting anywhere in haystack is free
+
+      for (int j = 1; j <= n; j++)
+      {
+        for (int i = 1; i <= m; i++)
+        {
+          int cost = needle[i - 1] == haystack[j - 1] ? 0 : 1;
+          dp[i, j] = Math.Min(
+            dp[i - 1, j - 1] + cost,
+            Math.Min(dp[i - 1, j] + 1, dp[i, j - 1] + 1)
+          );
+        }
+      }
+
+      // Find best end position in last row
+      int bestDist = m;
+      int bestEnd = 0;
+
+      for (int j = 1; j <= n; j++)
+      {
+        if (dp[m, j] < bestDist)
+        {
+          bestDist = dp[m, j];
+          bestEnd = j;
+        }
+      }
+
+      // Only show if the match is reasonably close (within 30%)
+      if (bestDist == 0 || (double)bestDist / m > 0.3)
+      {
+        return null;
+      }
+
+      // Backtrace to find start position
+      int bi = m, bj = bestEnd;
+
+      while (bi > 0 && bj > 0)
+      {
+        int cost = needle[bi - 1] == haystack[bj - 1] ? 0 : 1;
+        if (dp[bi, bj] == dp[bi - 1, bj - 1] + cost)
+        {
+          bi--;
+          bj--;
+        }
+        else if (dp[bi, bj] == dp[bi - 1, bj] + 1)
+        {
+          bi--;
+        }
+        else
+        {
+          bj--;
+        }
+      }
+
+      int startPos = bj;
+      var matchedSubstring = haystack.Substring(startPos, bestEnd - startPos);
+
+      var colors = Configuration.Colors;
+
+      return colors.Dimmed($"Closest match at position {startPos} ({bestDist} character difference{(bestDist != 1 ? "s" : "")})")
+             + "\n" + GetStringDiff(needle, matchedSubstring);
+    }
+
     private static string EscapeForDisplay(string value)
     {
       return value

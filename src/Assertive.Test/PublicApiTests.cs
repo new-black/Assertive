@@ -7,7 +7,7 @@ using static Assertive.DSL;
 
 namespace Assertive.Test
 {
-  public class PublicApiTests
+  public partial class PublicApiTests
   {
     [Fact]
     public void AssertThat_works_if_assertion_is_true()

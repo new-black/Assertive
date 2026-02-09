@@ -105,7 +105,7 @@ namespace Assertive.Config
       /// <summary>
       /// Normalizes line endings to \r\n for consistent rendering across environments.
       /// </summary>
-      public static string NormalizeLineEndings(string text)
+      internal static string NormalizeLineEndings(string text)
       {
         return text.Replace("\r\n", "\n").Replace("\n", "\r\n");
       }
@@ -114,7 +114,7 @@ namespace Assertive.Config
       /// <summary>
       /// Creates the "EXPECTED" header with fancy styling.
       /// </summary>
-      public string ExpectedHeader()
+      internal string ExpectedHeader()
       {
         if (!Enabled)
         {
@@ -129,7 +129,7 @@ namespace Assertive.Config
       /// <summary>
       /// Creates the "ACTUAL" header with fancy styling.
       /// </summary>
-      public string ActualHeader()
+      internal string ActualHeader()
       {
         if (!Enabled)
         {
@@ -144,7 +144,7 @@ namespace Assertive.Config
       /// <summary>
       /// Highlights the expected value.
       /// </summary>
-      public string Expected(string text)
+      internal string Expected(string text)
       {
         if (!Enabled)
         {
@@ -157,7 +157,7 @@ namespace Assertive.Config
       /// <summary>
       /// Highlights the actual value.
       /// </summary>
-      public string Actual(string text)
+      internal string Actual(string text)
       {
         if (!Enabled)
         {
@@ -170,7 +170,7 @@ namespace Assertive.Config
       /// <summary>
       /// Highlights a difference or error.
       /// </summary>
-      public string Diff(string text)
+      internal string Diff(string text)
       {
         if (!Enabled)
         {
@@ -183,7 +183,7 @@ namespace Assertive.Config
       /// <summary>
       /// Highlights important information.
       /// </summary>
-      public string Highlight(string text)
+      internal string Highlight(string text)
       {
         if (!Enabled)
         {
@@ -196,7 +196,7 @@ namespace Assertive.Config
       /// <summary>
       /// Dims less important text.
       /// </summary>
-      public string Dimmed(string text)
+      internal string Dimmed(string text)
       {
         if (!Enabled)
         {
@@ -209,7 +209,7 @@ namespace Assertive.Config
       /// <summary>
       /// Formats a string diff section header.
       /// </summary>
-      public string DiffHeader(string text)
+      internal string DiffHeader(string text)
       {
         if (!Enabled)
         {
@@ -223,7 +223,7 @@ namespace Assertive.Config
       /// <summary>
       /// Highlights matching context in diff.
       /// </summary>
-      public string DiffContext(string text)
+      internal string DiffContext(string text)
       {
         if (!Enabled)
         {
@@ -236,7 +236,7 @@ namespace Assertive.Config
       /// <summary>
       /// Formats ellipsis in diff.
       /// </summary>
-      public string DiffEllipsis()
+      internal string DiffEllipsis()
       {
         if (!Enabled)
         {
@@ -249,7 +249,7 @@ namespace Assertive.Config
       /// <summary>
       /// Formats the "Expected:" label in diff.
       /// </summary>
-      public string DiffExpectedLabel()
+      internal string DiffExpectedLabel()
       {
         if (!Enabled)
         {
@@ -262,7 +262,7 @@ namespace Assertive.Config
       /// <summary>
       /// Formats the "Actual:" label in diff.
       /// </summary>
-      public string DiffActualLabel()
+      internal string DiffActualLabel()
       {
         if (!Enabled)
         {
@@ -275,7 +275,7 @@ namespace Assertive.Config
       /// <summary>
       /// Formats a removed line in a diff.
       /// </summary>
-      public string DiffRemovedLine(string text)
+      internal string DiffRemovedLine(string text)
       {
         if (!Enabled)
         {
@@ -288,7 +288,7 @@ namespace Assertive.Config
       /// <summary>
       /// Formats an added line in a diff.
       /// </summary>
-      public string DiffAddedLine(string text)
+      internal string DiffAddedLine(string text)
       {
         if (!Enabled)
         {
@@ -452,7 +452,7 @@ namespace Assertive.Config
       /// <summary>
       /// Formats a metadata section header (Assertion, Locals, Message, etc.)
       /// </summary>
-      public string MetadataHeader(string header)
+      internal string MetadataHeader(string header)
       {
         if (!Enabled)
         {
@@ -472,7 +472,7 @@ namespace Assertive.Config
       /// <summary>
       /// Formats expression code with C# syntax highlighting.
       /// </summary>
-      public string Expression(string expression)
+      internal string Expression(string expression)
       {
         if (!Enabled || !UseSyntaxHighlighting)
         {
@@ -665,7 +665,7 @@ namespace Assertive.Config
       /// <summary>
       /// Formats a local variable name.
       /// </summary>
-      public string LocalName(string name)
+      internal string LocalName(string name)
       {
         if (!Enabled)
         {
@@ -678,7 +678,7 @@ namespace Assertive.Config
       /// <summary>
       /// Formats a local variable value.
       /// </summary>
-      public string LocalValue(string value)
+      internal string LocalValue(string value)
       {
         if (!Enabled)
         {
