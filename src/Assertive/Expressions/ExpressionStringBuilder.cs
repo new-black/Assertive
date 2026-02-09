@@ -507,7 +507,10 @@ namespace Assertive.Expressions
       for (int i = start, n = node.Arguments.Count; i < n; i++)
       {
         if (i > start)
+        {
           Out(", ");
+        }
+
         Visit(node.Arguments[i]);
       }
 
@@ -520,7 +523,10 @@ namespace Assertive.Expressions
     {
       string ArrayElementType(Type t)
       {
-        if (!t.IsArray) return TypeHelper.TypeNameToString(t);
+        if (!t.IsArray)
+        {
+          return TypeHelper.TypeNameToString(t);
+        }
 
         var elementType = t.GetElementType();
 
@@ -798,7 +804,10 @@ namespace Assertive.Expressions
       for (int i = 0, n = node.Arguments.Count; i < n; i++)
       {
         if (i > 0)
+        {
           Out(", ");
+        }
+
         Visit(node.Arguments[i]);
       }
 
@@ -819,7 +828,11 @@ namespace Assertive.Expressions
         bool first = true;
         foreach (var arg in args)
         {
-          if (!first) Out(", ");
+          if (!first)
+          {
+            Out(", ");
+          }
+
           Visit(arg);
           first = false;
         }

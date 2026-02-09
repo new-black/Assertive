@@ -15,7 +15,9 @@ namespace Assertive.Test
   {
     private static string StripAnsi(string input)
     {
-      return Regex.Replace(input, @"\u001b\[[0-9;]*[A-Za-z]", "");
+      // Strip ANSI codes and normalize line endings to \n for consistent test comparisons
+      var stripped = Regex.Replace(input, @"\u001b\[[0-9;]*[A-Za-z]", "");
+      return stripped.Replace("\r\n", "\n").Replace("\r", "\n");
     }
 
     #region Newtonsoft.Json - Assertion failure output tests

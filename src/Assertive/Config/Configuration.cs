@@ -115,6 +115,9 @@ namespace Assertive.Config
       
       /// <summary>
       /// A callback to launch a diff tool that gets executed when there is a difference between the actual and expected snapshots.
+      /// The diff tool will NOT be launched when detected to be running in LLM/AI coding assistant contexts (Claude Code, Cursor, Aider, Continue.dev)
+      /// or CI/automated environments (CI, GITHUB_ACTIONS, TF_BUILD, JENKINS_URL, TEAMCITY_VERSION).
+      /// To disable explicitly set ASSERTIVE_DISABLE_DIFF_TOOL=1.
       /// </summary>
       public LaunchDiffTool? LaunchDiffTool { get; set; }
       
