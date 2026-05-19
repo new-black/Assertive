@@ -16,7 +16,10 @@ internal partial class AssertImpl
 {
   private static string EscapeFileName(string fileName)
   {
-    var invalidChars = Path.GetInvalidFileNameChars();
+    // Treat spaces as invalid in addition to the OS's invalid set. Spaces aren't filesystem-invalid
+    // on macOS/Linux but they break external tools (e.g. Rider's diff command) when the temp path
+    // is forwarded as a CLI argument.
+    var invalidChars = Path.GetInvalidFileNameChars().Append(' ').ToArray();
 
     var split = fileName.Replace("\"", "").Split(invalidChars, StringSplitOptions.RemoveEmptyEntries);
 
