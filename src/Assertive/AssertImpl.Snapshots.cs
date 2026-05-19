@@ -116,10 +116,14 @@ internal partial class AssertImpl
       return options.Configuration.ExpectedFileDirectoryResolver(currentTestInfo.Method, sourceFileInfo);
     }
 
-    var serializerOptions = options.Configuration.GetJsonSerializerOptions();
+    var serializerOptions = options.Configuration.GetJsonSerializerOptions(options.Project);
+
+    // Apply the projection to the root value so a top-level projection (e.g. Student -> { Name })
+    // is honored just like nested values.
+    var projectedActual = ProjectionHelper.ApplyProjection(actualObject, options.Project);
 
     // Determine if this is a string snapshot to use the correct file extension
-    var isStringSnapshot = actualObject is string;
+    var isStringSnapshot = projectedActual is string;
 
     var expectedFileInfo =
       new FileInfo(Path.Combine(GetExpectedFileDirectory(),
@@ -128,7 +132,7 @@ internal partial class AssertImpl
     // Handle string snapshots differently - store as plain text without JSON serialization
     if (isStringSnapshot)
     {
-      var actualString = (string)actualObject;
+      var actualString = (string)projectedActual!;
       var expectedString = expectedFileInfo.Exists ? File.ReadAllText(expectedFileInfo.FullName) : "";
 
       if (TryAcceptSnapshot(expectedFileInfo, options, actualString))
@@ -163,7 +167,7 @@ internal partial class AssertImpl
       expectedNode = new JsonObject();
     }
 
-    var actualNode = SerializeToNode(actualObject, serializerOptions);
+    var actualNode = projectedActual != null ? SerializeToNode(projectedActual, serializerOptions) : null;
     var actualJson = SerializeActual(serializerOptions, actualNode);
 
     if (TryAcceptSnapshot(expectedFileInfo, options, actualJson))

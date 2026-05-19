@@ -437,6 +437,23 @@ When a snapshot assertion fails because no expected file exists, Assertive:
 
 To accept a new snapshot, copy the actual JSON from the error message to the expected file.
 
+**Projecting values for focused snapshots:**
+
+For complex object graphs where you only care about a few properties, supply a `Project` mapping in the per-call options. The mapping is invoked for the root value, every property value, and every element inside a collection, so a single switch handles the whole tree without writing a recursive walker:
+
+```csharp
+Assert(school, new AssertSnapshotOptions
+{
+  Project = obj => obj switch
+  {
+    Student s => new { Name = s.FullName },
+    _ => obj
+  }
+});
+```
+
+Each non-primitive, non-string object is passed through the mapping. Return the input value unchanged (`_ => obj`) for a passthrough; return a different value (for example an anonymous object) to narrow what gets serialized. Strings, primitives and enums are not projected.
+
 **Ignoring line ending differences in string snapshots:**
 
 When asserting a `string` directly (`Assert(myString)`), the expected snapshot is stored as a plain `.txt` file. Source control or cross-platform builds can rewrite line endings, causing CRLF vs LF mismatches even when the content is otherwise identical. To compare regardless of line ending style:

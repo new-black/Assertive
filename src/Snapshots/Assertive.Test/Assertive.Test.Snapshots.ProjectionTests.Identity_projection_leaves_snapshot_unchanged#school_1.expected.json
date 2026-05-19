@@ -1,0 +1,10 @@
+{
+  "Name": "Test High",
+  "Principal": {
+    "FullName": "Jane Smith",
+    "Email": "jane@example.com",
+    "Age": 45,
+    "Grades": []
+  },
+  "Students": []
+}

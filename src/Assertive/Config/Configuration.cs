@@ -87,6 +87,16 @@ namespace Assertive.Config
     public delegate string ExpectedFileDirectoryResolver(MethodInfo testMethod, FileInfo sourceFileLocation);
 
     /// <summary>
+    /// Delegate for projecting values during snapshot serialization. The projection is applied to
+    /// every non-primitive, non-string object encountered in the graph: the root value, each property
+    /// value, and each element inside an enumerable. Return the input value unchanged for a passthrough,
+    /// or return a different value (for example an anonymous object) to produce a focused snapshot.
+    /// </summary>
+    /// <param name="value">The value being serialized.</param>
+    /// <returns>The projected value to serialize in place of <paramref name="value"/>.</returns>
+    public delegate object? SnapshotProjection(object value);
+
+    /// <summary>
     /// Delegate for validating placeholder values in expected snapshots.
     /// </summary>
     /// <param name="value">The actual value to validate against the placeholder.</param>
@@ -227,8 +237,8 @@ namespace Assertive.Config
       public bool AcceptNewSnapshots { get; set; }
 
       private static readonly ConcurrentDictionary<object, JsonSerializerOptions> _jsonSerializerOptionsCache = new();
-      
-      internal JsonSerializerOptions GetJsonSerializerOptions()
+
+      internal JsonSerializerOptions GetJsonSerializerOptions(SnapshotProjection? projection = null)
       {
         // These properties affect the JsonSerializerOptions, so we use them as a key to cache the options.
         var key = new
@@ -238,9 +248,10 @@ namespace Assertive.Config
           ExceptionRenderer,
           ExcludeNullValues,
           Normalization.ValueRenderer,
-          ShouldIgnore
+          ShouldIgnore,
+          Projection = projection
         };
-        
+
         if (_jsonSerializerOptionsCache.TryGetValue(key, out var options))
         {
           return options;
@@ -248,7 +259,7 @@ namespace Assertive.Config
 
         var jsonSerializerOptions = new JsonSerializerOptions()
         {
-          TypeInfoResolver = new TypeInfoResolver(this),
+          TypeInfoResolver = new TypeInfoResolver(this, projection),
           IncludeFields = true,
           WriteIndented = true,
           ReferenceHandler = ReferenceHandler.IgnoreCycles,
@@ -256,9 +267,9 @@ namespace Assertive.Config
           Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
           ReadCommentHandling = JsonCommentHandling.Skip
         };
-        
+
         _jsonSerializerOptionsCache[key] = jsonSerializerOptions;
-        
+
         return jsonSerializerOptions;
       }
     }

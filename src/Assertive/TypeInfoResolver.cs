@@ -10,11 +10,13 @@ namespace Assertive;
 internal class TypeInfoResolver : IJsonTypeInfoResolver
 {
   private readonly Configuration.CompareSnapshotsConfiguration _configuration;
+  private readonly Configuration.SnapshotProjection? _projection;
   private readonly IJsonTypeInfoResolver _defaultResolver;
 
-  public TypeInfoResolver(Configuration.CompareSnapshotsConfiguration configuration)
+  public TypeInfoResolver(Configuration.CompareSnapshotsConfiguration configuration, Configuration.SnapshotProjection? projection = null)
   {
     _configuration = configuration;
+    _projection = projection;
     _defaultResolver = new DefaultJsonTypeInfoResolver();
   }
 
@@ -76,14 +78,14 @@ internal class TypeInfoResolver : IJsonTypeInfoResolver
   private Func<object, object?> CreateGetter(JsonPropertyInfo existingProperty, Configuration.ValueRenderer? valueRenderer)
   {
     var originalGetter = existingProperty.Get;
-    
+
     return obj =>
     {
       try
       {
         var value = originalGetter!(obj);
-
-        return valueRenderer != null ? valueRenderer(existingProperty, obj, value) : value;
+        var rendered = valueRenderer != null ? valueRenderer(existingProperty, obj, value) : value;
+        return ProjectionHelper.ApplyProjection(rendered, _projection);
       }
       catch (Exception ex)
       {

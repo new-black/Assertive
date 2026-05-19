@@ -1,0 +1,14 @@
+{
+  "Name": "Test High",
+  "Principal": {
+    "Name": "Jane Smith"
+  },
+  "Students": [
+    {
+      "Name": "Alice"
+    },
+    {
+      "Name": "Bob"
+    }
+  ]
+}

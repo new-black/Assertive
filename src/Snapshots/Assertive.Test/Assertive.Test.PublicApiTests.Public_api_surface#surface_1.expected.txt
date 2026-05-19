@@ -14,6 +14,7 @@ static class Assert
 class AssertSnapshotOptions
   .ctor()
   CompareSnapshotsConfiguration Configuration { get; set; }
+  SnapshotProjection Project { get; set; }
   string SnapshotIdentifier { get; set; }
 
 static class Configuration
@@ -98,6 +99,8 @@ class PatternsConfiguration
 delegate bool PlaceholderValidator(string value)
 
 delegate bool ShouldIgnore(JsonPropertyInfo property, object obj, object value)
+
+delegate object SnapshotProjection(object value)
 
 delegate object ValueRenderer(JsonPropertyInfo property, object obj, object value)
 
