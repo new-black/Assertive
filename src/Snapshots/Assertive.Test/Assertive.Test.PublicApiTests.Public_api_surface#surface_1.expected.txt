@@ -35,6 +35,7 @@ class CompareSnapshotsConfiguration
   bool ExcludeNullValues { get; set; }
   ExpectedFileDirectoryResolver ExpectedFileDirectoryResolver { get; set; }
   ExtraneousProperties ExtraneousProperties { get; set; }
+  bool IgnoreLineEndingDifferences { get; set; }
   LaunchDiffTool LaunchDiffTool { get; set; }
   NormalizationConfiguration Normalization { get; set; }
   ShouldIgnore ShouldIgnore { get; set; }

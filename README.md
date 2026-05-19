@@ -437,6 +437,16 @@ When a snapshot assertion fails because no expected file exists, Assertive:
 
 To accept a new snapshot, copy the actual JSON from the error message to the expected file.
 
+**Ignoring line ending differences in string snapshots:**
+
+When asserting a `string` directly (`Assert(myString)`), the expected snapshot is stored as a plain `.txt` file. Source control or cross-platform builds can rewrite line endings, causing CRLF vs LF mismatches even when the content is otherwise identical. To compare regardless of line ending style:
+
+```csharp
+Configuration.Snapshots.IgnoreLineEndingDifferences = true;
+```
+
+When enabled, `\r\n`, `\r`, and `\n` are all treated as equivalent for the comparison and the diff that's shown on failure.
+
 ### Exception handling
 
 Assertive has special handling of certain common exceptions that occur when writing tests, providing immediate feedback on what caused the exception without having to attach the debugger or dig through stacktraces.

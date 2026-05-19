@@ -136,7 +136,7 @@ internal partial class AssertImpl
         return null;
       }
 
-      if (actualString == expectedString)
+      if (StringSnapshotsMatch(actualString, expectedString, options.Configuration))
       {
         return null;
       }
@@ -372,6 +372,21 @@ internal partial class AssertImpl
     }
   }
 
+  private static bool StringSnapshotsMatch(string actual, string expected, Configuration.CompareSnapshotsConfiguration config)
+  {
+    if (config.IgnoreLineEndingDifferences)
+    {
+      return NormalizeLineEndings(actual) == NormalizeLineEndings(expected);
+    }
+
+    return actual == expected;
+  }
+
+  private static string NormalizeLineEndings(string value)
+  {
+    return value.Replace("\r\n", "\n").Replace("\r", "\n");
+  }
+
   private static Exception BuildStringSnapshotError(string actualString, string expectedString, FileInfo expectedFileInfo,
     AssertSnapshotOptions options, CurrentTestInfo currentTestInfo, string expression, AssertionState assertionState)
   {
@@ -385,8 +400,13 @@ internal partial class AssertImpl
       sb.AppendLine(colors.Dimmed("No expected snapshot exists yet. Copy the actual value to the expected file to accept."));
     }
 
+    // When ignoring line ending differences, render the diff with normalized strings so
+    // the remaining differences are content-only and not noise from CRLF vs LF.
+    var displayActual = options.Configuration.IgnoreLineEndingDifferences ? NormalizeLineEndings(actualString) : actualString;
+    var displayExpected = options.Configuration.IgnoreLineEndingDifferences ? NormalizeLineEndings(expectedString) : expectedString;
+
     // Use string diff for detailed comparison
-    sb.Append(StringDiffHelper.GetStringDiff(actualString, expectedString));
+    sb.Append(StringDiffHelper.GetStringDiff(displayActual, displayExpected));
 
     sb.AppendLine();
     sb.AppendLine(colors.MetadataHeader("SNAPSHOT FILE"));

@@ -125,6 +125,13 @@ namespace Assertive.Config
       /// Exclude null values from the output, defaults to false.
       /// </summary>
       public bool ExcludeNullValues { get; set; } = false;
+
+      /// <summary>
+      /// When comparing string snapshots, treat all line ending styles (<c>\r\n</c>, <c>\r</c>, <c>\n</c>) as equivalent.
+      /// Useful when snapshot files may be normalized by source control (e.g. Git's <c>core.autocrlf</c>)
+      /// or when tests run across platforms with different line endings. Defaults to false.
+      /// </summary>
+      public bool IgnoreLineEndingDifferences { get; set; } = false;
       
       /// <summary>
       /// A callback to resolve the directory where the expected snapshot file should be located.
