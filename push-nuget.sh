@@ -14,11 +14,12 @@ NUGET_SOURCE="https://api.nuget.org/v3/index.json"
 
 ASSERTIVE_PKG="artifacts/Assertive.${VERSION}.nupkg"
 XUNIT_PKG="artifacts/Assertive.xUnit.${VERSION}.nupkg"
+XUNIT_V3_PKG="artifacts/Assertive.xUnit.v3.${VERSION}.nupkg"
 
 echo "Pushing Assertive packages version ${VERSION} to NuGet..."
 
 # Check that packages exist
-for pkg in "$ASSERTIVE_PKG" "$XUNIT_PKG"; do
+for pkg in "$ASSERTIVE_PKG" "$XUNIT_PKG" "$XUNIT_V3_PKG"; do
     if [ ! -f "$pkg" ]; then
         echo "Error: Package not found: $pkg"
         echo "Make sure to run ./pack.sh first"
@@ -32,5 +33,8 @@ dotnet nuget push "$ASSERTIVE_PKG" --api-key "$API_KEY" --source "$NUGET_SOURCE"
 
 echo "Pushing Assertive.xUnit.${VERSION}.nupkg..."
 dotnet nuget push "$XUNIT_PKG" --api-key "$API_KEY" --source "$NUGET_SOURCE" --skip-duplicate
+
+echo "Pushing Assertive.xUnit.v3.${VERSION}.nupkg..."
+dotnet nuget push "$XUNIT_V3_PKG" --api-key "$API_KEY" --source "$NUGET_SOURCE" --skip-duplicate
 
 echo "Done! All packages pushed successfully."

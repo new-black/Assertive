@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="Assertive.Examples/Assertive.Examples.csproj" />
+  <Project Path="Assertive.Test.MSTest/Assertive.Test.MSTest.csproj" />
+  <Project Path="Assertive.Test.NUnit/Assertive.Test.NUnit.csproj" />
+  <Project Path="Assertive.Test.TUnit/Assertive.Test.TUnit.csproj" />
+  <Project Path="Assertive.Test.xUnit.v3/Assertive.Test.xUnit.v3.csproj" />
+  <Project Path="Assertive.Test.xUnit/Assertive.Test.xUnit.csproj" />
+  <Project Path="Assertive.Test/Assertive.Test.csproj" />
+  <Project Path="Assertive.xUnit.v3/Assertive.xUnit.v3.csproj" />
+  <Project Path="Assertive.xUnit/Assertive.xUnit.csproj" />
+  <Project Path="Assertive/Assertive.csproj" />
+</Solution>

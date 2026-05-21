@@ -9,40 +9,48 @@ namespace Assertive.TestFrameworks
     private Type? _exceptionType = null;
     private Type? _enableAssertType = null;
     private MethodInfo? _getCurrentTestMethodInfo = null;
-    
+
     public Type? ExceptionType
     {
       get
       {
-        return _exceptionType ??= TestFrameworkHelper.TryGetType("xunit.assert", "Xunit.Sdk.XunitException", "xunit");
+        // XunitException lives in Xunit.Sdk in both v2 and v3, but the assembly differs:
+        // v2 → xunit.assert, v3 → xunit.v3.assert.
+        return _exceptionType ??=
+          TestFrameworkHelper.TryGetType("xunit.v3.assert", "Xunit.Sdk.XunitException", "xunit.v3")
+          ?? TestFrameworkHelper.TryGetType("xunit.assert", "Xunit.Sdk.XunitException", "xunit");
       }
     }
 
     public CurrentTestInfo? GetCurrentTestInfo()
     {
-      var attribute = _enableAssertType ??= TestFrameworkHelper.TryGetType("Assertive.xUnit", "Assertive.xUnit.EnableAssertiveSnapshotsAttribute");
-      
+      // Assertive.xUnit.v3 (xUnit v3) and Assertive.xUnit (xUnit v2) both expose the same
+      // Assertive.xUnit.EnableAssertiveSnapshotsAttribute type with a static GetCurrentTestMethod method.
+      var attribute = _enableAssertType ??=
+        TestFrameworkHelper.TryGetType("Assertive.xUnit.v3", "Assertive.xUnit.EnableAssertiveSnapshotsAttribute")
+        ?? TestFrameworkHelper.TryGetType("Assertive.xUnit", "Assertive.xUnit.EnableAssertiveSnapshotsAttribute");
+
       if (attribute == null)
       {
         return null;
       }
-      
+
       var method = _getCurrentTestMethodInfo ??= attribute.GetMethod("GetCurrentTestMethod", BindingFlags.Public | BindingFlags.Static);
-      
+
       if (method == null)
       {
         return null;
       }
 
       dynamic? currentTestMethod = method.Invoke(null, null);
-      
+
       if (currentTestMethod == null)
       {
         return null;
       }
-      
+
       var methodInfo = currentTestMethod.Method as MethodInfo;
-      
+
       if (methodInfo == null || methodInfo.DeclaringType?.FullName == null)
       {
         return null;

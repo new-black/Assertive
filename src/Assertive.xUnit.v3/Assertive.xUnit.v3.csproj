@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyTitle>Assertive.xUnit.v3</AssemblyTitle>
+    <AssemblyName>Assertive.xUnit.v3</AssemblyName>
+    <RootNamespace>Assertive.xUnit</RootNamespace>
+    <PackageId>Assertive.xUnit.v3</PackageId>
+    <Company>New Black</Company>
+    <PackageVersion>0.22.0</PackageVersion>
+    <PackageProjectUrl>https://github.com/new-black/Assertive</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/new-black/Assertive</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Description>Adds xUnit v3 support for snapshot comparisons to Assertive.</Description>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>12</LangVersion>
+    <IsPackable>true</IsPackable>
+    <IsTestProject>false</IsTestProject>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- XML documentation in NuGet package for IDE hover tooltips -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- Source Link: enables stepping into source code from NuGet package -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+    <!-- Symbol package (.snupkg) for debugging -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <!-- Deterministic builds for reproducibility -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Include README in package -->
+    <None Include="../../README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+    <PackageReference Include="xunit.v3.extensibility.core" Version="3.2.2"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Assertive\Assertive.csproj"/>
+  </ItemGroup>
+</Project>

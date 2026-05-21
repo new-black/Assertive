@@ -26,6 +26,12 @@ For [snapshot testing](#snapshot-testing) with xUnit, also add:
 dotnet add package Assertive.xUnit
 ```
 
+Or, if you're using xUnit v3:
+
+```
+dotnet add package Assertive.xUnit.v3
+```
+
 ## Contents
 
 - [Installation](#installation)
@@ -841,11 +847,13 @@ Assertive is currently compatible with:
 
 It will work fine with any other test framework as well, but the exception that Assertive will throw will not be recognized by those test frameworks and likely not display quite as nicely.
 
-[Snapshot testing](#snapshot-testing) is currently only supported on NUnit, TUnit and xUnit. On xUnit it's required to have this attribute somewhere from the Assertive.xUnit package, otherwise it won't be able to detect the currently running test:
+[Snapshot testing](#snapshot-testing) is currently only supported on NUnit, TUnit and xUnit (both v2 and v3). On xUnit it's required to have this attribute somewhere from the `Assertive.xUnit` (for xUnit v2) or `Assertive.xUnit.v3` (for xUnit v3) package, otherwise it won't be able to detect the currently running test:
 
 ```csharp
 [assembly: EnableAssertiveSnapshots]
 ```
+
+The attribute lives in the `Assertive.xUnit` namespace in both packages, so the same `[assembly: EnableAssertiveSnapshots]` line works regardless of which xUnit version you're on.
 
 ## Limitations
 

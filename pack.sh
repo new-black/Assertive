@@ -7,6 +7,7 @@ mkdir -p "$OUTPUT_DIR"
 
 dotnet pack src/Assertive/Assertive.csproj -c Release -o "$OUTPUT_DIR"
 dotnet pack src/Assertive.xUnit/Assertive.xUnit.csproj -c Release -o "$OUTPUT_DIR"
+dotnet pack src/Assertive.xUnit.v3/Assertive.xUnit.v3.csproj -c Release -o "$OUTPUT_DIR"
 
 echo ""
 echo "Packages:"
