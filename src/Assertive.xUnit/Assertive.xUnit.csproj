@@ -5,7 +5,7 @@
     <AssemblyName>Assertive.xUnit</AssemblyName>
     <PackageId>Assertive.xUnit</PackageId>
     <Company>New Black</Company>
-    <PackageVersion>0.21.0</PackageVersion>
+    <PackageVersion>0.22.0</PackageVersion>
     <PackageProjectUrl>https://github.com/new-black/Assertive</PackageProjectUrl>
     <RepositoryUrl>https://github.com/new-black/Assertive</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -18,6 +18,10 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- XML documentation in NuGet package for IDE hover tooltips -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
 
     <!-- Source Link: enables stepping into source code from NuGet package -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
