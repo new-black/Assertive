@@ -87,6 +87,16 @@ namespace Assertive.Config
     public delegate string ExpectedFileDirectoryResolver(MethodInfo testMethod, FileInfo sourceFileLocation);
 
     /// <summary>
+    /// Delegate for projecting values during snapshot serialization. The projection is applied to
+    /// every non-primitive, non-string object encountered in the graph: the root value, each property
+    /// value, and each element inside an enumerable. Return the input value unchanged for a passthrough,
+    /// or return a different value (for example an anonymous object) to produce a focused snapshot.
+    /// </summary>
+    /// <param name="value">The value being serialized.</param>
+    /// <returns>The projected value to serialize in place of <paramref name="value"/>.</returns>
+    public delegate object? SnapshotProjection(object value);
+
+    /// <summary>
     /// Delegate for validating placeholder values in expected snapshots.
     /// </summary>
     /// <param name="value">The actual value to validate against the placeholder.</param>
@@ -125,6 +135,13 @@ namespace Assertive.Config
       /// Exclude null values from the output, defaults to false.
       /// </summary>
       public bool ExcludeNullValues { get; set; } = false;
+
+      /// <summary>
+      /// When comparing string snapshots, treat all line ending styles (<c>\r\n</c>, <c>\r</c>, <c>\n</c>) as equivalent.
+      /// Useful when snapshot files may be normalized by source control (e.g. Git's <c>core.autocrlf</c>)
+      /// or when tests run across platforms with different line endings. Defaults to false.
+      /// </summary>
+      public bool IgnoreLineEndingDifferences { get; set; } = false;
       
       /// <summary>
       /// A callback to resolve the directory where the expected snapshot file should be located.
@@ -220,8 +237,8 @@ namespace Assertive.Config
       public bool AcceptNewSnapshots { get; set; }
 
       private static readonly ConcurrentDictionary<object, JsonSerializerOptions> _jsonSerializerOptionsCache = new();
-      
-      internal JsonSerializerOptions GetJsonSerializerOptions()
+
+      internal JsonSerializerOptions GetJsonSerializerOptions(SnapshotProjection? projection = null)
       {
         // These properties affect the JsonSerializerOptions, so we use them as a key to cache the options.
         var key = new
@@ -231,9 +248,10 @@ namespace Assertive.Config
           ExceptionRenderer,
           ExcludeNullValues,
           Normalization.ValueRenderer,
-          ShouldIgnore
+          ShouldIgnore,
+          Projection = projection
         };
-        
+
         if (_jsonSerializerOptionsCache.TryGetValue(key, out var options))
         {
           return options;
@@ -241,7 +259,7 @@ namespace Assertive.Config
 
         var jsonSerializerOptions = new JsonSerializerOptions()
         {
-          TypeInfoResolver = new TypeInfoResolver(this),
+          TypeInfoResolver = new TypeInfoResolver(this, projection),
           IncludeFields = true,
           WriteIndented = true,
           ReferenceHandler = ReferenceHandler.IgnoreCycles,
@@ -249,9 +267,9 @@ namespace Assertive.Config
           Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
           ReadCommentHandling = JsonCommentHandling.Skip
         };
-        
+
         _jsonSerializerOptionsCache[key] = jsonSerializerOptions;
-        
+
         return jsonSerializerOptions;
       }
     }

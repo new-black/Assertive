@@ -19,6 +19,24 @@ public class AssertSnapshotOptions
   /// </summary>
   public Configuration.CompareSnapshotsConfiguration Configuration { get; set; } = Config.Configuration.Snapshots;
 
+  /// <summary>
+  /// An optional projection applied to every non-primitive, non-string object encountered while
+  /// building the snapshot — the root value, each property value, and each element inside an enumerable.
+  /// Use it to focus a snapshot on a few properties without writing a recursive walker by hand:
+  /// <code>
+  /// Assert(tree, new AssertSnapshotOptions
+  /// {
+  ///   Project = obj => obj switch
+  ///   {
+  ///     Student s =&gt; new { Name = s.FullName },
+  ///     _ =&gt; obj
+  ///   }
+  /// });
+  /// </code>
+  /// Return the input value unchanged for a passthrough.
+  /// </summary>
+  public Configuration.SnapshotProjection? Project { get; set; }
+
   internal static AssertSnapshotOptions Default => new ();
 
   /// <summary>

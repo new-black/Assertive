@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Assertive.Config;
 using Newtonsoft.Json.Linq;
 using Xunit;
 using static Assertive.DSL;
@@ -8,6 +9,15 @@ namespace Assertive.Test.Snapshots;
 
 public class StringSnapshotTests
 {
+  [Fact]
+  public void IgnoreLineEndingDifferences_treats_CRLF_and_LF_as_equal()
+  {
+    // The expected file is stored with LF; this string uses CRLF.
+    var text = "Line 1\r\nLine 2\r\nLine 3";
+
+    Assert(text, Configuration.Snapshots with { IgnoreLineEndingDifferences = true });
+  }
+
   [Fact]
   public void String_snapshot_stores_plain_text()
   {

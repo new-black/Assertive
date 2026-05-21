@@ -106,6 +106,20 @@ public class SimpleSnapshotTests
     Assert(item);
   }
   
+  [Fact]
+  public void Anonymous_types_are_supported()
+  {
+    Assert(new { Name = "John", Age = 42 });
+  }
+  [Fact]
+  public void Diff_tool_filename_check()
+  {
+    Assert(new { Name = "John", Age = 42 }, new AssertSnapshotOptions
+    {
+      SnapshotIdentifier = "has space"   // try: "has space", "has{brace}", "has=equals", "has,comma"
+    });
+  }
+  
   public class Customer
   {
     public string FirstName { get; set; }

@@ -16,7 +16,10 @@ internal partial class AssertImpl
 {
   private static string EscapeFileName(string fileName)
   {
-    var invalidChars = Path.GetInvalidFileNameChars();
+    // Treat spaces as invalid in addition to the OS's invalid set. Spaces aren't filesystem-invalid
+    // on macOS/Linux but they break external tools (e.g. Rider's diff command) when the temp path
+    // is forwarded as a CLI argument.
+    var invalidChars = Path.GetInvalidFileNameChars().Append(' ').ToArray();
 
     var split = fileName.Replace("\"", "").Split(invalidChars, StringSplitOptions.RemoveEmptyEntries);
 
@@ -116,10 +119,14 @@ internal partial class AssertImpl
       return options.Configuration.ExpectedFileDirectoryResolver(currentTestInfo.Method, sourceFileInfo);
     }
 
-    var serializerOptions = options.Configuration.GetJsonSerializerOptions();
+    var serializerOptions = options.Configuration.GetJsonSerializerOptions(options.Project);
+
+    // Apply the projection to the root value so a top-level projection (e.g. Student -> { Name })
+    // is honored just like nested values.
+    var projectedActual = ProjectionHelper.ApplyProjection(actualObject, options.Project);
 
     // Determine if this is a string snapshot to use the correct file extension
-    var isStringSnapshot = actualObject is string;
+    var isStringSnapshot = projectedActual is string;
 
     var expectedFileInfo =
       new FileInfo(Path.Combine(GetExpectedFileDirectory(),
@@ -128,7 +135,7 @@ internal partial class AssertImpl
     // Handle string snapshots differently - store as plain text without JSON serialization
     if (isStringSnapshot)
     {
-      var actualString = (string)actualObject;
+      var actualString = (string)projectedActual!;
       var expectedString = expectedFileInfo.Exists ? File.ReadAllText(expectedFileInfo.FullName) : "";
 
       if (TryAcceptSnapshot(expectedFileInfo, options, actualString))
@@ -136,7 +143,7 @@ internal partial class AssertImpl
         return null;
       }
 
-      if (actualString == expectedString)
+      if (StringSnapshotsMatch(actualString, expectedString, options.Configuration))
       {
         return null;
       }
@@ -163,7 +170,7 @@ internal partial class AssertImpl
       expectedNode = new JsonObject();
     }
 
-    var actualNode = SerializeToNode(actualObject, serializerOptions);
+    var actualNode = projectedActual != null ? SerializeToNode(projectedActual, serializerOptions) : null;
     var actualJson = SerializeActual(serializerOptions, actualNode);
 
     if (TryAcceptSnapshot(expectedFileInfo, options, actualJson))
@@ -372,6 +379,21 @@ internal partial class AssertImpl
     }
   }
 
+  private static bool StringSnapshotsMatch(string actual, string expected, Configuration.CompareSnapshotsConfiguration config)
+  {
+    if (config.IgnoreLineEndingDifferences)
+    {
+      return NormalizeLineEndings(actual) == NormalizeLineEndings(expected);
+    }
+
+    return actual == expected;
+  }
+
+  private static string NormalizeLineEndings(string value)
+  {
+    return value.Replace("\r\n", "\n").Replace("\r", "\n");
+  }
+
   private static Exception BuildStringSnapshotError(string actualString, string expectedString, FileInfo expectedFileInfo,
     AssertSnapshotOptions options, CurrentTestInfo currentTestInfo, string expression, AssertionState assertionState)
   {
@@ -385,8 +407,13 @@ internal partial class AssertImpl
       sb.AppendLine(colors.Dimmed("No expected snapshot exists yet. Copy the actual value to the expected file to accept."));
     }
 
+    // When ignoring line ending differences, render the diff with normalized strings so
+    // the remaining differences are content-only and not noise from CRLF vs LF.
+    var displayActual = options.Configuration.IgnoreLineEndingDifferences ? NormalizeLineEndings(actualString) : actualString;
+    var displayExpected = options.Configuration.IgnoreLineEndingDifferences ? NormalizeLineEndings(expectedString) : expectedString;
+
     // Use string diff for detailed comparison
-    sb.Append(StringDiffHelper.GetStringDiff(actualString, expectedString));
+    sb.Append(StringDiffHelper.GetStringDiff(displayActual, displayExpected));
 
     sb.AppendLine();
     sb.AppendLine(colors.MetadataHeader("SNAPSHOT FILE"));
