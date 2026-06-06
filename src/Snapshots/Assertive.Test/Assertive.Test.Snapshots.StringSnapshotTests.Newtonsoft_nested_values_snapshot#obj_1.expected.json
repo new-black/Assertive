@@ -1,0 +1,13 @@
+{
+  "Name": "Root",
+  "Details": {
+    "nickname": "Johnny",
+    "scores": [
+      1,
+      2,
+      3
+    ]
+  },
+  "Tag": "active",
+  "Count": 42
+}

@@ -106,7 +106,7 @@ public class PlaceholderTests
       ProductID = Random.Shared.NextInt64(),
       Price = (decimal)Random.Shared.Next(10, 100),
       Name = Guid.NewGuid().ToString()
-    };
+    }; 
 
     var config = Configuration.Snapshots with { };
     config.Normalization.RegisterPlaceholderValidator("price", value => decimal.TryParse(value, out var price) && price > 0, "Price must be positive");

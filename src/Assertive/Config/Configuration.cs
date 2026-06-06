@@ -265,7 +265,8 @@ namespace Assertive.Config
           ReferenceHandler = ReferenceHandler.IgnoreCycles,
           AllowTrailingCommas = true,
           Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-          ReadCommentHandling = JsonCommentHandling.Skip
+          ReadCommentHandling = JsonCommentHandling.Skip,
+          Converters = { new NewtonsoftJsonConverterFactory() }
         };
 
         _jsonSerializerOptionsCache[key] = jsonSerializerOptions;

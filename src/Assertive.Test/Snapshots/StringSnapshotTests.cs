@@ -77,6 +77,43 @@ Line 3";
   }
 
   [Fact]
+  public void Newtonsoft_nested_values_snapshot_with_JToken_typed_properties()
+  {
+    var obj = new
+    {
+      Name = "Root",
+      Details = (JToken)new JObject
+      {
+        ["nickname"] = "Johnny",
+        ["scores"] = new JArray { 1, 2, 3 }
+      },
+      Tag = (JToken)new JValue("active"),
+      Count = (JToken)new JValue(42)
+    };
+
+    Assert(obj);
+  }
+  
+  
+  [Fact]
+  public void Newtonsoft_nested_values_snapshot()
+  {
+    var obj = new
+    {
+      Name = "Root",
+      Details = new JObject
+      {
+        ["nickname"] = "Johnny",
+        ["scores"] = new JArray { 1, 2, 3 }
+      },
+      Tag = new JValue("active"),
+      Count = new JValue(42)
+    };
+
+    Assert(obj);
+  }
+
+  [Fact]
   public void System_Text_Json_JsonArray_snapshot()
   {
     var arr = new JsonArray { 1, 2, 3 };
