@@ -101,6 +101,42 @@ public class ProjectionTests
     });
   }
 
+  class DifferentRoot
+  {
+    public TreeNode Tree { get; set; }
+  }
+  
+  [Fact]
+  public void Projects_recursively_through_nested_trees_when_root_is_not_matched_by_switch()
+  {
+    var tree = new TreeNode
+    {
+      Name = "root",
+      Weight = 100,
+      Children =
+      {
+        new TreeNode
+        {
+          Name = "a",
+          Weight = 10,
+          Children = { new TreeNode { Name = "a1", Weight = 1 } }
+        },
+        new TreeNode { Name = "b", Weight = 20 }
+      }
+    };
+
+    var root = new DifferentRoot { Tree = tree };
+
+    Assert(root, new AssertSnapshotOptions
+    {
+      Project = obj => obj switch
+      {
+        TreeNode n => new { n.Name, n.Children },
+        _ => obj
+      }
+    });
+  }
+
   [Fact]
   public void Identity_projection_leaves_snapshot_unchanged()
   {
