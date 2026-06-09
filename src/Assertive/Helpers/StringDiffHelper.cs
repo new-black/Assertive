@@ -14,6 +14,12 @@ namespace Assertive.Helpers
       Insert
     }
 
+    // The edit-distance / LCS algorithms allocate a dense (m+1)*(n+1) matrix, so memory grows as
+    // O(m*n). Cap the number of cells we are willing to allocate (~5M ints ≈ 20MB) to prevent
+    // pathological inputs (e.g. multi-megabyte strings or a single very long line) from OOMing.
+    // Above the cap we degrade to a cheaper, linear-memory rendering instead.
+    private const long MaxDiffMatrixCells = 5_000_000;
+
     public static string GetStringDiff(string actual, string expected)
     {
       var colors = Configuration.Colors;
@@ -21,12 +27,23 @@ namespace Assertive.Helpers
       var expectedLines = SplitLines(expected);
       var actualLines = SplitLines(actual);
 
-      var edits = CalculateEdits(expectedLines, actualLines, StringComparer.Ordinal);
+      // Guard against an O(lines*lines) LCS matrix. When too large, fall back to a positional
+      // comparison (linear memory) that still feeds the same rendering path below.
+      var useLcs = (long)expectedLines.Count * actualLines.Count <= MaxDiffMatrixCells;
+
+      var edits = useLcs
+        ? CalculateEdits(expectedLines, actualLines, StringComparer.Ordinal)
+        : CalculatePositionalEdits(expectedLines, actualLines, StringComparer.Ordinal);
 
       var sb = new StringBuilder();
 
       sb.AppendLine();
       sb.AppendLine(colors.DiffHeader("String diff (expected vs actual):"));
+      if (!useLcs)
+      {
+        var note = "Note: inputs too large for an aligned diff; showing a line-by-line positional comparison.";
+        sb.AppendLine(colors.Enabled ? colors.Dimmed(note) : note);
+      }
       sb.AppendLine(BuildLegend(colors));
 
       const int contextLines = 2;
@@ -133,6 +150,13 @@ namespace Assertive.Helpers
 
     private static (string Expected, string Actual) BuildInlineDiff(string expected, string actual, Configuration.ColorScheme colors)
     {
+      // Char-level alignment allocates an O(len*len) matrix. A single very long line (no newlines)
+      // would otherwise blow up here, so fall back to a whole-line removed/added rendering.
+      if ((long)expected.Length * actual.Length > MaxDiffMatrixCells)
+      {
+        return (FormatRemoved(expected, colors), FormatAdded(actual, colors));
+      }
+
       var edits = CalculateEdits(expected.ToCharArray(), actual.ToCharArray(), EqualityComparer<char>.Default);
       var colorEnabled = colors.Enabled;
 
@@ -348,6 +372,36 @@ namespace Assertive.Helpers
       return edits;
     }
 
+    /// <summary>
+    /// Produces edits by comparing items at the same index, in the same forward order the LCS
+    /// backtrace yields, so it can drive the same rendering path. Uses O(m+n) memory instead of the
+    /// O(m*n) matrix that <see cref="CalculateEdits{T}"/> requires. Used as a fallback for inputs
+    /// large enough that the full alignment matrix would risk exhausting memory.
+    /// </summary>
+    private static List<EditKind> CalculatePositionalEdits<T>(IReadOnlyList<T> expected, IReadOnlyList<T> actual, IEqualityComparer<T> comparer)
+    {
+      var edits = new List<EditKind>();
+      var common = Math.Min(expected.Count, actual.Count);
+
+      for (var i = 0; i < common; i++)
+      {
+        if (comparer.Equals(expected[i], actual[i]))
+        {
+          edits.Add(EditKind.Match);
+        }
+        else
+        {
+          edits.Add(EditKind.Delete);
+          edits.Add(EditKind.Insert);
+        }
+      }
+
+      for (var i = common; i < expected.Count; i++) edits.Add(EditKind.Delete);
+      for (var i = common; i < actual.Count; i++) edits.Add(EditKind.Insert);
+
+      return edits;
+    }
+
     private static List<string> SplitLines(string value)
     {
       var lines = new List<string>();
@@ -480,7 +534,7 @@ namespace Assertive.Helpers
       }
 
       // Performance guard: O(m*n) DP
-      if ((long)haystack.Length * needle.Length > 5_000_000)
+      if ((long)haystack.Length * needle.Length > MaxDiffMatrixCells)
       {
         return null;
       }

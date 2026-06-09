@@ -494,6 +494,90 @@ Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
       }
     }
 
+    // Regression tests for unbounded O(m*n) memory growth in StringDiffHelper. Without the cell-count
+    // guards, these inputs would attempt to allocate hundreds of GB and OOM. With the guards they must
+    // complete quickly using linear memory and still produce a (degraded) diff.
+
+    [Fact]
+    public void String_diff_does_not_exhaust_memory_for_huge_single_line()
+    {
+      // A single line with no newlines defeats line-level splitting and forces char-level alignment.
+      // 300k x 300k chars would be ~360GB of int matrix without the guard.
+      var actual = new string('a', 300_000) + "X" + new string('a', 300_000);
+      var expected = new string('a', 300_000) + "Y" + new string('a', 300_000);
+
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+      try
+      {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var diff = Helpers.StringDiffHelper.GetStringDiff(actual, expected);
+        sw.Stop();
+
+        Assert(() => diff.Contains("String diff (expected vs actual):"));
+        // Falls back to whole-line removed/added rendering rather than inline char alignment.
+        Assert(() => diff.Contains("[-"));
+        Assert(() => diff.Contains("[+"));
+        Assert(() => sw.Elapsed < TimeSpan.FromSeconds(5));
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void String_diff_does_not_exhaust_memory_for_huge_number_of_lines()
+    {
+      // 50k x 50k lines would be ~10GB of int matrix without the guard.
+      var actualLines = Enumerable.Range(1, 50_000).Select(i => $"Line {i}").ToArray();
+      var expectedLines = Enumerable.Range(1, 50_000).Select(i => $"Line {i}").ToArray();
+      actualLines[25_000] = "Changed actual";
+      expectedLines[25_000] = "Changed expected";
+
+      var actual = string.Join("\n", actualLines);
+      var expected = string.Join("\n", expectedLines);
+
+      var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+      try
+      {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var diff = Helpers.StringDiffHelper.GetStringDiff(actual, expected);
+        sw.Stop();
+
+        Assert(() => diff.Contains("String diff (expected vs actual):"));
+        // Degrades to the positional (non-LCS) comparison and says so.
+        Assert(() => diff.Contains("positional", StringComparison.OrdinalIgnoreCase));
+        // The differing line is still surfaced (inline-diffed, so the prefix stays contiguous).
+        Assert(() => diff.Contains("Changed"));
+        Assert(() => diff.Contains("[-"));
+        Assert(() => diff.Contains("[+"));
+        // Unchanged runs far from the diff are collapsed rather than dumped wholesale.
+        Assert(() => diff.Contains("..."));
+        Assert(() => sw.Elapsed < TimeSpan.FromSeconds(5));
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = originalColors;
+      }
+    }
+
+    [Fact]
+    public void Closest_substring_diff_is_bounded_for_huge_inputs()
+    {
+      // 1M x 1M chars would be ~4TB of int matrix without the existing guard; should bail out to null.
+      var haystack = new string('a', 1_000_000);
+      var needle = new string('b', 1_000_000);
+
+      var sw = System.Diagnostics.Stopwatch.StartNew();
+      var result = Helpers.StringDiffHelper.GetClosestSubstringDiff(haystack, needle);
+      sw.Stop();
+
+      Assert(() => result == null);
+      Assert(() => sw.Elapsed < TimeSpan.FromSeconds(5));
+    }
+
     private enum MyEnum
     {
       A = 1,
