@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 
 namespace Assertive.Runtime
@@ -78,6 +79,150 @@ namespace Assertive.Runtime
       return false;
     }
 
+    /// <summary>
+    /// Extracts the enclosing instance (`this`) captured by the assertion delegate. When the
+    /// lambda captures only `this`, the delegate's target is the instance itself; when it
+    /// also captures locals, the instance lives in a `&lt;&gt;4__this` field on the display class.
+    /// </summary>
+    public static object GetCapturedThis(Delegate assertion)
+    {
+      var target = assertion.Target
+        ?? throw new InvalidOperationException("Assertive: the assertion delegate does not capture 'this'.");
+
+      if (!target.GetType().IsDefined(typeof(CompilerGeneratedAttribute), inherit: false))
+      {
+        return target;
+      }
+
+      if (TryGetCapturedThis(target, depth: 0, out var value) && value != null)
+      {
+        return value;
+      }
+
+      throw new InvalidOperationException("Assertive: could not locate the captured 'this' reference in the assertion's closure.");
+    }
+
+    private static bool TryGetCapturedThis(object closure, int depth, out object? value)
+    {
+      var fields = closure.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+      foreach (var field in fields)
+      {
+        if (field.Name.EndsWith("__this", StringComparison.Ordinal))
+        {
+          value = field.GetValue(closure);
+          return true;
+        }
+      }
+
+      if (depth < 4)
+      {
+        foreach (var chained in fields)
+        {
+          if (chained.FieldType.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
+              && chained.GetValue(closure) is { } next
+              && TryGetCapturedThis(next, depth + 1, out value))
+          {
+            return true;
+          }
+        }
+      }
+
+      value = null;
+      return false;
+    }
+
+    /// <summary>
+    /// Invokes an instance method by name, ignoring accessibility. Used by generated code
+    /// when the member or the types involved cannot be named in generated source (private
+    /// members, private nested types); the generator guarantees the name + argument count
+    /// resolve to a single method. Exceptions thrown by the method are rethrown unwrapped.
+    /// </summary>
+    public static object? InvokeInstance(object target, string methodName, object?[] arguments)
+    {
+      for (var type = target.GetType(); type != null; type = type.BaseType)
+      {
+        MethodInfo? match = null;
+
+        foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+        {
+          if (method.Name == methodName && method.GetParameters().Length == arguments.Length)
+          {
+            if (match != null)
+            {
+              throw new InvalidOperationException($"Assertive: method '{methodName}' with {arguments.Length} parameter(s) is ambiguous on {type}.");
+            }
+
+            match = method;
+          }
+        }
+
+        if (match != null)
+        {
+          try
+          {
+            return match.Invoke(target, arguments);
+          }
+          catch (TargetInvocationException ex) when (ex.InnerException != null)
+          {
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
+          }
+        }
+      }
+
+      throw new InvalidOperationException($"Assertive: could not resolve method '{methodName}' with {arguments.Length} parameter(s) on {target.GetType()}.");
+    }
+
+    /// <summary>Reads an instance field or property by name, ignoring accessibility.</summary>
+    public static object? GetMemberValue(object target, string memberName)
+    {
+      const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+
+      for (var type = target.GetType(); type != null; type = type.BaseType)
+      {
+        if (type.GetField(memberName, flags) is { } field)
+        {
+          return field.GetValue(target);
+        }
+
+        if (type.GetProperty(memberName, flags) is { } property)
+        {
+          return property.GetValue(target);
+        }
+      }
+
+      throw new InvalidOperationException($"Assertive: could not resolve member '{memberName}' on {target.GetType()}.");
+    }
+
+    /// <summary>Resolves a nested type by metadata name, ignoring accessibility.</summary>
+    public static Type GetNestedType(Type parent, string name)
+    {
+      return parent.GetNestedType(name, BindingFlags.Public | BindingFlags.NonPublic)
+        ?? throw new InvalidOperationException($"Assertive: could not resolve nested type '{name}' on {parent}.");
+    }
+
+    /// <summary>Reads a static field or property (including enum constants) by name, ignoring accessibility.</summary>
+    public static object? GetStaticMemberValue(Type type, string memberName)
+    {
+      const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.DeclaredOnly;
+
+      for (var current = type; current != null; current = current.BaseType)
+      {
+        if (current.GetField(memberName, flags) is { } field)
+        {
+          return field.GetValue(null);
+        }
+
+        if (current.GetProperty(memberName, flags) is { } property)
+        {
+          return property.GetValue(null);
+        }
+      }
+
+      throw new InvalidOperationException($"Assertive: could not resolve static member '{memberName}' on {type}.");
+    }
+
     /// <summary>Throws-side entry: a failed (non-exceptional) assertion with no pattern decomposition.</summary>
     public static Exception Failure(string assertionExpression, object? message, Func<object?>? context, string? contextExpression)
     {
@@ -124,6 +269,32 @@ namespace Assertive.Runtime
         rightSource,
         rightValue,
         rightIsConstant,
+        negated,
+        locals,
+        message,
+        context,
+        contextExpression);
+    }
+
+    /// <summary>A failed ReferenceEquals assertion, decomposed by the generator (ReferenceEqualsPattern parity).</summary>
+    public static Exception ReferenceEqualsFailure(
+      string assertionExpression,
+      string leftSource,
+      object? leftValue,
+      string rightSource,
+      object? rightValue,
+      bool negated,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildReferenceEquals(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        leftSource,
+        leftValue,
+        rightSource,
+        rightValue,
         negated,
         locals,
         message,

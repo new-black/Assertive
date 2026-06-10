@@ -118,8 +118,8 @@ namespace Assertive
       string? contextExpression)
     {
       // A constant right-hand side displays as written; anything else displays its value.
-      var rightDisplay = rightIsConstant ? rightSource : Serializer.Serialize(rightValue).ToString();
-      var leftDisplay = Serializer.Serialize(leftValue).ToString();
+      var rightDisplay = rightIsConstant ? rightSource : DisplayValue(rightValue);
+      var leftDisplay = DisplayValue(leftValue);
 
       string expected;
       string actual;
@@ -154,6 +154,58 @@ namespace Assertive
         Context = context,
         ContextExpression = contextExpression,
       });
+    }
+
+    /// <summary>ReferenceEqualsPattern parity from captured values.</summary>
+    public static Exception BuildReferenceEquals(
+      string assertionText,
+      string leftSource,
+      object? leftValue,
+      string rightSource,
+      object? rightValue,
+      bool negated,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      var expected = negated
+        ? $"{leftSource} and {rightSource} should be different instances."
+        : $"{leftSource} and {rightSource} should be the same instance.";
+
+      var actual = negated
+        ? null
+        : $"{leftSource}: {DisplayValue(leftValue)}\n{rightSource}: {DisplayValue(rightValue)}";
+
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = expected,
+        Actual = actual,
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>
+    /// Serialized value display, with enum values qualified by their type name (the
+    /// expression-based pipeline did this through ExpressionEnumValue).
+    /// </summary>
+    private static string DisplayValue(object? value)
+    {
+      if (value != null)
+      {
+        var type = value.GetType();
+
+        if (type.IsEnum && Enum.IsDefined(type, value))
+        {
+          return $"{type.Name}.{value}";
+        }
+      }
+
+      return Serializer.Serialize(value).ToString();
     }
 
     internal static string? StripLambdaPrefix(string? expression)

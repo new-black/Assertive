@@ -169,22 +169,25 @@ namespace Assertive.Generators
     }
 
     /// <summary>
-    /// Emits the shared evaluation core: captured-local declarations, single evaluation of
-    /// each operand, early return on success, and the equality-failure throw.
+    /// Emits the shared evaluation core. The original delegate decides pass/fail — exactly
+    /// one evaluation, no generated comparison semantics. Only on failure are the operands
+    /// re-evaluated (typed or reflectively) for the decomposed report, mirroring how the
+    /// expression-based pipeline re-evaluated sub-expressions during failure analysis.
     /// </summary>
     private static void EmitEvaluation(StringBuilder sb, InterceptedCall call, string delegateName, string assertionTextArg, string tailArgs, string indent)
     {
+      sb.AppendLine($"{indent}if ({delegateName}()) return;");
+
       foreach (var local in call.CapturedLocals)
       {
-        sb.AppendLine($"{indent}{local.Type} {local.Name} = ({local.Type})global::Assertive.Runtime.GeneratedAssert.GetCapturedValue({delegateName}, {Quote(local.Name)});");
+        // Unnameable types are read as object; member access on them happens reflectively.
+        sb.AppendLine(local.Type != null
+          ? $"{indent}{local.Type} {local.Name} = ({local.Type})global::Assertive.Runtime.GeneratedAssert.GetCapturedValue({delegateName}, {Quote(local.Name)});"
+          : $"{indent}object {local.Name} = global::Assertive.Runtime.GeneratedAssert.GetCapturedValue({delegateName}, {Quote(local.Name)});");
       }
 
       sb.AppendLine($"{indent}var __left = {call.LeftSource};");
       sb.AppendLine($"{indent}var __right = {call.RightSource};");
-
-      var condition = call.IsEqualsMethod ? "__left.Equals(__right)" : $"__left {call.Operator} __right";
-
-      sb.AppendLine($"{indent}if ({(call.OuterNegated ? $"!({condition})" : condition)}) return;");
 
       // Locals that are themselves a whole operand are already displayed as the operand
       // value; everything else captured shows up under LOCALS (mirrors LocalsProvider).
@@ -196,17 +199,28 @@ namespace Assertive.Generators
         ? "global::System.Array.Empty<(string, object)>()"
         : $"new (string, object)[] {{ {string.Join(", ", displayedLocals.Select(l => $"({Quote(l.Name)}, (object){l.Name})"))} }}";
 
-      // Message-level negation: `!=`, `!(a == b)`, and `!a.Equals(b)` all read as
-      // "should not equal"; double negation cancels.
-      var negated = ((call.Operator == "!=") ^ call.OuterNegated) ? "true" : "false";
+      var negated = call.Negated ? "true" : "false";
 
-      sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.EqualityFailure(");
-      sb.AppendLine($"{indent}  {assertionTextArg},");
-      sb.AppendLine($"{indent}  {Quote(call.LeftDisplay)}, (object)__left,");
-      sb.AppendLine($"{indent}  {Quote(call.RightDisplay)}, (object)__right,");
-      sb.AppendLine($"{indent}  {(call.RightIsConstant ? "true" : "false")}, {negated},");
-      sb.AppendLine($"{indent}  {localsArray},");
-      sb.AppendLine($"{indent}  {tailArgs});");
+      if (call.Kind == InterceptionKind.ReferenceEquals)
+      {
+        sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.ReferenceEqualsFailure(");
+        sb.AppendLine($"{indent}  {assertionTextArg},");
+        sb.AppendLine($"{indent}  {Quote(call.LeftDisplay)}, (object)__left,");
+        sb.AppendLine($"{indent}  {Quote(call.RightDisplay)}, (object)__right,");
+        sb.AppendLine($"{indent}  {negated},");
+        sb.AppendLine($"{indent}  {localsArray},");
+        sb.AppendLine($"{indent}  {tailArgs});");
+      }
+      else
+      {
+        sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.EqualityFailure(");
+        sb.AppendLine($"{indent}  {assertionTextArg},");
+        sb.AppendLine($"{indent}  {Quote(call.LeftDisplay)}, (object)__left,");
+        sb.AppendLine($"{indent}  {Quote(call.RightDisplay)}, (object)__right,");
+        sb.AppendLine($"{indent}  {(call.RightIsConstant ? "true" : "false")}, {negated},");
+        sb.AppendLine($"{indent}  {localsArray},");
+        sb.AppendLine($"{indent}  {tailArgs});");
+      }
     }
 
     private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
@@ -234,6 +248,12 @@ namespace Assertive.Generators
     MessageContext,
   }
 
+  internal enum InterceptionKind
+  {
+    Equality,
+    ReferenceEquals,
+  }
+
   internal sealed class InterceptedCall
   {
     public int LocationVersion;
@@ -242,15 +262,19 @@ namespace Assertive.Generators
     public string FilePath = "";
     public ThatOverload Overload;
     public WrapperModel? Wrapper;
-    public List<(string Name, string Type)> CapturedLocals { get; } = new();
+    public InterceptionKind Kind;
+
+    /// <summary>Captured locals to declare; Type is null for unnameable types (read as object).</summary>
+    public List<(string Name, string? Type)> CapturedLocals { get; } = new();
+
     public string BodySource = "";
     public string LeftSource = "";
     public string RightSource = "";
     public string LeftDisplay = "";
     public string RightDisplay = "";
-    public string Operator = "";
-    public bool IsEqualsMethod;
-    public bool OuterNegated;
+
+    /// <summary>Message-level negation: `!=`, `!(a == b)`, `!a.Equals(b)`, `!ReferenceEquals(a, b)`.</summary>
+    public bool Negated;
     public bool RightIsConstant;
   }
 

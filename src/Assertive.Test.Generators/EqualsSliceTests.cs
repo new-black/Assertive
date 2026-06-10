@@ -169,15 +169,100 @@ namespace Assertive.Test.Generators
     }
 
     [Fact]
-    public void Private_nested_operand_type_is_not_intercepted_but_still_works()
+    public void Private_nested_operand_type_is_intercepted_reflectively()
     {
       var secret = new Secret();
 
       var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => secret.Value == 4));
 
-      Assert.False(wasIntercepted);
+      Assert.True(wasIntercepted);
       Assert.NotNull(exception);
-      Assert.Contains("secret.Value == 4", StripAnsi(exception!.Message));
+
+      var (expected, actual) = Decomposition(exception!);
+      Assert.Equal("secret.Value: 4", expected);
+      Assert.Equal("secret.Value: 3", actual);
+    }
+
+    [Fact]
+    public void Private_nested_enum_comparison_is_intercepted_reflectively()
+    {
+      var a = Mood.Happy;
+      var b = Mood.Grumpy;
+
+      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => a == b));
+
+      Assert.True(wasIntercepted);
+
+      var (expected, actual) = Decomposition(exception!);
+      Assert.Equal("a: Mood.Grumpy", expected);
+      Assert.Equal("a: Mood.Happy", actual);
+    }
+
+    [Fact]
+    public void Private_nested_enum_constant_is_resolved_reflectively()
+    {
+      Mood? a = null;
+
+      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => a == Mood.Grumpy));
+
+      Assert.True(wasIntercepted);
+
+      var (expected, actual) = Decomposition(exception!);
+      Assert.Equal("a: Mood.Grumpy", expected);
+      Assert.Equal("a: null", actual);
+    }
+
+    [Fact]
+    public void Private_method_on_this_is_invoked_reflectively()
+    {
+      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => GetTuple().a == GetTuple().b));
+
+      Assert.True(wasIntercepted);
+
+      var (expected, actual) = Decomposition(exception!);
+      Assert.Equal("GetTuple().a: \"b\"", expected);
+      Assert.Equal("GetTuple().a: \"a\"", actual);
+    }
+
+    [Fact]
+    public void ReferenceEquals_is_intercepted()
+    {
+      var instance1 = new object();
+      var instance2 = new object();
+
+      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => ReferenceEquals(instance1, instance2)));
+
+      Assert.True(wasIntercepted);
+
+      var (expected, actual) = Decomposition(exception!);
+      Assert.Equal("instance1 and instance2 should be the same instance.", expected);
+      Assert.Equal("instance1: System.Object\ninstance2: System.Object", actual);
+    }
+
+    [Fact]
+    public void Negated_ReferenceEquals_is_intercepted_without_actual()
+    {
+      var instance1 = new object();
+      var instance2 = instance1;
+
+      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => !ReferenceEquals(instance1, instance2)));
+
+      Assert.True(wasIntercepted);
+
+      var (expected, _) = Decomposition(exception!);
+      Assert.Equal("instance1 and instance2 should be different instances.", expected);
+      Assert.Empty((string[])exception!.Data["Assertive.Actual"]!);
+    }
+
+    private (string a, string b) GetTuple()
+    {
+      return ("a", "b");
+    }
+
+    private enum Mood
+    {
+      Happy,
+      Grumpy,
     }
 
     private sealed class Secret
