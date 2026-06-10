@@ -387,6 +387,39 @@ The Phase 0.5 slice does not implement the shim — there, declining to intercep
 reflection fallback, since the expression-tree pipeline evaluates by reflection anyway. The
 slice's rejection-reason telemetry should still count these sites to size the shim's value.
 
+### 8.10 User-defined assertion wrappers (`[AssertionWrapper]`)
+
+Wrappers (`ShouldFail(() => x == 5, "message")`) are where many lambda literals actually
+live — Assertive's own test suite has ~224 `ShouldFail` calls, its primary idiom. Without
+support, interception inside the wrapper sees only a variable and degrades. The mechanism
+(modeled on interpolated string handlers — a library-declared parameter type that the
+compile step fills with a rich payload at the call site):
+
+```csharp
+[AssertionWrapper] // generator intercepts lambda-literal call sites of this method
+void ShouldFail(Func<bool> assertion, string expected,
+    [CallerArgumentExpression(nameof(assertion))] string expr = "")
+  => ShouldFail(AssertionHandle.Degraded(assertion, expr), expected); // Tier-1 body
+
+internal void ShouldFail(AssertionHandle assertion, string expected) { /* wrapper logic */ }
+```
+
+The generator intercepts `ShouldFail(() => ..., ...)` call sites and routes to the handle
+overload with `AssertionHandle.Generated(...)` — the same decomposed evaluator + node
+descriptors it builds for `Assert.That`. Rules:
+
+- The overload pair cannot collide: lambdas convert to `Func<bool>`, never to
+  `AssertionHandle`.
+- The handle overload must be accessible to generated code (`internal`/`public`, not
+  `protected` — interceptors live outside the type). Instance wrappers work: the
+  interceptor takes the receiver as its first parameter.
+- The sugar overload's body is, by construction, the Tier-2 path (generator absent) and
+  the Tier-1 path (non-literal argument).
+- `Assert.That` itself is the canonical `[AssertionWrapper]`: one mechanism, dogfooded.
+- Migrating `ShouldFail` to this contract is a required deliverable, not an option — it is
+  what makes the existing message-verification suite exercise the generated path in the
+  differential harness (§13).
+
 ## 9. Runtime engine changes
 
 | Area | Change |
@@ -466,9 +499,10 @@ This is the heart of de-risking the migration.
 
 1. **Programmatic/stored assertion expressions** (`Expression<Func<bool>>` built or passed
    as a variable): no longer expressible. No workaround; release notes + migration guide.
-2. **User wrapper methods** forwarding to `Assert.That` lose decomposition (interception
-   happens inside the wrapper). Mitigation: document the pattern of making wrappers take
-   the values (not the assertion), or accept Tier-1 messages there.
+2. **Anonymous wrapper methods** forwarding to `Assert.That` lose decomposition
+   (interception happens inside the wrapper, where the argument is a variable). Wrappers
+   that opt in via `[AssertionWrapper]` (§8.10) keep full decomposition; only un-annotated
+   forwarding loses it, degrading to the sugar overload's Tier-1 behavior.
 3. **F# / scripting / generator-less builds** drop to Tier 2.
 4. Stored-delegate arguments (`Func<bool> f = ...; Assert.That(f)`) — compile fine, Tier 1.
    (Today these don't compile at all, so this is technically *new*, just not decomposed.)
@@ -499,7 +533,7 @@ structs degrade.)
 | **0.5. Vertical slice — EqualsPattern via interceptors** (go/no-go gate, see §16.1) | Slice generator intercepting the *unchanged* `Expression`-based API at whitelisted equality call sites; real packaging; run against `Assertive.Test` + a large real-world suite | Differential parity on equality corpus; R1/R4/R5 validated on real code; **explicit go/no-go decision** |
 | **1. Engine re-base** (largest, zero-risk) | `EvaluatedNode`; port 18+10 patterns, formatter, DSL; expression adapter | Existing suite green on old API via adapter |
 | **2. Generator core** | Pipeline, interception, manifest, closure reader, leaf lowering (comparisons, boolean, negation, `&&`/`&`/`||`/`|`), node emission, Tier 1/2 | Differential harness green on comparison/boolean corpus |
-| **3. Full lowering** | Member chains + step tracking, exception attribution, conditional access, `this`/private access, `Throws` lifting | Exception-pattern corpus green |
+| **3. Full lowering** | Member chains + step tracking, exception attribution, conditional access, `this`/private access, `Throws` lifting, `[AssertionWrapper]` + `AssertionHandle` (§8.10) incl. converting `ShouldFail` in Assertive.Test | Exception-pattern corpus green; existing message tests exercise the generated path |
 | **4. Collection patterns** | `All`/`Any` per-item loops, item context | Collection corpus green |
 | **5. Productization** | Packaging/props, diagnostics, perf budget, docs, migration guide, transition release + vNext | Differential harness green on full corpus; all adapter test projects green |
 
