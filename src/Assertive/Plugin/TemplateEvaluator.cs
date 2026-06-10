@@ -20,6 +20,9 @@ namespace Assertive.Plugin
 
     private readonly Dictionary<string, Func<string?>> _variables = new();
 
+    /// <summary>Registers a placeholder for evaluation (used by the generated probe-based path).</summary>
+    internal void Add(string name, Func<string?> value) => _variables[name] = value;
+
     /// <summary>
     /// Creates a template evaluator for a method call expression.
     /// </summary>
@@ -150,7 +153,7 @@ namespace Assertive.Plugin
       return $"{result}";
     }
 
-    private static string FormatValue(object? value)
+    internal static string FormatValue(object? value)
     {
       if (value == null)
       {
@@ -171,7 +174,7 @@ namespace Assertive.Plugin
       return value.ToString() ?? "";
     }
 
-    private static string FormatTypeName(Type type)
+    internal static string FormatTypeName(Type type)
     {
       if (!type.IsGenericType)
       {
@@ -196,7 +199,7 @@ namespace Assertive.Plugin
       return $"{genericName}<{string.Join(", ", argNames)}>";
     }
 
-    private static string FormatFirstItems(object? value, int maxItems)
+    internal static string FormatFirstItems(object? value, int maxItems)
     {
       if (value == null)
       {

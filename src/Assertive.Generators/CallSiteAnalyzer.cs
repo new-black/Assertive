@@ -120,9 +120,147 @@ namespace Assertive.Generators
       }
 
       call.ExceptionStepsSource = new ExceptionStepWalker(ctx.SemanticModel, compiler, body, ct).CollectSource(body);
+      call.CustomProbeSource = BuildCustomProbe(ctx, core, outerNegated, compiler, ct);
 
       return call;
     }
+
+    /// <summary>
+    /// Builds the CustomPatternProbe initializer for bodies whose (negation-stripped) root
+    /// is a method call or property access — the shapes runtime-registered custom patterns
+    /// can match. Null for any other shape.
+    /// </summary>
+    private static string? BuildCustomProbe(GeneratorSyntaxContext ctx, ExpressionSyntax core, bool negated,
+      OperandCompiler compiler, CancellationToken ct)
+    {
+      var parts = new List<string> { $"Negated = {(negated ? "true" : "false")}" };
+
+      switch (core)
+      {
+        case InvocationExpressionSyntax invocation
+          when ctx.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is IMethodSymbol method:
+        {
+          var access = invocation.Expression is MemberAccessExpressionSyntax ma && ma.IsKind(SyntaxKind.SimpleMemberAccessExpression)
+            ? ma
+            : null;
+
+          ExpressionSyntax? instance = null;
+          var argExpressions = invocation.ArgumentList.Arguments.Select(a => a.Expression).ToList();
+          int parameterCount;
+
+          if (method.ReducedFrom != null)
+          {
+            if (access == null)
+            {
+              return null;
+            }
+
+            instance = access.Expression;
+            parameterCount = method.Parameters.Length;
+          }
+          else if (method.IsExtensionMethod)
+          {
+            // Extension method invoked in static form: the first argument is the instance.
+            if (argExpressions.Count == 0)
+            {
+              return null;
+            }
+
+            instance = argExpressions[0];
+            argExpressions.RemoveAt(0);
+            parameterCount = method.Parameters.Length - 1;
+          }
+          else
+          {
+            if (!method.IsStatic && access != null)
+            {
+              instance = access.Expression;
+            }
+
+            parameterCount = method.Parameters.Length;
+          }
+
+          parts.Add("IsMethodCall = true");
+          parts.Add($"MemberName = {Quote(method.Name)}");
+          parts.Add($"ParameterCount = {parameterCount}");
+          parts.Add($"IsExtension = {(method.IsExtensionMethod ? "true" : "false")}");
+
+          if (compiler.TypeAccessor(method.ContainingType) is { } declaringType)
+          {
+            parts.Add($"DeclaringType = {declaringType}");
+          }
+
+          AddProbeInstance(parts, ctx, instance, compiler, ct);
+
+          if (argExpressions.Count > 0)
+          {
+            var sources = argExpressions.Select(a => Quote(a.ToString()));
+            var evaluators = argExpressions.Select(a =>
+              a is AnonymousFunctionExpressionSyntax ? "null"
+                : compiler.Compile(a) is { } compiled ? $"() => (object)({compiled})" : "null");
+            var types = argExpressions.Select(a =>
+              ctx.SemanticModel.GetTypeInfo(a, ct).Type is { } argType ? compiler.TypeAccessor(argType) ?? "null" : "null");
+
+            parts.Add($"ArgSources = new string[] {{ {string.Join(", ", sources)} }}");
+            parts.Add($"Args = new global::System.Func<object>[] {{ {string.Join(", ", evaluators)} }}");
+            parts.Add($"ArgStaticTypes = new global::System.Type[] {{ {string.Join(", ", types)} }}");
+          }
+
+          break;
+        }
+
+        case MemberAccessExpressionSyntax member
+          when member.IsKind(SyntaxKind.SimpleMemberAccessExpression)
+               && ctx.SemanticModel.GetSymbolInfo(member, ct).Symbol is IPropertySymbol { IsStatic: false } property:
+        {
+          parts.Add("IsMethodCall = false");
+          parts.Add($"MemberName = {Quote(property.Name)}");
+
+          if (compiler.TypeAccessor(property.ContainingType) is { } declaringType)
+          {
+            parts.Add($"DeclaringType = {declaringType}");
+          }
+
+          AddProbeInstance(parts, ctx, member.Expression, compiler, ct);
+
+          if (compiler.Compile(member) is { } value)
+          {
+            parts.Add($"Value = () => (object)({value})");
+          }
+
+          break;
+        }
+
+        default:
+          return null;
+      }
+
+      return $"new global::Assertive.Runtime.CustomPatternProbe {{ {string.Join(", ", parts)} }}";
+    }
+
+    private static void AddProbeInstance(List<string> parts, GeneratorSyntaxContext ctx, ExpressionSyntax? instance,
+      OperandCompiler compiler, CancellationToken ct)
+    {
+      if (instance == null)
+      {
+        return;
+      }
+
+      parts.Add($"InstanceSource = {Quote(instance.ToString())}");
+
+      if (ctx.SemanticModel.GetTypeInfo(instance, ct).Type is { } instanceType
+          && compiler.TypeAccessor(instanceType) is { } instanceTypeAccessor)
+      {
+        parts.Add($"InstanceStaticType = {instanceTypeAccessor}");
+      }
+
+      if (compiler.Compile(instance) is { } compiledInstance)
+      {
+        parts.Add($"Instance = () => (object)({compiledInstance})");
+      }
+    }
+
+    private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
 
     /// <summary>
     /// Determines which pattern the (negation-stripped) assertion body matches, compiles

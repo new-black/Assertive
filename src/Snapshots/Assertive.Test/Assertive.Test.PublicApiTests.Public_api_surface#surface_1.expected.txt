@@ -166,6 +166,22 @@ class PropertyMatch
   .ctor()
   string Name { get; set; }
 
+sealed class CustomPatternProbe
+  .ctor()
+  Func<object>[] Args
+  string[] ArgSources
+  Type[] ArgStaticTypes
+  Type DeclaringType
+  Func<object> Instance
+  string InstanceSource
+  Type InstanceStaticType
+  bool IsExtension
+  bool IsMethodCall
+  string MemberName
+  bool Negated
+  int ParameterCount
+  Func<object> Value
+
 sealed class ExceptionStep
   .ctor()
   bool[] ArgIsConstant
@@ -240,3 +256,4 @@ static class GeneratedAssert
   static Exception ReferenceEqualsFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception SequenceEqualFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, object comparer, Type elementType, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception StartsEndsWithFailure(string assertionExpression, string instanceSource, object instanceValue, string argSource, object argValue, bool argIsConstant, string methodLabel, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
+  static Exception TryCustomFailure(string assertionExpression, CustomPatternProbe probe, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)

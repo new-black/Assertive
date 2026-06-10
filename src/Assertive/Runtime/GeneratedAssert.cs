@@ -538,6 +538,47 @@ namespace Assertive.Runtime
         methodLabel, negated, locals, message, context, contextExpression);
     }
 
+    /// <summary>
+    /// Consults the runtime-registered custom patterns (Configuration.Patterns) with the
+    /// recorded structural probe. Returns the custom failure when a pattern matches —
+    /// custom patterns take precedence over the built-in decomposition — or null.
+    /// </summary>
+    public static Exception? TryCustomFailure(
+      string assertionExpression,
+      CustomPatternProbe probe,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      (string Expected, string? Actual)? match;
+
+      try
+      {
+        match = GeneratedCustomPatterns.TryMatch(probe);
+      }
+      catch
+      {
+        return null;
+      }
+
+      if (match == null)
+      {
+        return null;
+      }
+
+      return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails
+      {
+        AssertionText = AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        Expected = match.Value.Expected,
+        Actual = match.Value.Actual,
+        Locals = locals,
+        UserMessage = message,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
     /// <summary>A failed All() call, decomposed by the generator (AllPattern/NotAllPattern parity).</summary>
     public static Exception AllFailure(
       string assertionExpression,

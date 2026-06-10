@@ -238,6 +238,18 @@ namespace Assertive.Generators
       var localsArray = BuildLocalsArray(call);
       var tail = $"{localsArray},\n{indent}  {tailArgs}";
 
+      // Runtime-registered custom patterns take precedence over the built-in decomposition
+      // (the old FallbackPattern consulted them first).
+      if (call.CustomProbeSource != null)
+      {
+        sb.AppendLine($"{indent}if (global::Assertive.Runtime.GeneratedAssert.TryCustomFailure({assertionTextArg},");
+        sb.AppendLine($"{indent}  {call.CustomProbeSource},");
+        sb.AppendLine($"{indent}  {tail}) is {{ }} __custom)");
+        sb.AppendLine($"{indent}{{");
+        sb.AppendLine($"{indent}  throw __custom;");
+        sb.AppendLine($"{indent}}}");
+      }
+
       sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.{BuildFailureInvocation(call, assertionTextArg, indent, tail, "__left", "__right")});");
     }
 
@@ -435,6 +447,12 @@ namespace Assertive.Generators
     /// failure path, or null when the body has no throw-capable sub-expressions.
     /// </summary>
     public string? ExceptionStepsSource;
+
+    /// <summary>
+    /// `new CustomPatternProbe { ... }` source for runtime custom-pattern matching, or
+    /// null when the body root is not a method call / property access.
+    /// </summary>
+    public string? CustomProbeSource;
   }
 
   /// <summary>An [AssertionWrapper] method pair (see AssertionWrapperAttribute in Assertive).</summary>
