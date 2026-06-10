@@ -1,3 +1,5 @@
+namespace Assertive
+
 static class Assert
   static void Snapshot(object snapshot, AssertSnapshotOptions options, string expression, string sourceFile)
   static void That(Func<bool> assertion, object message, Func<object> context, string assertionExpression, string contextExpression)
@@ -22,6 +24,20 @@ class AssertSnapshotOptions
   CompareSnapshotsConfiguration Configuration { get; set; }
   SnapshotProjection Project { get; set; }
   string SnapshotIdentifier { get; set; }
+
+static class DSL
+  static void Assert(Func<bool> assertion, object message, Func<object> context, string assertionExpression, string contextExpression)
+  static void Assert(Func<bool> assertion, Func<object> context, string assertionExpression, string contextExpression)
+  static void Assert(AssertionHandle assertion)
+  static void Assert(object snapshot, AssertSnapshotOptions options, string expression, string sourceFile)
+  static Exception Throws(Action action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
+  static TException Throws<TException>(Action action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
+  static Exception Throws(Func<object> func, Func<Exception, bool> exceptionAssertion, string funcExpression, string exceptionExpression)
+  static TException Throws<TException>(Func<object> func, Func<TException, bool> exceptionAssertion, string funcExpression, string exceptionExpression)
+  static Task<Exception> Throws(Func<Task> action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
+  static Task<TException> Throws<TException>(Func<Task> action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
+
+namespace Assertive.Config
 
 static class Configuration
   static ColorScheme Colors { get; }
@@ -120,21 +136,13 @@ static class ExpressionQuotationPatterns
   static const string SingleQuotes
   static const string SquareBrackets
 
-static class DSL
-  static void Assert(Func<bool> assertion, object message, Func<object> context, string assertionExpression, string contextExpression)
-  static void Assert(Func<bool> assertion, Func<object> context, string assertionExpression, string contextExpression)
-  static void Assert(AssertionHandle assertion)
-  static void Assert(object snapshot, AssertSnapshotOptions options, string expression, string sourceFile)
-  static Exception Throws(Action action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
-  static TException Throws<TException>(Action action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
-  static Exception Throws(Func<object> func, Func<Exception, bool> exceptionAssertion, string funcExpression, string exceptionExpression)
-  static TException Throws<TException>(Func<object> func, Func<TException, bool> exceptionAssertion, string funcExpression, string exceptionExpression)
-  static Task<Exception> Throws(Func<Task> action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
-  static Task<TException> Throws<TException>(Func<Task> action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
+namespace Assertive.Expressions
 
 class UnquotedExpression
   .ctor(Expression expression)
   Expression Expression { get; }
+
+namespace Assertive.Plugin
 
 class MatchPredicate
   .ctor()
@@ -165,6 +173,8 @@ class PatternDefinition
 class PropertyMatch
   .ctor()
   string Name { get; set; }
+
+namespace Assertive.Runtime
 
 sealed class AssertionPart
   .ctor()
