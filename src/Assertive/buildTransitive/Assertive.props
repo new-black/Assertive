@@ -2,10 +2,19 @@
 
   <!-- Allow Assertive's source generator to emit interceptors for Assert.That call sites.
        Both property names are set: InterceptorsNamespaces is current; the *Preview* variant
-       covers older SDKs. Harmless when the generator doesn't run. -->
-  <PropertyGroup>
+       covers older SDKs. Harmless when the generator doesn't run.
+
+       Escape hatch: set <AssertiveDisableInterceptors>true</AssertiveDisableInterceptors>
+       in a project (or Directory.Build.props) to fully disable interception; assertions
+       then run on the standard runtime pipeline. -->
+  <PropertyGroup Condition="'$(AssertiveDisableInterceptors)' != 'true'">
     <InterceptorsNamespaces>$(InterceptorsNamespaces);Assertive.Generated</InterceptorsNamespaces>
     <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Assertive.Generated</InterceptorsPreviewNamespaces>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Makes the property readable by the generator so it stops emitting entirely. -->
+    <CompilerVisibleProperty Include="AssertiveDisableInterceptors" />
+  </ItemGroup>
 
 </Project>

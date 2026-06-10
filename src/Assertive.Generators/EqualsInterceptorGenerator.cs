@@ -28,6 +28,12 @@ namespace Assertive.Generators
   {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+      // Escape hatch, surfaced via buildTransitive/Assertive.props:
+      // <AssertiveDisableInterceptors>true</AssertiveDisableInterceptors>
+      var disabled = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) =>
+        provider.GlobalOptions.TryGetValue("build_property.AssertiveDisableInterceptors", out var value)
+        && string.Equals(value, "true", System.StringComparison.OrdinalIgnoreCase));
+
       var calls = context.SyntaxProvider.CreateSyntaxProvider(
           // Cheap syntax pre-filter; `using static`-style bare `That(...)` calls are
           // intentionally not intercepted in the slice.
@@ -38,7 +44,15 @@ namespace Assertive.Generators
           transform: static (ctx, ct) => CallSiteAnalyzer.Analyze(ctx, ct))
         .Where(static c => c is not null);
 
-      context.RegisterSourceOutput(calls.Collect(), static (spc, all) => Emit(spc, all!));
+      context.RegisterSourceOutput(calls.Collect().Combine(disabled), static (spc, input) =>
+      {
+        var (all, isDisabled) = input;
+
+        if (!isDisabled)
+        {
+          Emit(spc, all!);
+        }
+      });
     }
 
     private static void Emit(SourceProductionContext spc, ImmutableArray<InterceptedCall?> calls)

@@ -454,7 +454,7 @@ This is the heart of de-risking the migration.
 | R1 | Closure layout is a compiler implementation detail (display-class chaining, field naming for deconstructed tuples). | Isolated in `ClosureReader`; dedicated shape test suite run per SDK in CI; degrade to Tier 1 on lookup miss rather than throw. |
 | R2 | Interceptors' official support status / Roslyn floor. | Phase 0 spike: confirm `InterceptorsNamespaces` + v1 checksum format stability on .NET 9/10 SDK; decide floor. |
 | R3 | Generic call sites (`Check<T>` helpers) need generic interceptors. | Phase 0 spike; degrade to Tier 1 where unsupported. |
-| R4 | Compile-time cost on large test suites. | Per-file emission, equatable models, CI perf budget; escape hatch MSBuild flag `AssertiveDisableGenerator` (everything still works at Tier 2). |
+| R4 | Compile-time cost on large test suites. | Per-file emission, equatable models, CI perf budget; escape hatch MSBuild flag `AssertiveDisableInterceptors` (everything still works at Tier 2; implemented in the Phase 0.5 slice). |
 | R5 | Debugging UX inside generated code (breakpoints in asserts, EnC invalidating checksums). | `[StackTraceHidden]`; document; verify EnC behavior in Phase 0. |
 | R6 | `&&` leaves sharing state (pattern variables, `out` vars crossing leaf boundaries). | Lowering keeps leaf temps in one scope (no artificial blocks); corpus tests. |
 | O1 | Ship a transition release (old API + re-based engine) before the break? | Recommended: yes — it's Phase 1's natural artifact. |
