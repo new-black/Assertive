@@ -25,9 +25,19 @@ namespace Assertive.Generators
     {
       var invocation = (InvocationExpressionSyntax)ctx.Node;
 
-      if (ctx.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol method
-          || method.Name != "That"
-          || method.ContainingType is not { Name: "Assert", ContainingNamespace: { Name: "Assertive", ContainingNamespace.IsGlobalNamespace: true } })
+      if (ctx.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol method)
+      {
+        return null;
+      }
+
+      var isAssertThat = method is { Name: "That", ContainingType: { Name: "Assert", ContainingNamespace: { Name: "Assertive", ContainingNamespace.IsGlobalNamespace: true } } };
+      var isDslAssert = method is { Name: "Assert", ContainingType: { Name: "DSL", ContainingNamespace: { Name: "Assertive", ContainingNamespace.IsGlobalNamespace: true } } };
+
+      // First parameter must be the assertion expression; this also excludes the DSL's
+      // snapshot overload (first parameter is `object`).
+      if ((!isAssertThat && !isDslAssert)
+          || method.Parameters.Length == 0
+          || method.Parameters[0].Type is not INamedTypeSymbol { Name: "Expression", Arity: 1 })
       {
         return null;
       }
@@ -68,6 +78,15 @@ namespace Assertive.Generators
       foreach (var node in body.DescendantNodesAndSelf())
       {
         if (node is ThisExpressionSyntax or BaseExpressionSyntax or QueryExpressionSyntax or AnonymousObjectCreationExpressionSyntax)
+        {
+          return null;
+        }
+
+        // Extension methods called instance-style (`xs.First()`) would need the extension's
+        // namespace imported in the generated file; resolving that faithfully is out of
+        // scope for the slice.
+        if (node is InvocationExpressionSyntax innerCall
+            && ctx.SemanticModel.GetSymbolInfo(innerCall, ct).Symbol is IMethodSymbol { ReducedFrom: not null })
         {
           return null;
         }

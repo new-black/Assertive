@@ -29,12 +29,15 @@ namespace Assertive.Generators
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
       var calls = context.SyntaxProvider.CreateSyntaxProvider(
-          // Cheap syntax pre-filter; `using static`-style bare `That(...)` calls are
-          // intentionally not intercepted in the slice.
-          predicate: static (node, _) => node is InvocationExpressionSyntax
-          {
-            Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "That" }
-          },
+          // Cheap syntax pre-filter: Assert.That(...) / alias.That(...) member calls and the
+          // DSL's bare Assert(...) via `using static Assertive.DSL`.
+          predicate: static (node, _) => node is InvocationExpressionSyntax invocation
+            && invocation.Expression switch
+            {
+              MemberAccessExpressionSyntax { Name.Identifier.ValueText: "That" or "Assert" } => true,
+              IdentifierNameSyntax { Identifier.ValueText: "Assert" or "That" } => true,
+              _ => false,
+            },
           transform: static (ctx, ct) => CallSiteAnalyzer.Analyze(ctx, ct))
         .Where(static c => c is not null);
 
