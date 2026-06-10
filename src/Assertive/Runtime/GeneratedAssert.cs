@@ -698,6 +698,22 @@ namespace Assertive.Runtime
       return InvokeInstance(target, "get_Item", new[] { index });
     }
 
+    /// <summary>Count(predicate) over an untyped enumerable (reflective evaluation).</summary>
+    public static int EnumerableCount(object source, Func<object?, bool> predicate)
+    {
+      var count = 0;
+
+      foreach (var item in (System.Collections.IEnumerable)source)
+      {
+        if (predicate(item))
+        {
+          count++;
+        }
+      }
+
+      return count;
+    }
+
     /// <summary>
     /// Count() over an untyped enumerable, for reflective operand evaluation when the
     /// element type cannot be named in generated code.

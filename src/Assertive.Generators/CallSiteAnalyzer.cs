@@ -1216,6 +1216,33 @@ namespace Assertive.Generators
               : null;
           }
 
+          case BinaryExpressionSyntax binary when IsReflectiveOperatorKind(binary.Kind()):
+          {
+            // Operators need typed operands: each side is compiled reflectively and cast
+            // back to its (nameable) static type, preserving the source semantics.
+            var leftType = _model.GetTypeInfo(binary.Left, _ct).Type;
+            var rightType = _model.GetTypeInfo(binary.Right, _ct).Type;
+
+            if (leftType == null || rightType == null
+                || !IsUsableType(leftType, _compilation) || !IsUsableType(rightType, _compilation))
+            {
+              return null;
+            }
+
+            var leftCompiled = CompileReflective(binary.Left, captures, bindings);
+            var rightCompiled = leftCompiled != null ? CompileReflective(binary.Right, captures, bindings) : null;
+
+            if (rightCompiled == null)
+            {
+              return null;
+            }
+
+            var leftFqn = leftType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var rightFqn = rightType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+            return $"((({leftFqn})({leftCompiled})) {binary.OperatorToken.Text} (({rightFqn})({rightCompiled})))";
+          }
+
           case InvocationExpressionSyntax invocation:
           {
             if (_model.GetSymbolInfo(invocation, _ct).Symbol is not IMethodSymbol method)
@@ -1231,6 +1258,35 @@ namespace Assertive.Generators
             {
               return CompileReflective(countAccess.Expression, captures, bindings) is { } countReceiver
                 ? $"{Runtime}.EnumerableCount({countReceiver})"
+                : null;
+            }
+
+            // LINQ Count(predicate) over an unnameable element type: the predicate is
+            // compiled with its parameter bound reflectively.
+            if (method is { ReducedFrom: not null, Parameters.Length: 1, Name: "Count", ContainingType.Name: "Enumerable" }
+                && method.ContainingType.ContainingNamespace is { Name: "Linq", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } }
+                && CompileReflectiveStaticCall(invocation, method, captures, bindings) is null
+                && invocation.Expression is MemberAccessExpressionSyntax filteredCountAccess
+                && filteredCountAccess.IsKind(SyntaxKind.SimpleMemberAccessExpression)
+                && invocation.ArgumentList.Arguments.Count == 1
+                && invocation.ArgumentList.Arguments[0].Expression is SimpleLambdaExpressionSyntax { Body: ExpressionSyntax filterBody } filterLambda
+                && _model.GetDeclaredSymbol(filterLambda.Parameter, _ct) is { } filterParameter)
+            {
+              var filterBindings = bindings != null
+                ? new Dictionary<string, LambdaBinding>(System.Linq.Enumerable.ToDictionary(bindings, kv => kv.Key, kv => kv.Value))
+                : new Dictionary<string, LambdaBinding>();
+
+              filterBindings[filterParameter.Name] = new LambdaBinding(
+                IsUsableType(filterParameter.Type, _compilation)
+                  ? $"(({filterParameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})__x)"
+                  : null,
+                "__x");
+
+              var countReceiver = CompileReflective(filteredCountAccess.Expression, captures, bindings);
+              var countFilter = countReceiver != null ? Compile(filterBody, filterBindings) : null;
+
+              return countFilter != null
+                ? $"{Runtime}.EnumerableCount({countReceiver}, (object __x) => (bool)(object)({countFilter}))"
                 : null;
             }
 
@@ -1417,6 +1473,15 @@ namespace Assertive.Generators
         return TypeAccessor(containingType) is { } typeAccessor
           ? $"{Runtime}.GetStaticMemberValue({typeAccessor}, {Quote(memberName)})"
           : null;
+      }
+
+      private static bool IsReflectiveOperatorKind(SyntaxKind kind)
+      {
+        return kind is SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression
+          or SyntaxKind.LessThanExpression or SyntaxKind.LessThanOrEqualExpression
+          or SyntaxKind.GreaterThanExpression or SyntaxKind.GreaterThanOrEqualExpression
+          or SyntaxKind.AddExpression or SyntaxKind.SubtractExpression
+          or SyntaxKind.MultiplyExpression or SyntaxKind.DivideExpression or SyntaxKind.ModuloExpression;
       }
 
       /// <summary>

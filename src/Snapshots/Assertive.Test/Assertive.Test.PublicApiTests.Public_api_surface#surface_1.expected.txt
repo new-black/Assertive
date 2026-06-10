@@ -234,6 +234,7 @@ static class GeneratedAssert
   static Exception BoolFailure(string assertionExpression, string source, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception ComparisonFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool rightIsConstant, string comparisonLabel, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception ContainsFailure(string assertionExpression, string instanceSource, object instanceValue, string expectedSource, object expectedValue, bool expectedIsConstant, bool stringInstance, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
+  static int EnumerableCount(object source, Func<object, bool> predicate)
   static int EnumerableCount(object source)
   static Exception EqualityFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool rightIsConstant, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception EvaluationFailure(string assertionExpression, Exception exception, ExceptionStep[] steps, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
