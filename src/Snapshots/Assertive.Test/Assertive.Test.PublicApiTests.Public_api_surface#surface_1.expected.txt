@@ -160,3 +160,9 @@ class PatternDefinition
 class PropertyMatch
   .ctor()
   string Name { get; set; }
+
+static class GeneratedAssert
+  static long InterceptedCallCount { get; }
+  static void Fallback(Expression<Func<bool>> assertion, object message, Expression<Func<object>> context)
+  static object GetCapturedValue(LambdaExpression assertion, string name)
+  static void MarkIntercepted()

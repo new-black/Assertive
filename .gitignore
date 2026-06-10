@@ -27,3 +27,5 @@ poc/generator/obj/*
 poc/generator/bin/**
 poc/consumer/bin/*
 poc/consumer/generated/*
+**/bin/*
+**/obj/*

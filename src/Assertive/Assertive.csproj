@@ -39,6 +39,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Source generator: built alongside, shipped inside this package as an analyzer.
+         ReferenceOutputAssembly=false: build-order dependency only, no runtime reference. -->
+    <ProjectReference Include="../Assertive.Generators/Assertive.Generators.csproj" ReferenceOutputAssembly="false" PrivateAssets="all"/>
+    <None Include="../Assertive.Generators/bin/$(Configuration)/netstandard2.0/Assertive.Generators.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+    <!-- Opts consuming projects into interceptors for our generated namespace. -->
+    <None Include="buildTransitive/Assertive.props" Pack="true" PackagePath="buildTransitive/"/>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Source Link for GitHub -->
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
   </ItemGroup>
