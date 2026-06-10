@@ -551,6 +551,133 @@ namespace Assertive
       });
     }
 
+    /// <summary>
+    /// AllPattern/NotAllPattern parity. The failing items are found by re-applying the
+    /// compiled filter; each (up to 10) gets a per-item sub-message rendered through the
+    /// generated sub-failure factory (the classified filter body with the item bound,
+    /// displayed as "item" — replacing the old recursive AssertionFailureAnalyzer run).
+    /// </summary>
+    public static Exception BuildAll(
+      string assertionText,
+      string collectionSource,
+      string filterSource,
+      bool collectionIsMethodCall,
+      object? collectionValue,
+      bool negated,
+      Func<object?, int, bool>? filter,
+      Func<object?, int, Exception>? subFailure,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      if (negated)
+      {
+        return Build(new FailureDetails
+        {
+          AssertionText = assertionText,
+          Expected = $"Not all items of {Q(collectionSource)} should match the filter {Q(filterSource)}.",
+          Locals = locals,
+          UserMessage = userMessage,
+          Context = context,
+          ContextExpression = contextExpression,
+        });
+      }
+
+      var colors = Configuration.Colors;
+      var invalidMatches = new List<object?>();
+      var subMessages = new List<string>();
+      var invalidCount = 0;
+      var moreItems = false;
+      var index = 0;
+
+      var collection = ((System.Collections.IEnumerable?)collectionValue)?.Cast<object?>() ?? Enumerable.Empty<object?>();
+
+      foreach (var item in collection)
+      {
+        if (filter != null && !filter(item, index))
+        {
+          invalidCount++;
+
+          if (invalidMatches.Count == 10)
+          {
+            moreItems = true;
+          }
+          else
+          {
+            invalidMatches.Add(item);
+
+            if (subFailure != null && TryGetSubMessage(subFailure, item, index, colors) is { } subMessage)
+            {
+              var prefix = collectionIsMethodCall ? $"[{index}]" : $"{collectionSource}[{index}]";
+              subMessages.Add($"{prefix}\n{subMessage}");
+            }
+          }
+        }
+
+        index++;
+      }
+
+      var messagesPerItem = subMessages.Count switch
+      {
+        0 => "",
+        1 when invalidCount == 1 => $"\n\n{subMessages[0]}",
+        _ => $"\n\nMessages per item:\n\n{string.Join("\n", subMessages)}",
+      };
+
+      string actual;
+
+      if (invalidCount == 1)
+      {
+        actual = $"This item did not: \n{Serializer.Serialize(invalidMatches[0])}{messagesPerItem}";
+      }
+      else
+      {
+        var items = invalidMatches.Select((item, i) => $"[{i}]: {Serializer.Serialize(item)}");
+
+        actual = $"These {invalidCount} items did not{(moreItems ? " (first 10)" : "")}:\n\n{string.Join(",\n", items)}{messagesPerItem}";
+      }
+
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = $"All items of {Q(collectionSource)} should match the filter {Q(filterSource)}",
+        Actual = actual,
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>
+    /// Renders a failing item's sub-message from the generated sub-failure exception's
+    /// expected/actual data (the same friendly block layout the old nested analyzer produced).
+    /// </summary>
+    private static string? TryGetSubMessage(Func<object?, int, Exception> subFailure, object? item, int index, Configuration.ColorScheme colors)
+    {
+      try
+      {
+        var exception = subFailure(item, index);
+
+        var expected = (exception.Data["Assertive.Expected"] as string[])?.FirstOrDefault();
+        var actual = (exception.Data["Assertive.Actual"] as string[])?.FirstOrDefault();
+
+        if (expected == null)
+        {
+          return null;
+        }
+
+        return actual != null
+          ? $"{colors.ExpectedHeader()}\n{expected}\n{colors.ActualHeader()}\n{actual}\n"
+          : $"{colors.ExpectedHeader()}\n{expected}\n";
+      }
+      catch
+      {
+        return null;
+      }
+    }
+
     /// <summary>SequenceEqualPattern parity: element-wise diff of the two sequences.</summary>
     public static Exception BuildSequenceEqual(
       string assertionText,

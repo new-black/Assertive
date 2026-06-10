@@ -213,6 +213,7 @@ enum ExceptionStepKind
 
 static class GeneratedAssert
   static long InterceptedCallCount { get; }
+  static Exception AllFailure(string assertionExpression, string collectionSource, string filterSource, bool collectionIsMethodCall, object collectionValue, bool negated, Func<object, int, bool> filter, Func<object, int, Exception> subFailure, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception AnyFailure(string assertionExpression, string collectionSource, string filterSource, bool negated, int count, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception BoolFailure(string assertionExpression, string source, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception ComparisonFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool rightIsConstant, string comparisonLabel, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
@@ -223,6 +224,7 @@ static class GeneratedAssert
   static Exception Failure(string assertionExpression, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static object GetCapturedThis(Delegate assertion)
   static object GetCapturedValue(Delegate assertion, string name)
+  static object GetElementValue(object target, object index)
   static object GetMemberValue(object target, string memberName)
   static Type GetNestedType(Type parent, string name)
   static object GetStaticMemberValue(Type type, string memberName)
@@ -234,6 +236,7 @@ static class GeneratedAssert
   static Exception LengthFailure(string assertionExpression, string operandSource, string filterSource, string countLabel, string comparisonLabel, object actualLength, string rightSource, object rightValue, bool rightIsConstant, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static void MarkIntercepted()
   static Exception NullFailure(string assertionExpression, string source, object value, bool expectedNull, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
+  static bool ObjectEquals(object left, object right)
   static Exception ReferenceEqualsFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception SequenceEqualFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, object comparer, Type elementType, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception StartsEndsWithFailure(string assertionExpression, string instanceSource, object instanceValue, string argSource, object argValue, bool argIsConstant, string methodLabel, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)

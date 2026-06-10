@@ -230,53 +230,100 @@ namespace Assertive.Generators
         sb.AppendLine($"{indent}var __left = {call.LeftSource};");
       }
 
-      var hasRight = call.Kind is InterceptionKind.Equality or InterceptionKind.ReferenceEquals
-        or InterceptionKind.Comparison or InterceptionKind.Length
-        or InterceptionKind.Contains or InterceptionKind.StartsEndsWith or InterceptionKind.SequenceEqual;
-
-      if (hasRight)
+      if (HasRightOperand(call.Kind))
       {
         sb.AppendLine($"{indent}var __right = {call.RightSource};");
       }
 
       var localsArray = BuildLocalsArray(call);
-
-      var negated = call.Negated ? "true" : "false";
-      var rightIsConstant = call.RightIsConstant ? "true" : "false";
       var tail = $"{localsArray},\n{indent}  {tailArgs}";
 
-      var throwArgs = call.Kind switch
+      sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.{BuildFailureInvocation(call, assertionTextArg, indent, tail, "__left", "__right")});");
+    }
+
+    private static bool HasRightOperand(InterceptionKind kind)
+      => kind is InterceptionKind.Equality or InterceptionKind.ReferenceEquals
+        or InterceptionKind.Comparison or InterceptionKind.Length
+        or InterceptionKind.Contains or InterceptionKind.StartsEndsWith or InterceptionKind.SequenceEqual;
+
+    /// <summary>
+    /// The GeneratedAssert.XFailure(...) invocation for a classified call, parameterized on
+    /// the operand local names so it serves both the top-level throw and the per-item
+    /// sub-failure renderers of the All pattern.
+    /// </summary>
+    private static string BuildFailureInvocation(InterceptedCall call, string assertionTextArg, string indent, string tail, string left, string right)
+    {
+      var negated = call.Negated ? "true" : "false";
+      var rightIsConstant = call.RightIsConstant ? "true" : "false";
+
+      return call.Kind switch
       {
         InterceptionKind.Equality =>
-          $"EqualityFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {rightIsConstant}, {negated},\n{indent}  {tail}",
+          $"EqualityFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object){left},\n{indent}  {Quote(call.RightDisplay)}, (object){right},\n{indent}  {rightIsConstant}, {negated},\n{indent}  {tail}",
         InterceptionKind.ReferenceEquals =>
-          $"ReferenceEqualsFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {negated},\n{indent}  {tail}",
+          $"ReferenceEqualsFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object){left},\n{indent}  {Quote(call.RightDisplay)}, (object){right},\n{indent}  {negated},\n{indent}  {tail}",
         InterceptionKind.Bool =>
           $"BoolFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, {negated},\n{indent}  {tail}",
         InterceptionKind.Null =>
-          $"NullFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left, {negated},\n{indent}  {tail}",
+          $"NullFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object){left}, {negated},\n{indent}  {tail}",
         InterceptionKind.HasValue =>
-          $"HasValueFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left, {negated},\n{indent}  {tail}",
+          $"HasValueFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object){left}, {negated},\n{indent}  {tail}",
         InterceptionKind.Is =>
-          $"IsTypeFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left, {call.TypeAccessor}, {negated},\n{indent}  {tail}",
+          $"IsTypeFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object){left}, {call.TypeAccessor}, {negated},\n{indent}  {tail}",
         InterceptionKind.Comparison =>
-          $"ComparisonFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {rightIsConstant}, {Quote(call.ComparisonLabel ?? "")},\n{indent}  {tail}",
+          $"ComparisonFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object){left},\n{indent}  {Quote(call.RightDisplay)}, (object){right},\n{indent}  {rightIsConstant}, {Quote(call.ComparisonLabel ?? "")},\n{indent}  {tail}",
         InterceptionKind.Length =>
-          $"LengthFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.OperandDisplay)}, {(call.FilterSource != null ? Quote(call.FilterSource) : "null")}, {Quote(call.CountLabel)}, {Quote(call.ComparisonLabel ?? "")},\n{indent}  (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right, {rightIsConstant},\n{indent}  {tail}",
+          $"LengthFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.OperandDisplay)}, {(call.FilterSource != null ? Quote(call.FilterSource) : "null")}, {Quote(call.CountLabel)}, {Quote(call.ComparisonLabel ?? "")},\n{indent}  (object){left},\n{indent}  {Quote(call.RightDisplay)}, (object){right}, {rightIsConstant},\n{indent}  {tail}",
         InterceptionKind.Contains =>
-          $"ContainsFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {rightIsConstant}, {(call.StringInstance ? "true" : "false")}, {negated},\n{indent}  {tail}",
+          $"ContainsFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object){left},\n{indent}  {Quote(call.RightDisplay)}, (object){right},\n{indent}  {rightIsConstant}, {(call.StringInstance ? "true" : "false")}, {negated},\n{indent}  {tail}",
         InterceptionKind.StartsEndsWith =>
-          $"StartsEndsWithFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {rightIsConstant}, {Quote(call.ComparisonLabel ?? "")}, {negated},\n{indent}  {tail}",
+          $"StartsEndsWithFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object){left},\n{indent}  {Quote(call.RightDisplay)}, (object){right},\n{indent}  {rightIsConstant}, {Quote(call.ComparisonLabel ?? "")}, {negated},\n{indent}  {tail}",
         InterceptionKind.Any =>
-          $"AnyFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.OperandDisplay)}, {(call.FilterSource != null ? Quote(call.FilterSource) : "null")}, {negated}, __left,\n{indent}  {tail}",
+          $"AnyFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.OperandDisplay)}, {(call.FilterSource != null ? Quote(call.FilterSource) : "null")}, {negated}, {left},\n{indent}  {tail}",
         InterceptionKind.SequenceEqual =>
-          $"SequenceEqualFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {(call.ComparerSource != null ? $"(object)({call.ComparerSource})" : "null")}, {call.TypeAccessor ?? "null"},\n{indent}  {tail}",
+          $"SequenceEqualFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object){left},\n{indent}  {Quote(call.RightDisplay)}, (object){right},\n{indent}  {(call.ComparerSource != null ? $"(object)({call.ComparerSource})" : "null")}, {call.TypeAccessor ?? "null"},\n{indent}  {tail}",
+        InterceptionKind.All =>
+          $"AllFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.OperandDisplay)}, {Quote(call.FilterSource ?? "")}, {(call.CollectionIsMethodCall ? "true" : "false")}, (object){left}, {negated},\n{indent}  {call.AllFilterFunc ?? "null"},\n{indent}  {BuildAllSubRenderer(call, indent)},\n{indent}  {tail}",
         InterceptionKind.Opaque =>
           $"Failure(\n{indent}  {assertionTextArg},\n{indent}  {tail}",
         _ => throw new System.InvalidOperationException($"Unhandled kind {call.Kind}"),
       };
+    }
 
-      sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.{throwArgs});");
+    /// <summary>
+    /// The per-item sub-failure factory for the All pattern: evaluates the classified
+    /// filter-body operands with the item bound and builds the corresponding failure
+    /// exception, whose expected/actual data becomes the item's sub-message.
+    /// </summary>
+    private static string BuildAllSubRenderer(InterceptedCall call, string indent)
+    {
+      if (call.AllSubCall is not { } sub)
+      {
+        return "null";
+      }
+
+      var inner = indent + "    ";
+      var renderer = new StringBuilder();
+
+      renderer.Append("(global::System.Func<object, int, global::System.Exception>)((__item, __idx) =>\n");
+      renderer.Append($"{indent}  {{\n");
+
+      if (sub.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque))
+      {
+        renderer.Append($"{inner}var __subLeft = {sub.LeftSource};\n");
+      }
+
+      if (HasRightOperand(sub.Kind))
+      {
+        renderer.Append($"{inner}var __subRight = {sub.RightSource};\n");
+      }
+
+      var subTail = $"global::System.Array.Empty<(string, object)>(),\n{inner}  null, null, null";
+
+      renderer.Append($"{inner}return global::Assertive.Runtime.GeneratedAssert.{BuildFailureInvocation(sub, Quote(call.FilterSource ?? ""), inner, subTail, "__subLeft", "__subRight")});\n");
+      renderer.Append($"{indent}  }})");
+
+      return renderer.ToString();
     }
 
     private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
@@ -318,6 +365,7 @@ namespace Assertive.Generators
     StartsEndsWith,
     Any,
     SequenceEqual,
+    All,
 
     /// <summary>
     /// Not a decomposable form: the false path reports source text + locals only, but the
@@ -372,6 +420,15 @@ namespace Assertive.Generators
 
     /// <summary>SequenceEqual: compiled comparer argument, if present.</summary>
     public string? ComparerSource;
+
+    /// <summary>All: whether the collection operand is itself a method call (changes the per-item prefix).</summary>
+    public bool CollectionIsMethodCall;
+
+    /// <summary>All: compiled `(item, index) => bool` filter used to find the failing items.</summary>
+    public string? AllFilterFunc;
+
+    /// <summary>All: the filter body classified as a per-item sub-assertion, if decomposable.</summary>
+    public InterceptedCall? AllSubCall;
 
     /// <summary>
     /// `new ExceptionStep[] { ... }` source for exception-cause attribution on the

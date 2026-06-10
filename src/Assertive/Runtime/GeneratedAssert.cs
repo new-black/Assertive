@@ -538,6 +538,27 @@ namespace Assertive.Runtime
         methodLabel, negated, locals, message, context, contextExpression);
     }
 
+    /// <summary>A failed All() call, decomposed by the generator (AllPattern/NotAllPattern parity).</summary>
+    public static Exception AllFailure(
+      string assertionExpression,
+      string collectionSource,
+      string filterSource,
+      bool collectionIsMethodCall,
+      object? collectionValue,
+      bool negated,
+      Func<object?, int, bool>? filter,
+      Func<object?, int, Exception>? subFailure,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildAll(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        collectionSource, filterSource, collectionIsMethodCall, collectionValue, negated,
+        filter, subFailure, locals, message, context, contextExpression);
+    }
+
     /// <summary>A failed Any() call, decomposed by the generator (AnyPattern parity).</summary>
     public static Exception AnyFailure(
       string assertionExpression,
@@ -573,6 +594,25 @@ namespace Assertive.Runtime
         AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
         leftSource, leftValue, rightSource, rightValue, comparer, elementType,
         locals, message, context, contextExpression);
+    }
+
+    /// <summary>Equals-based equality for reflective filter evaluation over object-typed operands.</summary>
+    public static bool ObjectEquals(object? left, object? right) => Equals(left, right);
+
+    /// <summary>Reads an element by index/key, ignoring accessibility (arrays, lists, indexers).</summary>
+    public static object? GetElementValue(object target, object? index)
+    {
+      if (target is Array array && index is { } arrayIndex)
+      {
+        return array.GetValue(Convert.ToInt64(arrayIndex));
+      }
+
+      if (target is System.Collections.IList list && index is int listIndex)
+      {
+        return list[listIndex];
+      }
+
+      return InvokeInstance(target, "get_Item", new[] { index });
     }
 
     /// <summary>

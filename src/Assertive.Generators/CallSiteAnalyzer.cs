@@ -128,9 +128,14 @@ namespace Assertive.Generators
     /// Determines which pattern the (negation-stripped) assertion body matches, compiles
     /// the operands the pattern needs, and fills the pattern-specific fields of the call.
     /// Returns false when the body is not a whitelisted form or an operand can't be compiled.
+    /// When classifying an All() filter body as a per-item sub-assertion, `bindings` maps
+    /// the lambda parameter to its bound value and `display` rewrites it to "item" in
+    /// displayed sources (AllPattern's NamedConstantExpression equivalent).
     /// </summary>
     private static bool ClassifyForm(GeneratorSyntaxContext ctx, ExpressionSyntax core, bool outerNegated,
-      InterceptedCall call, OperandCompiler compiler, CancellationToken ct)
+      InterceptedCall call, OperandCompiler compiler, CancellationToken ct,
+      IReadOnlyDictionary<string, LambdaBinding>? bindings = null,
+      System.Func<ExpressionSyntax, string>? display = null)
     {
       switch (core)
       {
@@ -163,7 +168,7 @@ namespace Assertive.Generators
 
             call.Kind = InterceptionKind.Null;
             call.Negated = !isNotEquals ^ outerNegated; // true = expected null
-            return SetLeft(call, compiler, binary.Left);
+            return SetLeft(call, compiler, binary.Left, bindings, display);
           }
 
           if (TryGetLengthAccess(left, out var countLabel, out var operand, out var filterSource))
@@ -176,10 +181,10 @@ namespace Assertive.Generators
 
             call.Kind = InterceptionKind.Length;
             call.CountLabel = countLabel;
-            call.OperandDisplay = operand.ToString();
+            call.OperandDisplay = display?.Invoke(operand) ?? operand.ToString();
             call.FilterSource = filterSource;
             call.ComparisonLabel = isNotEquals ? "not equal to" : "equal to";
-            return SetLeft(call, compiler, binary.Left) && SetRight(call, compiler, binary.Right, right);
+            return SetLeft(call, compiler, binary.Left, bindings, display) && SetRight(call, compiler, binary.Right, right, bindings, display);
           }
 
           if (IsLengthOrCountAccess(left) || IsLengthOrCountAccess(right))
@@ -190,7 +195,7 @@ namespace Assertive.Generators
 
           call.Kind = InterceptionKind.Equality;
           call.Negated = isNotEquals ^ outerNegated;
-          return SetLeft(call, compiler, binary.Left) && SetRight(call, compiler, binary.Right, right);
+          return SetLeft(call, compiler, binary.Left, bindings, display) && SetRight(call, compiler, binary.Right, right, bindings, display);
         }
 
         case BinaryExpressionSyntax binary when binary.Kind() is SyntaxKind.LessThanExpression or SyntaxKind.LessThanOrEqualExpression
@@ -224,7 +229,7 @@ namespace Assertive.Generators
           {
             call.Kind = InterceptionKind.Length;
             call.CountLabel = countLabel;
-            call.OperandDisplay = operand.ToString();
+            call.OperandDisplay = display?.Invoke(operand) ?? operand.ToString();
             call.FilterSource = filterSource;
           }
           else
@@ -232,7 +237,7 @@ namespace Assertive.Generators
             call.Kind = InterceptionKind.Comparison;
           }
 
-          return SetLeft(call, compiler, binary.Left) && SetRight(call, compiler, binary.Right, right);
+          return SetLeft(call, compiler, binary.Left, bindings, display) && SetRight(call, compiler, binary.Right, right, bindings, display);
         }
 
         case BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.IsExpression):
@@ -247,12 +252,12 @@ namespace Assertive.Generators
             // `x is object` is a null check (NullPattern); negated means "expected null".
             call.Kind = InterceptionKind.Null;
             call.Negated = outerNegated;
-            return SetLeft(call, compiler, binary.Left);
+            return SetLeft(call, compiler, binary.Left, bindings, display);
           }
 
           call.Kind = InterceptionKind.Is;
           call.TypeAccessor = compiler.TypeAccessor(checkedType);
-          return call.TypeAccessor != null && SetLeft(call, compiler, binary.Left);
+          return call.TypeAccessor != null && SetLeft(call, compiler, binary.Left, bindings, display);
         }
 
         case InvocationExpressionSyntax
@@ -272,8 +277,8 @@ namespace Assertive.Generators
           }
 
           call.Kind = InterceptionKind.Equality;
-          return SetLeft(call, compiler, equalsAccess.Expression)
-                 && SetRight(call, compiler, equalsCall.ArgumentList.Arguments[0].Expression, right);
+          return SetLeft(call, compiler, equalsAccess.Expression, bindings, display)
+                 && SetRight(call, compiler, equalsCall.ArgumentList.Arguments[0].Expression, right, bindings, display);
         }
 
         case InvocationExpressionSyntax { ArgumentList.Arguments.Count: 2 } referenceEqualsCall
@@ -283,9 +288,9 @@ namespace Assertive.Generators
           } && referenceEqualsCall.ArgumentList.Arguments.All(a => a.NameColon == null):
         {
           call.Kind = InterceptionKind.ReferenceEquals;
-          return SetLeft(call, compiler, referenceEqualsCall.ArgumentList.Arguments[0].Expression)
+          return SetLeft(call, compiler, referenceEqualsCall.ArgumentList.Arguments[0].Expression, bindings, display)
                  && SetRight(call, compiler, referenceEqualsCall.ArgumentList.Arguments[1].Expression,
-                   StripParens(referenceEqualsCall.ArgumentList.Arguments[1].Expression));
+                   StripParens(referenceEqualsCall.ArgumentList.Arguments[1].Expression), bindings, display);
         }
 
         case InvocationExpressionSyntax methodCall
@@ -304,7 +309,7 @@ namespace Assertive.Generators
 
               call.Kind = InterceptionKind.Contains;
               call.StringInstance = ctx.SemanticModel.GetTypeInfo(methodAccess.Expression, ct).Type?.SpecialType == SpecialType.System_String;
-              return SetLeft(call, compiler, methodAccess.Expression) && SetRight(call, compiler, arg, StripParens(arg));
+              return SetLeft(call, compiler, methodAccess.Expression, bindings, display) && SetRight(call, compiler, arg, StripParens(arg), bindings, display);
             }
 
             case "StartsWith" or "EndsWith" when !calledMethod.IsStatic
@@ -316,7 +321,7 @@ namespace Assertive.Generators
 
               call.Kind = InterceptionKind.StartsEndsWith;
               call.ComparisonLabel = calledMethod.Name == "StartsWith" ? "start with" : "end with";
-              return SetLeft(call, compiler, methodAccess.Expression) && SetRight(call, compiler, arg, StripParens(arg));
+              return SetLeft(call, compiler, methodAccess.Expression, bindings, display) && SetRight(call, compiler, arg, StripParens(arg), bindings, display);
             }
 
             case "Any" when IsLinqEnumerableMethod(calledMethod):
@@ -324,10 +329,10 @@ namespace Assertive.Generators
               var arguments = methodCall.ArgumentList.Arguments;
 
               call.Kind = InterceptionKind.Any;
-              call.OperandDisplay = methodAccess.Expression.ToString();
+              call.OperandDisplay = display?.Invoke(methodAccess.Expression) ?? methodAccess.Expression.ToString();
               // The whole call as display: collection locals stay in the LOCALS section
               // (the old LocalsProvider showed them for Any).
-              call.LeftDisplay = methodCall.ToString();
+              call.LeftDisplay = display?.Invoke(methodCall) ?? methodCall.ToString();
 
               if (arguments.Count != 0
                   && !(arguments.Count == 1 && arguments[0].Expression is LambdaExpressionSyntax { Body: ExpressionSyntax }))
@@ -336,7 +341,7 @@ namespace Assertive.Generators
               }
 
               // Collection first so LOCALS lists captures in order of appearance.
-              var collection = compiler.Compile(methodAccess.Expression);
+              var collection = compiler.Compile(methodAccess.Expression, bindings);
 
               if (collection == null)
               {
@@ -370,6 +375,93 @@ namespace Assertive.Generators
               return true;
             }
 
+            case "All" when IsLinqEnumerableMethod(calledMethod)
+                            && bindings == null
+                            && methodCall.ArgumentList.Arguments.Count == 1
+                            && methodCall.ArgumentList.Arguments[0].Expression is LambdaExpressionSyntax { Body: ExpressionSyntax allFilterBody } allFilterLambda:
+            {
+              var filterParameter = allFilterLambda switch
+              {
+                SimpleLambdaExpressionSyntax simple => simple.Parameter,
+                ParenthesizedLambdaExpressionSyntax { ParameterList.Parameters: { Count: 1 } singleParameter } => singleParameter[0],
+                _ => null,
+              };
+
+              if (filterParameter == null
+                  || ctx.SemanticModel.GetDeclaredSymbol(filterParameter, ct) is not { } parameterSymbol)
+              {
+                return false;
+              }
+
+              call.Kind = InterceptionKind.All;
+              call.Negated = outerNegated;
+              call.OperandDisplay = new AnonymousMemberExpander().Visit(methodAccess.Expression)?.ToString()
+                                    ?? methodAccess.Expression.ToString();
+              // The whole call as display: collection locals stay in the LOCALS section.
+              call.LeftDisplay = methodCall.ToString();
+              call.FilterSource = allFilterBody.ToString();
+              call.CollectionIsMethodCall = StripParens(methodAccess.Expression) is InvocationExpressionSyntax;
+              call.LeftSource = compiler.Compile(methodAccess.Expression)!;
+
+              if (call.LeftSource == null)
+              {
+                return false;
+              }
+
+              if (outerNegated)
+              {
+                // NotAllPattern: expected-only message, no per-item analysis.
+                return true;
+              }
+
+              var itemBindings = new Dictionary<string, LambdaBinding>
+              {
+                [parameterSymbol.Name] = new LambdaBinding(
+                  IsUsableType(parameterSymbol.Type, ctx.SemanticModel.Compilation)
+                    ? $"(({parameterSymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})__item)"
+                    : null,
+                  "__item"),
+              };
+
+              // Finding the failing items requires evaluating the filter per item: typed
+              // when the element type is nameable, otherwise an Equals-based fallback for
+              // (in)equality bodies (anonymous element types).
+              if (compiler.CompileTypedOnly(allFilterBody, itemBindings) is { } typedFilter)
+              {
+                call.AllFilterFunc = $"(__item, __idx) => (bool)({typedFilter})";
+              }
+
+              // Classify the filter body as a per-item sub-assertion, displayed with the
+              // parameter renamed to "item" (the old AllPattern bound the item as a
+              // NamedConstantExpression named "item" and re-ran the full analyzer).
+              var renamer = new ParamRenameRewriter(ctx.SemanticModel, parameterSymbol, ct);
+              System.Func<ExpressionSyntax, string> itemDisplay = e => renamer.Visit(e)?.ToString() ?? e.ToString();
+
+              var subNegated = false;
+              var subCore = StripParens(allFilterBody);
+
+              while (subCore is PrefixUnaryExpressionSyntax subNegation && subNegation.IsKind(SyntaxKind.LogicalNotExpression))
+              {
+                subNegated = !subNegated;
+                subCore = StripParens(subNegation.Operand);
+              }
+
+              var subCall = new InterceptedCall();
+
+              if (ClassifyForm(ctx, subCore, subNegated, subCall, compiler, ct, itemBindings, itemDisplay))
+              {
+                call.AllSubCall = subCall;
+
+                if (call.AllFilterFunc == null && subCall.Kind == InterceptionKind.Equality)
+                {
+                  var equalsCheck = $"global::Assertive.Runtime.GeneratedAssert.ObjectEquals({subCall.LeftSource}, {subCall.RightSource})";
+                  call.AllFilterFunc = $"(__item, __idx) => {(subCall.Negated ? "!" : "")}{equalsCheck}";
+                }
+              }
+
+              return call.AllFilterFunc != null;
+            }
+
             case "SequenceEqual" when IsLinqEnumerableMethod(calledMethod)
                                       && !outerNegated
                                       && methodCall.ArgumentList.Arguments.Count is 1 or 2:
@@ -378,7 +470,7 @@ namespace Assertive.Generators
 
               var arg = methodCall.ArgumentList.Arguments[0].Expression;
 
-              if (!SetLeft(call, compiler, methodAccess.Expression) || !SetRight(call, compiler, arg, StripParens(arg)))
+              if (!SetLeft(call, compiler, methodAccess.Expression, bindings, display) || !SetRight(call, compiler, arg, StripParens(arg), bindings, display))
               {
                 return false;
               }
@@ -410,7 +502,7 @@ namespace Assertive.Generators
                && IsNullableValueType(ctx.SemanticModel.GetTypeInfo(hasValueAccess.Expression, ct).Type):
         {
           call.Kind = InterceptionKind.HasValue;
-          return SetLeft(call, compiler, hasValueAccess.Expression);
+          return SetLeft(call, compiler, hasValueAccess.Expression, bindings, display);
         }
 
         case IdentifierNameSyntax:
@@ -420,7 +512,7 @@ namespace Assertive.Generators
           // captured locals are available for the LOCALS section; the value is not needed
           // (the delegate already evaluated it).
           call.Kind = InterceptionKind.Bool;
-          return SetLeft(call, compiler, core);
+          return SetLeft(call, compiler, core, bindings, display);
         }
 
         default:
@@ -428,17 +520,19 @@ namespace Assertive.Generators
       }
     }
 
-    private static bool SetLeft(InterceptedCall call, OperandCompiler compiler, ExpressionSyntax operand)
+    private static bool SetLeft(InterceptedCall call, OperandCompiler compiler, ExpressionSyntax operand,
+      IReadOnlyDictionary<string, LambdaBinding>? bindings = null, System.Func<ExpressionSyntax, string>? display = null)
     {
-      call.LeftSource = compiler.Compile(operand)!;
-      call.LeftDisplay = operand.ToString();
+      call.LeftSource = compiler.Compile(operand, bindings)!;
+      call.LeftDisplay = display?.Invoke(operand) ?? operand.ToString();
       return call.LeftSource != null;
     }
 
-    private static bool SetRight(InterceptedCall call, OperandCompiler compiler, ExpressionSyntax operand, ExpressionSyntax stripped)
+    private static bool SetRight(InterceptedCall call, OperandCompiler compiler, ExpressionSyntax operand, ExpressionSyntax stripped,
+      IReadOnlyDictionary<string, LambdaBinding>? bindings = null, System.Func<ExpressionSyntax, string>? display = null)
     {
-      call.RightSource = compiler.Compile(operand)!;
-      call.RightDisplay = operand.ToString();
+      call.RightSource = compiler.Compile(operand, bindings)!;
+      call.RightDisplay = display?.Invoke(operand) ?? operand.ToString();
       call.RightIsConstant = stripped is LiteralExpressionSyntax;
       return call.RightSource != null;
     }
@@ -553,7 +647,6 @@ namespace Assertive.Generators
             case ThisExpressionSyntax:
             case BaseExpressionSyntax:
             case QueryExpressionSyntax:
-            case AnonymousObjectCreationExpressionSyntax:
               return null;
 
             case InvocationExpressionSyntax innerCall:
@@ -873,6 +966,18 @@ namespace Assertive.Generators
                 return null;
             }
 
+          case ElementAccessExpressionSyntax elementAccess when elementAccess.ArgumentList.Arguments.Count == 1:
+          {
+            var elementReceiver = CompileReflective(elementAccess.Expression, captures, bindings);
+            var elementIndex = elementReceiver != null
+              ? CompileReflective(elementAccess.ArgumentList.Arguments[0].Expression, captures, bindings)
+              : null;
+
+            return elementIndex != null
+              ? $"{Runtime}.GetElementValue({elementReceiver}, {elementIndex})"
+              : null;
+          }
+
           case InvocationExpressionSyntax invocation:
           {
             if (_model.GetSymbolInfo(invocation, _ct).Symbol is not IMethodSymbol method)
@@ -1133,6 +1238,73 @@ namespace Assertive.Generators
       }
 
       private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
+    }
+
+    /// <summary>
+    /// Expands implicit anonymous-object member declarators for display
+    /// (`new { n, i }` to `new { n = n, i = i }`), matching the old expression-tree
+    /// rendering of anonymous types.
+    /// </summary>
+    private sealed class AnonymousMemberExpander : CSharpSyntaxRewriter
+    {
+      public override SyntaxNode? VisitAnonymousObjectMemberDeclarator(AnonymousObjectMemberDeclaratorSyntax node)
+      {
+        if (node.NameEquals != null)
+        {
+          return base.VisitAnonymousObjectMemberDeclarator(node);
+        }
+
+        var name = node.Expression switch
+        {
+          IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+          MemberAccessExpressionSyntax memberAccess => memberAccess.Name.Identifier.ValueText,
+          _ => null,
+        };
+
+        if (name == null)
+        {
+          return base.VisitAnonymousObjectMemberDeclarator(node);
+        }
+
+        var nameEquals = SyntaxFactory.NameEquals(
+          SyntaxFactory.IdentifierName(name),
+          SyntaxFactory.Token(SyntaxKind.EqualsToken)
+            .WithLeadingTrivia(SyntaxFactory.Space)
+            .WithTrailingTrivia(SyntaxFactory.Space));
+
+        return node
+          .WithNameEquals(nameEquals.WithLeadingTrivia(node.Expression.GetLeadingTrivia()))
+          .WithExpression(node.Expression.WithoutLeadingTrivia());
+      }
+    }
+
+    /// <summary>
+    /// Renames an All() filter's lambda parameter to "item" for display purposes
+    /// (the bound-item naming of the old AllPattern's per-item sub-analysis).
+    /// </summary>
+    private sealed class ParamRenameRewriter : CSharpSyntaxRewriter
+    {
+      private readonly SemanticModel _model;
+      private readonly IParameterSymbol _parameter;
+      private readonly CancellationToken _ct;
+
+      public ParamRenameRewriter(SemanticModel model, IParameterSymbol parameter, CancellationToken ct)
+      {
+        _model = model;
+        _parameter = parameter;
+        _ct = ct;
+      }
+
+      public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
+      {
+        if (node.Identifier.ValueText == _parameter.Name
+            && SymbolEqualityComparer.Default.Equals(_model.GetSymbolInfo(node, _ct).Symbol, _parameter))
+        {
+          return SyntaxFactory.IdentifierName("item").WithTriviaFrom(node);
+        }
+
+        return base.VisitIdentifierName(node);
+      }
     }
 
     private static bool HasAssertionWrapperAttribute(IMethodSymbol method)
