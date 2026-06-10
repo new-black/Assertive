@@ -133,7 +133,11 @@ namespace Assertive.Test
       Xunit.Assert.True(throws);
     }
 
+    [AssertionWrapper]
     protected void ShouldFail(Expression<Func<bool>> assertion, string expectedMessage, string actualMessage = null, bool exactMatch = false)
+      => ShouldFail(AssertionHandle.Degraded(assertion), expectedMessage, actualMessage, exactMatch);
+
+    internal void ShouldFail(AssertionHandle assertion, string expectedMessage, string actualMessage = null, bool exactMatch = false)
     {
       bool throws = false;
 

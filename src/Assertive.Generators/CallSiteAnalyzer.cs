@@ -30,27 +30,43 @@ namespace Assertive.Generators
         return null;
       }
 
-      var isAssertThat = method is { Name: "That", ContainingType: { Name: "Assert", ContainingNamespace: { Name: "Assertive", ContainingNamespace.IsGlobalNamespace: true } } };
-      var isDslAssert = method is { Name: "Assert", ContainingType: { Name: "DSL", ContainingNamespace: { Name: "Assertive", ContainingNamespace.IsGlobalNamespace: true } } };
-
       // First parameter must be the assertion expression; this also excludes the DSL's
       // snapshot overload (first parameter is `object`).
-      if ((!isAssertThat && !isDslAssert)
-          || method.Parameters.Length == 0
+      if (method.Parameters.Length == 0
           || method.Parameters[0].Type is not INamedTypeSymbol { Name: "Expression", Arity: 1 })
       {
         return null;
       }
 
-      var overload = ClassifyOverload(method);
+      var isAssertThat = method is { Name: "That", ContainingType: { Name: "Assert", ContainingNamespace: { Name: "Assertive", ContainingNamespace.IsGlobalNamespace: true } } };
+      var isDslAssert = method is { Name: "Assert", ContainingType: { Name: "DSL", ContainingNamespace: { Name: "Assertive", ContainingNamespace.IsGlobalNamespace: true } } };
 
-      if (overload == null)
+      ThatOverload? overload = null;
+      WrapperModel? wrapper = null;
+
+      if (isAssertThat || isDslAssert)
+      {
+        overload = ClassifyOverload(method);
+      }
+      else if (HasAssertionWrapperAttribute(method))
+      {
+        wrapper = AnalyzeWrapper(method, ctx.SemanticModel.Compilation);
+      }
+
+      if (overload == null && wrapper == null)
       {
         return null;
       }
 
       if (invocation.ArgumentList.Arguments.Count == 0
           || invocation.ArgumentList.Arguments[0].Expression is not ParenthesizedLambdaExpressionSyntax { ExpressionBody: { } body, ParameterList.Parameters.Count: 0 })
+      {
+        return null;
+      }
+
+      // Wrapper call sites must pass remaining arguments positionally for the interceptor's
+      // straight forwarding to be faithful.
+      if (wrapper != null && invocation.ArgumentList.Arguments.Any(a => a.NameColon != null))
       {
         return null;
       }
@@ -105,7 +121,8 @@ namespace Assertive.Generators
         LocationData = location.Data,
         DisplayLocation = location.GetDisplayLocation(),
         FilePath = invocation.SyntaxTree.FilePath,
-        Overload = overload.Value,
+        Overload = overload ?? ThatOverload.Plain,
+        Wrapper = wrapper,
       };
 
       // Classify every free simple name in the body and collect type-qualifier rewrites
@@ -178,6 +195,107 @@ namespace Assertive.Generators
       call.Operator = comparison.OperatorToken.Text;
 
       return call;
+    }
+
+    private static bool HasAssertionWrapperAttribute(IMethodSymbol method)
+    {
+      foreach (var attribute in method.GetAttributes())
+      {
+        if (attribute.AttributeClass is { Name: "AssertionWrapperAttribute", ContainingNamespace: { Name: "Assertive", ContainingNamespace.IsGlobalNamespace: true } })
+        {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    /// <summary>
+    /// Validates an [AssertionWrapper] method and locates its paired AssertionHandle
+    /// overload: same name, same staticness, same parameters except the first, and
+    /// accessible from generated code (which lives outside the declaring type).
+    /// </summary>
+    private static WrapperModel? AnalyzeWrapper(IMethodSymbol method, Compilation compilation)
+    {
+      if (method.IsGenericMethod
+          || method.ContainingType is not { IsGenericType: false, IsFileLocal: false } containingType
+          || !compilation.IsSymbolAccessibleWithin(containingType, compilation.Assembly))
+      {
+        return null;
+      }
+
+      foreach (var parameter in method.Parameters)
+      {
+        if (parameter.RefKind != RefKind.None || parameter.IsParams)
+        {
+          return null;
+        }
+      }
+
+      for (var i = 1; i < method.Parameters.Length; i++)
+      {
+        if (!IsUsableType(method.Parameters[i].Type, compilation))
+        {
+          return null;
+        }
+      }
+
+      if (!method.ReturnsVoid && !IsUsableType(method.ReturnType, compilation))
+      {
+        return null;
+      }
+
+      IMethodSymbol? handleOverload = null;
+
+      foreach (var member in containingType.GetMembers(method.Name))
+      {
+        if (member is IMethodSymbol candidate
+            && !SymbolEqualityComparer.Default.Equals(candidate, method)
+            && candidate.IsStatic == method.IsStatic
+            && !candidate.IsGenericMethod
+            && candidate.Parameters.Length == method.Parameters.Length
+            && candidate.Parameters[0].Type is INamedTypeSymbol { Name: "AssertionHandle", ContainingNamespace: { Name: "Assertive", ContainingNamespace.IsGlobalNamespace: true } }
+            && RemainingParametersMatch(candidate, method)
+            && compilation.IsSymbolAccessibleWithin(candidate, compilation.Assembly))
+        {
+          handleOverload = candidate;
+          break;
+        }
+      }
+
+      if (handleOverload == null)
+      {
+        return null;
+      }
+
+      var model = new WrapperModel
+      {
+        MethodName = method.Name,
+        ContainingTypeFqn = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+        IsStatic = method.IsStatic,
+        ReturnTypeFqn = method.ReturnsVoid ? "void" : method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+      };
+
+      for (var i = 1; i < method.Parameters.Length; i++)
+      {
+        model.ExtraParameterTypes.Add(method.Parameters[i].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+      }
+
+      return model;
+    }
+
+    private static bool RemainingParametersMatch(IMethodSymbol candidate, IMethodSymbol original)
+    {
+      for (var i = 1; i < original.Parameters.Length; i++)
+      {
+        if (!SymbolEqualityComparer.Default.Equals(candidate.Parameters[i].Type, original.Parameters[i].Type)
+            || candidate.Parameters[i].RefKind != RefKind.None)
+        {
+          return false;
+        }
+      }
+
+      return true;
     }
 
     private static ThatOverload? ClassifyOverload(IMethodSymbol method)

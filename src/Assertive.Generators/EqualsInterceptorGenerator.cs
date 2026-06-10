@@ -29,15 +29,12 @@ namespace Assertive.Generators
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
       var calls = context.SyntaxProvider.CreateSyntaxProvider(
-          // Cheap syntax pre-filter: Assert.That(...) / alias.That(...) member calls and the
-          // DSL's bare Assert(...) via `using static Assertive.DSL`.
+          // Cheap syntax pre-filter: any invocation whose first argument is a zero-parameter
+          // lambda literal. Covers Assert.That, the DSL's bare Assert, and [AssertionWrapper]
+          // methods; the transform's symbol checks reject everything else.
           predicate: static (node, _) => node is InvocationExpressionSyntax invocation
-            && invocation.Expression switch
-            {
-              MemberAccessExpressionSyntax { Name.Identifier.ValueText: "That" or "Assert" } => true,
-              IdentifierNameSyntax { Identifier.ValueText: "Assert" or "That" } => true,
-              _ => false,
-            },
+            && invocation.ArgumentList.Arguments.Count > 0
+            && invocation.ArgumentList.Arguments[0].Expression is ParenthesizedLambdaExpressionSyntax { ParameterList.Parameters.Count: 0 },
           transform: static (ctx, ct) => CallSiteAnalyzer.Analyze(ctx, ct))
         .Where(static c => c is not null);
 
@@ -80,7 +77,15 @@ namespace Assertive.Generators
 
         foreach (var call in fileGroup)
         {
-          EmitInterceptor(sb, call!, index++);
+          if (call!.Wrapper != null)
+          {
+            EmitWrapperInterceptor(sb, call, index++);
+          }
+          else
+          {
+            EmitInterceptor(sb, call, index++);
+          }
+
           sb.AppendLine();
         }
 
@@ -137,6 +142,53 @@ namespace Assertive.Generators
       sb.AppendLine("    }");
     }
 
+    /// <summary>
+    /// Emits an interceptor for an [AssertionWrapper] call site: routes to the wrapper's
+    /// AssertionHandle overload, carrying a generated evaluator for the assertion. Instance
+    /// wrappers are intercepted with an extension method (receiver as first parameter).
+    /// </summary>
+    private static void EmitWrapperInterceptor(StringBuilder sb, InterceptedCall call, int index)
+    {
+      var wrapper = call.Wrapper!;
+      const string expressionType = "global::System.Linq.Expressions.Expression<global::System.Func<bool>>";
+
+      var parameters = new List<string>();
+
+      if (!wrapper.IsStatic)
+      {
+        parameters.Add($"this {wrapper.ContainingTypeFqn} __receiver");
+      }
+
+      parameters.Add($"{expressionType} __assertion");
+
+      for (var i = 0; i < wrapper.ExtraParameterTypes.Count; i++)
+      {
+        parameters.Add($"{wrapper.ExtraParameterTypes[i]} __p{i}");
+      }
+
+      var forwardedArgs = string.Concat(Enumerable.Range(0, wrapper.ExtraParameterTypes.Count).Select(i => $", __p{i}"));
+      var target = wrapper.IsStatic ? wrapper.ContainingTypeFqn : "__receiver";
+      var returnKeyword = wrapper.ReturnTypeFqn == "void" ? "" : "return ";
+
+      sb.AppendLine($"    // {call.DisplayLocation}");
+      sb.AppendLine("    [global::System.Diagnostics.StackTraceHidden]");
+      sb.AppendLine($"    [global::System.Runtime.CompilerServices.InterceptsLocation({call.LocationVersion}, {Quote(call.LocationData)})]");
+      sb.AppendLine($"    public static {wrapper.ReturnTypeFqn} Wrapper{index}({string.Join(", ", parameters)})");
+      sb.AppendLine("    {");
+      sb.AppendLine("      global::Assertive.Runtime.GeneratedAssert.MarkIntercepted();");
+      sb.AppendLine($"      {returnKeyword}{target}.{wrapper.MethodName}(global::Assertive.AssertionHandle.Generated(__assertion, () =>");
+      sb.AppendLine("      {");
+
+      foreach (var local in call.CapturedLocals)
+      {
+        sb.AppendLine($"        {local.Type} {local.Name} = ({local.Type})global::Assertive.Runtime.GeneratedAssert.GetCapturedValue(__assertion, {Quote(local.Name)});");
+      }
+
+      sb.AppendLine($"        return {call.LeftSource} {call.Operator} {call.RightSource};");
+      sb.AppendLine($"      }}){forwardedArgs});");
+      sb.AppendLine("    }");
+    }
+
     private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
 
     private static string StableHash(string text)
@@ -171,9 +223,20 @@ namespace Assertive.Generators
     public string DisplayLocation = "";
     public string FilePath = "";
     public ThatOverload Overload;
+    public WrapperModel? Wrapper;
     public List<(string Name, string Type)> CapturedLocals { get; } = new();
     public string LeftSource = "";
     public string RightSource = "";
     public string Operator = "";
+  }
+
+  /// <summary>An [AssertionWrapper] method pair (see AssertionWrapperAttribute in Assertive).</summary>
+  internal sealed class WrapperModel
+  {
+    public string MethodName = "";
+    public string ContainingTypeFqn = "";
+    public bool IsStatic;
+    public string ReturnTypeFqn = "void";
+    public List<string> ExtraParameterTypes { get; } = new();
   }
 }

@@ -71,6 +71,47 @@ namespace Assertive
     }
 
     /// <summary>
+    /// Asserts an assertion received through an assertion wrapper
+    /// (see <see cref="AssertionWrapperAttribute"/>). Uses the generated evaluator when the
+    /// wrapper call site was intercepted; otherwise evaluates through the standard pipeline.
+    /// </summary>
+    /// <param name="assertion">The assertion handle to evaluate.</param>
+    public static void That(AssertionHandle assertion)
+    {
+      if (assertion.GeneratedEvaluator is { } evaluator)
+      {
+        bool passed;
+
+        try
+        {
+          passed = evaluator();
+        }
+        catch
+        {
+          // Evaluation failed; defer entirely to the standard pipeline, which re-evaluates
+          // the expression and analyzes the exception as usual.
+          Runtime.GeneratedAssert.Fallback(assertion.Assertion, null, null);
+          return;
+        }
+
+        if (passed)
+        {
+          return;
+        }
+
+        Runtime.GeneratedAssert.Fallback(assertion.Assertion, null, null);
+        return;
+      }
+
+      var exception = AssertImpl.That(assertion.Assertion, null, null);
+
+      if (exception != null)
+      {
+        throw exception;
+      }
+    }
+
+    /// <summary>
     /// Asserts that the given action throws an exception.
     /// </summary>
     /// <param name="action">An action that should throw an exception.</param>

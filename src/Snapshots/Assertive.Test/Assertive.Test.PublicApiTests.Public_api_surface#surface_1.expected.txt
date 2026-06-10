@@ -4,12 +4,20 @@ static class Assert
   static void That(Expression<Func<bool>> assertion, object message)
   static void That(Expression<Func<bool>> assertion, Expression<Func<object>> context)
   static void That(Expression<Func<bool>> assertion, object message, Expression<Func<object>> context)
+  static void That(AssertionHandle assertion)
   static Exception Throws(Action action, Expression<Func<Exception, bool>> exceptionAssertion, string actionExpression)
   static TException Throws<TException>(Action action, Expression<Func<TException, bool>> exceptionAssertion, string actionExpression)
   static Exception Throws(Func<object> func, Expression<Func<Exception, bool>> exceptionAssertion, string funcExpression)
   static TException Throws<TException>(Func<object> func, Expression<Func<TException, bool>> exceptionAssertion, string funcExpression)
   static Task<Exception> Throws(Func<Task> action, Expression<Func<Exception, bool>> exceptionAssertion, string actionExpression)
   static Task<TException> Throws<TException>(Func<Task> action, Expression<Func<TException, bool>> exceptionAssertion, string actionExpression)
+
+struct AssertionHandle
+  static AssertionHandle Degraded(Expression<Func<bool>> assertion)
+  static AssertionHandle Generated(Expression<Func<bool>> assertion, Func<bool> evaluator)
+
+sealed class AssertionWrapperAttribute
+  .ctor()
 
 class AssertSnapshotOptions
   .ctor()
