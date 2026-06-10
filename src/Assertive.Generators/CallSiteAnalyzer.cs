@@ -8,16 +8,18 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Assertive.Generators
 {
   /// <summary>
-  /// Decides whether an assertion call site is whitelisted for the equality slice, and if
-  /// so produces everything emission needs. The whitelist is deliberately conservative: any
+  /// Decides whether an assertion call site is whitelisted for interception, and if so
+  /// produces everything emission needs. The whitelist is deliberately conservative: any
   /// doubt means "don't intercept", which leaves the call site on the degraded delegate
   /// path (source text only, no decomposition).
   ///
-  /// Whitelisted forms: a () => lambda whose body is a binary ==/!= comparison, an
-  /// .Equals(x) call, or a ReferenceEquals(x, y) call, with outer !-negations of each.
-  /// Each operand is compiled independently: typed C# when every name involved is nameable
-  /// from the generated file, otherwise a reflective fallback that reads the closure and
-  /// resolves members at runtime (private nested types, private members on `this`).
+  /// Recognized forms (each with outer !-negations): ==/!= comparisons (routed to the
+  /// equality, null-check or length pattern), &lt;/&lt;=/&gt;/&gt;= comparisons (comparison or
+  /// length pattern), .Equals(x), ReferenceEquals(x, y), `is T` / `is object`, .HasValue,
+  /// and bare bool members. Each operand is compiled independently: typed C# when every
+  /// name involved is nameable from the generated file, otherwise a reflective fallback
+  /// that reads the closure and resolves members at runtime (private nested types, private
+  /// members on `this`).
   /// </summary>
   internal static class CallSiteAnalyzer
   {
@@ -80,59 +82,6 @@ namespace Assertive.Generators
         core = StripParens(negation.Operand);
       }
 
-      ExpressionSyntax leftOperand;
-      ExpressionSyntax rightOperand;
-      var kind = InterceptionKind.Equality;
-      var negated = outerNegated;
-
-      if (core is BinaryExpressionSyntax comparison
-          && comparison.Kind() is SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression)
-      {
-        leftOperand = comparison.Left;
-        rightOperand = comparison.Right;
-        negated = (comparison.IsKind(SyntaxKind.NotEqualsExpression)) ^ outerNegated;
-      }
-      else if (core is InvocationExpressionSyntax
-               {
-                 Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Equals" } equalsAccess,
-                 ArgumentList.Arguments.Count: 1
-               } equalsCall
-               && ctx.SemanticModel.GetSymbolInfo(equalsCall, ct).Symbol is IMethodSymbol
-               {
-                 Name: "Equals", IsStatic: false, ReturnType.SpecialType: SpecialType.System_Boolean, Parameters.Length: 1
-               })
-      {
-        leftOperand = equalsAccess.Expression;
-        rightOperand = equalsCall.ArgumentList.Arguments[0].Expression;
-      }
-      else if (core is InvocationExpressionSyntax { ArgumentList.Arguments.Count: 2 } referenceEqualsCall
-               && ctx.SemanticModel.GetSymbolInfo(referenceEqualsCall, ct).Symbol is IMethodSymbol
-               {
-                 Name: "ReferenceEquals", IsStatic: true, Parameters.Length: 2, ContainingType.SpecialType: SpecialType.System_Object
-               }
-               && referenceEqualsCall.ArgumentList.Arguments.All(a => a.NameColon == null))
-      {
-        kind = InterceptionKind.ReferenceEquals;
-        leftOperand = referenceEqualsCall.ArgumentList.Arguments[0].Expression;
-        rightOperand = referenceEqualsCall.ArgumentList.Arguments[1].Expression;
-      }
-      else
-      {
-        return null;
-      }
-
-      var left = StripParens(leftOperand);
-      var right = StripParens(rightOperand);
-
-      // Shapes that route to other patterns today (NullPattern, LengthPattern) stay on the
-      // degraded path until those patterns are ported.
-      if (kind == InterceptionKind.Equality
-          && (IsNullOrDefaultLiteral(left) || IsNullOrDefaultLiteral(right)
-              || IsLengthOrCountAccess(left) || IsLengthOrCountAccess(right)))
-      {
-        return null;
-      }
-
       var location = ctx.SemanticModel.GetInterceptableLocation(invocation, ct);
 
       if (location == null)
@@ -149,33 +98,272 @@ namespace Assertive.Generators
         Overload = overload ?? ThatOverload.MessageContext,
         Wrapper = wrapper,
         BodySource = body.ToString(),
-        Kind = kind,
-        Negated = negated,
-        RightIsConstant = right is LiteralExpressionSyntax,
-        LeftDisplay = leftOperand.ToString(),
-        RightDisplay = rightOperand.ToString(),
+        Negated = outerNegated,
       };
 
       var compiler = new OperandCompiler(ctx.SemanticModel, body, call, ct);
 
-      call.LeftSource = compiler.Compile(leftOperand)!;
-      call.RightSource = compiler.Compile(rightOperand)!;
+      return ClassifyForm(ctx, core, outerNegated, call, compiler, ct) ? call : null;
+    }
 
-      if (call.LeftSource == null || call.RightSource == null)
+    /// <summary>
+    /// Determines which pattern the (negation-stripped) assertion body matches, compiles
+    /// the operands the pattern needs, and fills the pattern-specific fields of the call.
+    /// Returns false when the body is not a whitelisted form or an operand can't be compiled.
+    /// </summary>
+    private static bool ClassifyForm(GeneratorSyntaxContext ctx, ExpressionSyntax core, bool outerNegated,
+      InterceptedCall call, OperandCompiler compiler, CancellationToken ct)
+    {
+      switch (core)
       {
-        return null;
-      }
+        case BinaryExpressionSyntax binary when binary.Kind() is SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression:
+        {
+          var isNotEquals = binary.IsKind(SyntaxKind.NotEqualsExpression);
+          var left = StripParens(binary.Left);
+          var right = StripParens(binary.Right);
 
-      return call;
+          if (IsNullOrDefaultLiteral(left))
+          {
+            return false;
+          }
+
+          if (IsNullOrDefaultLiteral(right))
+          {
+            // Null-check routing (NullPattern): `x == null`, `x != default`, ... The old
+            // pattern only matched reference types (plus nullables for the null literal);
+            // `someStruct == default` stays degraded.
+            var leftType = ctx.SemanticModel.GetTypeInfo(left, ct).Type;
+
+            var nullCheckable = right.IsKind(SyntaxKind.NullLiteralExpression)
+              ? leftType is { IsReferenceType: true } || IsNullableValueType(leftType)
+              : leftType is { IsReferenceType: true };
+
+            if (!nullCheckable)
+            {
+              return false;
+            }
+
+            call.Kind = InterceptionKind.Null;
+            call.Negated = !isNotEquals ^ outerNegated; // true = expected null
+            return SetLeft(call, compiler, binary.Left);
+          }
+
+          if (TryGetLengthAccess(left, out var countLabel, out var operand, out var filterSource))
+          {
+            // The old LengthPattern did not match negated forms.
+            if (outerNegated)
+            {
+              return false;
+            }
+
+            call.Kind = InterceptionKind.Length;
+            call.CountLabel = countLabel;
+            call.OperandDisplay = operand.ToString();
+            call.FilterSource = filterSource;
+            call.ComparisonLabel = isNotEquals ? "not equal to" : "equal to";
+            return SetLeft(call, compiler, binary.Left) && SetRight(call, compiler, binary.Right, right);
+          }
+
+          if (IsLengthOrCountAccess(left) || IsLengthOrCountAccess(right))
+          {
+            // LongCount and friends: routed to other patterns historically; stay degraded.
+            return false;
+          }
+
+          call.Kind = InterceptionKind.Equality;
+          call.Negated = isNotEquals ^ outerNegated;
+          return SetLeft(call, compiler, binary.Left) && SetRight(call, compiler, binary.Right, right);
+        }
+
+        case BinaryExpressionSyntax binary when binary.Kind() is SyntaxKind.LessThanExpression or SyntaxKind.LessThanOrEqualExpression
+          or SyntaxKind.GreaterThanExpression or SyntaxKind.GreaterThanOrEqualExpression:
+        {
+          // The old comparison/length patterns did not match negated forms.
+          if (outerNegated)
+          {
+            return false;
+          }
+
+          var comparisonLabel = binary.Kind() switch
+          {
+            SyntaxKind.LessThanExpression => "less than",
+            SyntaxKind.LessThanOrEqualExpression => "less than or equal to",
+            SyntaxKind.GreaterThanExpression => "greater than",
+            _ => "greater than or equal to",
+          };
+
+          var left = StripParens(binary.Left);
+          var right = StripParens(binary.Right);
+
+          if (IsNullOrDefaultLiteral(left) || IsNullOrDefaultLiteral(right))
+          {
+            return false;
+          }
+
+          call.ComparisonLabel = comparisonLabel;
+
+          if (TryGetLengthAccess(left, out var countLabel, out var operand, out var filterSource))
+          {
+            call.Kind = InterceptionKind.Length;
+            call.CountLabel = countLabel;
+            call.OperandDisplay = operand.ToString();
+            call.FilterSource = filterSource;
+          }
+          else
+          {
+            call.Kind = InterceptionKind.Comparison;
+          }
+
+          return SetLeft(call, compiler, binary.Left) && SetRight(call, compiler, binary.Right, right);
+        }
+
+        case BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.IsExpression):
+        {
+          if (ctx.SemanticModel.GetSymbolInfo(binary.Right, ct).Symbol is not ITypeSymbol checkedType)
+          {
+            return false;
+          }
+
+          if (checkedType.SpecialType == SpecialType.System_Object)
+          {
+            // `x is object` is a null check (NullPattern); negated means "expected null".
+            call.Kind = InterceptionKind.Null;
+            call.Negated = outerNegated;
+            return SetLeft(call, compiler, binary.Left);
+          }
+
+          call.Kind = InterceptionKind.Is;
+          call.TypeAccessor = compiler.TypeAccessor(checkedType);
+          return call.TypeAccessor != null && SetLeft(call, compiler, binary.Left);
+        }
+
+        case InvocationExpressionSyntax
+        {
+          Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Equals" } equalsAccess,
+          ArgumentList.Arguments.Count: 1
+        } equalsCall when ctx.SemanticModel.GetSymbolInfo(equalsCall, ct).Symbol is IMethodSymbol
+        {
+          Name: "Equals", IsStatic: false, ReturnType.SpecialType: SpecialType.System_Boolean, Parameters.Length: 1
+        }:
+        {
+          var right = StripParens(equalsCall.ArgumentList.Arguments[0].Expression);
+
+          if (IsNullOrDefaultLiteral(right) || IsNullOrDefaultLiteral(StripParens(equalsAccess.Expression)))
+          {
+            return false;
+          }
+
+          call.Kind = InterceptionKind.Equality;
+          return SetLeft(call, compiler, equalsAccess.Expression)
+                 && SetRight(call, compiler, equalsCall.ArgumentList.Arguments[0].Expression, right);
+        }
+
+        case InvocationExpressionSyntax { ArgumentList.Arguments.Count: 2 } referenceEqualsCall
+          when ctx.SemanticModel.GetSymbolInfo(referenceEqualsCall, ct).Symbol is IMethodSymbol
+          {
+            Name: "ReferenceEquals", IsStatic: true, Parameters.Length: 2, ContainingType.SpecialType: SpecialType.System_Object
+          } && referenceEqualsCall.ArgumentList.Arguments.All(a => a.NameColon == null):
+        {
+          call.Kind = InterceptionKind.ReferenceEquals;
+          return SetLeft(call, compiler, referenceEqualsCall.ArgumentList.Arguments[0].Expression)
+                 && SetRight(call, compiler, referenceEqualsCall.ArgumentList.Arguments[1].Expression,
+                   StripParens(referenceEqualsCall.ArgumentList.Arguments[1].Expression));
+        }
+
+        case MemberAccessExpressionSyntax { Name.Identifier.ValueText: "HasValue" } hasValueAccess
+          when hasValueAccess.IsKind(SyntaxKind.SimpleMemberAccessExpression)
+               && IsNullableValueType(ctx.SemanticModel.GetTypeInfo(hasValueAccess.Expression, ct).Type):
+        {
+          call.Kind = InterceptionKind.HasValue;
+          return SetLeft(call, compiler, hasValueAccess.Expression);
+        }
+
+        case IdentifierNameSyntax:
+        case MemberAccessExpressionSyntax when core.IsKind(SyntaxKind.SimpleMemberAccessExpression):
+        {
+          // A bare bool member/local (BoolPattern). The operand is compiled only so its
+          // captured locals are available for the LOCALS section; the value is not needed
+          // (the delegate already evaluated it).
+          call.Kind = InterceptionKind.Bool;
+          return SetLeft(call, compiler, core);
+        }
+
+        default:
+          return false;
+      }
+    }
+
+    private static bool SetLeft(InterceptedCall call, OperandCompiler compiler, ExpressionSyntax operand)
+    {
+      call.LeftSource = compiler.Compile(operand)!;
+      call.LeftDisplay = operand.ToString();
+      return call.LeftSource != null;
+    }
+
+    private static bool SetRight(InterceptedCall call, OperandCompiler compiler, ExpressionSyntax operand, ExpressionSyntax stripped)
+    {
+      call.RightSource = compiler.Compile(operand)!;
+      call.RightDisplay = operand.ToString();
+      call.RightIsConstant = stripped is LiteralExpressionSyntax;
+      return call.RightSource != null;
+    }
+
+    /// <summary>
+    /// Matches the shapes the old LengthPattern recognized on the left side of a
+    /// comparison: array/string .Length, collection .Count, and LINQ .Count() with an
+    /// optional expression-bodied lambda filter.
+    /// </summary>
+    private static bool TryGetLengthAccess(ExpressionSyntax left, out string countLabel, out ExpressionSyntax operand, out string? filterSource)
+    {
+      countLabel = "";
+      operand = left;
+      filterSource = null;
+
+      switch (left)
+      {
+        case MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Length" } lengthAccess
+          when lengthAccess.IsKind(SyntaxKind.SimpleMemberAccessExpression):
+          countLabel = "Length";
+          operand = lengthAccess.Expression;
+          return true;
+
+        case MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Count" } countAccess
+          when countAccess.IsKind(SyntaxKind.SimpleMemberAccessExpression):
+          countLabel = "Count";
+          operand = countAccess.Expression;
+          return true;
+
+        case InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Count" } countCall } countInvocation
+          when countCall.IsKind(SyntaxKind.SimpleMemberAccessExpression):
+        {
+          countLabel = "Count";
+          operand = countCall.Expression;
+
+          switch (countInvocation.ArgumentList.Arguments.Count)
+          {
+            case 0:
+              return true;
+            case 1 when countInvocation.ArgumentList.Arguments[0].Expression is LambdaExpressionSyntax { Body: ExpressionSyntax filterBody }:
+              filterSource = filterBody.ToString();
+              return true;
+            default:
+              return false;
+          }
+        }
+
+        default:
+          return false;
+      }
     }
 
     /// <summary>
     /// Compiles a single operand expression into C# for the generated failure path.
-    /// First tries the typed strategy (paste the source, fully qualify type references,
-    /// read captured locals from the closure with a typed cast); when any name involved
-    /// is not nameable from the generated file, falls back to the reflective strategy
-    /// (object-typed values, members resolved at runtime by name). Captured locals are
-    /// registered on the call as a side effect of successful compilation.
+    /// First tries the typed strategy (paste the source, fully qualify type references and
+    /// reduced extension calls, read captured locals from the closure with a typed cast);
+    /// when any name involved is not nameable or a member is not accessible from the
+    /// generated file, falls back to the reflective strategy (object-typed values, members
+    /// resolved at runtime by name). Captured locals are registered on the call as a side
+    /// effect of successful compilation.
     /// </summary>
     private sealed class OperandCompiler
     {
@@ -221,38 +409,74 @@ namespace Assertive.Generators
       {
         foreach (var node in operand.DescendantNodesAndSelf())
         {
-          if (node is ThisExpressionSyntax or BaseExpressionSyntax or QueryExpressionSyntax or AnonymousObjectCreationExpressionSyntax)
+          switch (node)
           {
-            return null;
-          }
+            case ThisExpressionSyntax:
+            case BaseExpressionSyntax:
+            case QueryExpressionSyntax:
+            case AnonymousObjectCreationExpressionSyntax:
+              return null;
 
-          // Extension methods called instance-style (`xs.First()`) would need the extension's
-          // namespace imported in the generated file; resolving that faithfully is out of scope.
-          if (node is InvocationExpressionSyntax innerCall
-              && _model.GetSymbolInfo(innerCall, _ct).Symbol is IMethodSymbol { ReducedFrom: not null })
-          {
-            return null;
+            case InvocationExpressionSyntax innerCall:
+            {
+              if (_model.GetSymbolInfo(innerCall, _ct).Symbol is not IMethodSymbol innerMethod)
+              {
+                continue; // nameof and friends
+              }
+
+              if (!IsAccessibleMember(innerMethod))
+              {
+                return null;
+              }
+
+              // Reduced extension calls are rewritten to fully-qualified static calls,
+              // which requires a plain member-access receiver and a nameable static class.
+              if (innerMethod.ReducedFrom != null
+                  && (innerCall.Expression is not MemberAccessExpressionSyntax extensionAccess
+                      || !extensionAccess.IsKind(SyntaxKind.SimpleMemberAccessExpression)
+                      || !IsUsableType(innerMethod.ContainingType, _compilation)))
+              {
+                return null;
+              }
+
+              continue;
+            }
+
+            // Pasted member accesses bind outside the declaring type, so the member itself
+            // must be accessible from generated code (private/protected members are not).
+            case MemberAccessExpressionSyntax memberAccess:
+              if (_model.GetSymbolInfo(memberAccess, _ct).Symbol is { } memberSymbol && !IsAccessibleMember(memberSymbol))
+              {
+                return null;
+              }
+
+              continue;
+
+            case ElementAccessExpressionSyntax elementAccess:
+              if (_model.GetSymbolInfo(elementAccess, _ct).Symbol is { } indexerSymbol && !IsAccessibleMember(indexerSymbol))
+              {
+                return null;
+              }
+
+              continue;
+
+            case ObjectCreationExpressionSyntax creation:
+              if (_model.GetSymbolInfo(creation, _ct).Symbol is { } constructorSymbol && !IsAccessibleMember(constructorSymbol))
+              {
+                return null;
+              }
+
+              continue;
           }
         }
 
-        // Classify every free simple name and collect type-qualifier rewrites (so
-        // `x == StringComparison.Ordinal` emits `global::System.StringComparison.Ordinal`).
-        var rewrites = new List<(TextSpanStart Start, int Length, string Replacement)>();
         var captures = new List<(string Name, string? Type)>();
 
         foreach (var name in operand.DescendantNodesAndSelf().OfType<SimpleNameSyntax>())
         {
-          // Names inside an already-rewritten span (type arguments of a rewritten generic
-          // name, say) are covered by the outer rewrite; document order visits outers first.
-          if (rewrites.Any(r => name.SpanStart >= r.Start.Value && name.Span.End <= r.Start.Value + r.Length))
-          {
-            continue;
-          }
-
           // Member names (`Length` in `x.Length`, `Ordinal` in `StringComparison.Ordinal`):
           // the receiver/qualifier determines them.
-          if ((name.Parent is MemberAccessExpressionSyntax ma && ma.Name == name)
-              || (name.Parent is QualifiedNameSyntax qn && qn.Right == name))
+          if (IsMemberNamePosition(name))
           {
             continue;
           }
@@ -261,9 +485,7 @@ namespace Assertive.Generators
 
           switch (symbol)
           {
-            case INamespaceSymbol ns:
-              rewrites.Add((new TextSpanStart(name.SpanStart), name.Span.Length,
-                ns.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
+            case INamespaceSymbol:
               continue;
 
             case ITypeSymbol type:
@@ -274,8 +496,6 @@ namespace Assertive.Generators
                 return null;
               }
 
-              rewrites.Add((new TextSpanStart(name.SpanStart), name.Span.Length,
-                type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
               continue;
 
             case ILocalSymbol local when name is IdentifierNameSyntax:
@@ -307,23 +527,113 @@ namespace Assertive.Generators
 
             default:
               // Fields/properties on `this`, statics via `using static`, local functions,
-              // method groups, nameof, range variables, anything unresolved: not typed-
-              // compilable; the reflective strategy may still apply.
+              // method groups, range variables, anything unresolved: not typed-compilable;
+              // the reflective strategy may still apply.
               return null;
           }
         }
 
+        var rewriter = new TypedRenderRewriter(_model, _ct);
+        var rendered = rewriter.Visit(operand);
+
+        if (rewriter.Failed || rendered == null)
+        {
+          return null;
+        }
+
         Commit(captures);
 
-        return SourceWithRewrites(operand, rewrites);
+        return rendered.ToString();
+      }
+
+      private bool IsAccessibleMember(ISymbol symbol)
+      {
+        return symbol is not (IFieldSymbol or IPropertySymbol or IMethodSymbol or IEventSymbol)
+               || _compilation.IsSymbolAccessibleWithin(symbol, _compilation.Assembly);
+      }
+
+      private static bool IsMemberNamePosition(SimpleNameSyntax name)
+      {
+        return (name.Parent is MemberAccessExpressionSyntax ma && ma.Name == name)
+               || (name.Parent is QualifiedNameSyntax qn && qn.Right == name)
+               || name.Parent is MemberBindingExpressionSyntax;
+      }
+
+      /// <summary>
+      /// Renders typed operand code: type/namespace qualifiers become fully-qualified names
+      /// and reduced extension calls become static calls (`xs.Count()` to
+      /// `global::System.Linq.Enumerable.Count(xs)`), since the generated file has no
+      /// using directives.
+      /// </summary>
+      private sealed class TypedRenderRewriter : CSharpSyntaxRewriter
+      {
+        private readonly SemanticModel _model;
+        private readonly CancellationToken _ct;
+
+        public bool Failed;
+
+        public TypedRenderRewriter(SemanticModel model, CancellationToken ct)
+        {
+          _model = model;
+          _ct = ct;
+        }
+
+        public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
+          => RewriteName(node, base.VisitIdentifierName(node));
+
+        public override SyntaxNode? VisitGenericName(GenericNameSyntax node)
+          => RewriteName(node, base.VisitGenericName(node));
+
+        private SyntaxNode? RewriteName(SimpleNameSyntax original, SyntaxNode? visited)
+        {
+          if (IsMemberNamePosition(original))
+          {
+            return visited;
+          }
+
+          if (_model.GetSymbolInfo(original, _ct).Symbol is INamespaceOrTypeSymbol namespaceOrType)
+          {
+            return SyntaxFactory.ParseName(namespaceOrType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
+              .WithTriviaFrom(original);
+          }
+
+          return visited;
+        }
+
+        public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node)
+        {
+          var symbol = _model.GetSymbolInfo(node, _ct).Symbol as IMethodSymbol;
+          var visited = (InvocationExpressionSyntax?)base.VisitInvocationExpression(node);
+
+          if (symbol is not { ReducedFrom: not null } || visited == null)
+          {
+            return visited;
+          }
+
+          if (visited.Expression is not MemberAccessExpressionSyntax access
+              || !access.IsKind(SyntaxKind.SimpleMemberAccessExpression))
+          {
+            Failed = true;
+            return visited;
+          }
+
+          var staticClass = symbol.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+          var typeArguments = access.Name is GenericNameSyntax generic ? generic.TypeArgumentList.ToString() : "";
+          var arguments = new List<string> { access.Expression.ToString() };
+          arguments.AddRange(visited.ArgumentList.Arguments.Select(a => a.ToString()));
+
+          return SyntaxFactory.ParseExpression($"{staticClass}.{symbol.Name}{typeArguments}({string.Join(", ", arguments)})")
+            .WithTriviaFrom(visited);
+        }
       }
 
       /// <summary>
       /// Compiles an operand to an object-typed expression that evaluates it through the
       /// closure and runtime reflection. Supported shapes: literals, captured locals and
       /// parameters (of any type), `this` and its fields/properties/method calls (any
-      /// accessibility), member access chains, and static fields/properties including enum
-      /// constants on types reachable through a nameable ancestor. Anything else fails.
+      /// accessibility), member access chains, parameterless LINQ Count(), and static
+      /// fields/properties including enum constants on types reachable through a nameable
+      /// ancestor. Anything else fails.
       /// </summary>
       private string? CompileReflective(ExpressionSyntax expression, List<(string Name, string? Type)> captures)
       {
@@ -390,8 +700,23 @@ namespace Assertive.Generators
 
           case InvocationExpressionSyntax invocation:
           {
-            if (_model.GetSymbolInfo(invocation, _ct).Symbol is not IMethodSymbol method
-                || method.IsStatic
+            if (_model.GetSymbolInfo(invocation, _ct).Symbol is not IMethodSymbol method)
+            {
+              return null;
+            }
+
+            // LINQ Count() works untyped: the element type never needs to be named.
+            if (method is { ReducedFrom: not null, Parameters.Length: 0, Name: "Count", ContainingType.Name: "Enumerable" }
+                && method.ContainingType.ContainingNamespace is { Name: "Linq", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } }
+                && invocation.Expression is MemberAccessExpressionSyntax countAccess
+                && countAccess.IsKind(SyntaxKind.SimpleMemberAccessExpression))
+            {
+              return CompileReflective(countAccess.Expression, captures) is { } countReceiver
+                ? $"{Runtime}.EnumerableCount({countReceiver})"
+                : null;
+            }
+
+            if (method.IsStatic
                 || method.IsGenericMethod
                 || method.ReducedFrom != null
                 || method.Parameters.Any(p => p.RefKind != RefKind.None || p.IsParams)
@@ -444,26 +769,26 @@ namespace Assertive.Generators
       /// nameable ancestor anchors a typeof(), and each unnameable nesting level is resolved
       /// by metadata name at runtime. Null when no nameable anchor exists.
       /// </summary>
-      private string? BuildTypeAccessor(INamedTypeSymbol type)
+      public string? TypeAccessor(ITypeSymbol type)
       {
         if (IsUsableType(type, _compilation))
         {
           return $"typeof({type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})";
         }
 
-        if (type.IsGenericType || type.IsFileLocal || type.ContainingType is not { } parent)
+        if (type is not INamedTypeSymbol { IsGenericType: false, IsFileLocal: false, ContainingType: { } parent })
         {
           return null;
         }
 
-        return BuildTypeAccessor(parent) is { } parentAccessor
+        return TypeAccessor(parent) is { } parentAccessor
           ? $"{Runtime}.GetNestedType({parentAccessor}, {Quote(type.MetadataName)})"
           : null;
       }
 
       private string? StaticMember(INamedTypeSymbol containingType, string memberName)
       {
-        return BuildTypeAccessor(containingType) is { } typeAccessor
+        return TypeAccessor(containingType) is { } typeAccessor
           ? $"{Runtime}.GetStaticMemberValue({typeAccessor}, {Quote(memberName)})"
           : null;
       }
@@ -653,6 +978,11 @@ namespace Assertive.Generators
       return false;
     }
 
+    private static bool IsNullableValueType(ITypeSymbol? type)
+    {
+      return type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T };
+    }
+
     /// <summary>
     /// Whether the type can be written down (for the closure-value cast) and used from the
     /// generated file, which lives in the consumer assembly but outside any type/file scope.
@@ -719,28 +1049,5 @@ namespace Assertive.Generators
 
       return expression;
     }
-
-    private static string SourceWithRewrites(ExpressionSyntax operand, List<(TextSpanStart Start, int Length, string Replacement)> rewrites)
-    {
-      var text = operand.ToString();
-      var offset = operand.SpanStart;
-
-      foreach (var rewrite in rewrites
-                 .Where(r => r.Start.Value >= operand.SpanStart && r.Start.Value + r.Length <= operand.Span.End)
-                 .OrderByDescending(r => r.Start.Value))
-      {
-        var relative = rewrite.Start.Value - offset;
-        text = text.Substring(0, relative) + rewrite.Replacement + text.Substring(relative + rewrite.Length);
-      }
-
-      return text;
-    }
-  }
-
-  /// <summary>Absolute span start; a named wrapper to keep tuple members readable.</summary>
-  internal readonly struct TextSpanStart
-  {
-    public TextSpanStart(int value) => Value = value;
-    public int Value { get; }
   }
 }

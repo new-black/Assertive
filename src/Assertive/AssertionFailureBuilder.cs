@@ -189,6 +189,162 @@ namespace Assertive
       });
     }
 
+    /// <summary>BoolPattern parity: a bare bool member/local was false (or true when negated).</summary>
+    public static Exception BuildBool(
+      string assertionText,
+      string source,
+      bool negated,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = $"{source}: {(negated ? "false" : "true")}",
+        Actual = negated ? "true" : "false",
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>NullPattern parity: a null check (==/!= null/default, `is object`) failed.</summary>
+    public static Exception BuildNull(
+      string assertionText,
+      string source,
+      object? value,
+      bool expectedNull,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = expectedNull ? $"{source} should be null." : $"{source} should not be null.",
+        Actual = expectedNull ? DisplayValue(value) : "null",
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>HasValuePattern parity: a Nullable&lt;T&gt;.HasValue check failed.</summary>
+    public static Exception BuildHasValue(
+      string assertionText,
+      string source,
+      object? value,
+      bool negated,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = negated ? $"{source} should not have a value." : $"{source} should have a value.",
+        Actual = negated ? $"Value: {DisplayValue(value)}." : "It was null.",
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>IsPattern parity: an `is T` type check failed.</summary>
+    public static Exception BuildIsType(
+      string assertionText,
+      string source,
+      object? value,
+      Type expectedType,
+      bool negated,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = $"{source} should {(negated ? "not " : "")}be of type {TypeHelper.TypeNameToString(expectedType)}.",
+        Actual = value == null ? "It was null." : $"Type: {TypeHelper.TypeNameToString(value.GetType())}.",
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>LessThanOrGreaterThanPattern parity: a numeric comparison failed.</summary>
+    public static Exception BuildComparison(
+      string assertionText,
+      string leftSource,
+      object? leftValue,
+      string rightSource,
+      object? rightValue,
+      bool rightIsConstant,
+      string comparisonLabel,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      var actual = rightIsConstant
+        ? $"{leftSource}: {DisplayValue(leftValue)}."
+        : $"{leftSource}: {DisplayValue(leftValue)}\n{rightSource}: {DisplayValue(rightValue)}";
+
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = $"{leftSource} should be {comparisonLabel} {rightSource}.",
+        Actual = actual,
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>LengthPattern parity: a Length/Count comparison failed.</summary>
+    public static Exception BuildLength(
+      string assertionText,
+      string operandSource,
+      string? filterSource,
+      string countLabel,
+      string comparisonLabel,
+      object? actualLength,
+      string rightSource,
+      object? rightValue,
+      bool rightIsConstant,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      var filter = filterSource != null ? $" with filter {filterSource}" : "";
+
+      var expected = rightIsConstant
+        ? $"{operandSource}{filter} should have a {countLabel} {comparisonLabel} {rightSource}."
+        : $"{operandSource}{filter} should have a {countLabel} {comparisonLabel} {rightSource} (value: {DisplayValue(rightValue)}).";
+
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = expected,
+        Actual = $"{countLabel}: {DisplayValue(actualLength)}.",
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
     /// <summary>
     /// Serialized value display, with enum values qualified by their type name (the
     /// expression-based pipeline did this through ExpressionEnumValue).

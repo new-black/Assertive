@@ -186,8 +186,20 @@ namespace Assertive.Generators
           : $"{indent}object {local.Name} = global::Assertive.Runtime.GeneratedAssert.GetCapturedValue({delegateName}, {Quote(local.Name)});");
       }
 
-      sb.AppendLine($"{indent}var __left = {call.LeftSource};");
-      sb.AppendLine($"{indent}var __right = {call.RightSource};");
+      // The Bool pattern needs no operand values (the delegate already evaluated the
+      // member); everything else re-evaluates the operand(s) it reports on.
+      if (call.Kind != InterceptionKind.Bool)
+      {
+        sb.AppendLine($"{indent}var __left = {call.LeftSource};");
+      }
+
+      var hasRight = call.Kind is InterceptionKind.Equality or InterceptionKind.ReferenceEquals
+        or InterceptionKind.Comparison or InterceptionKind.Length;
+
+      if (hasRight)
+      {
+        sb.AppendLine($"{indent}var __right = {call.RightSource};");
+      }
 
       // Locals that are themselves a whole operand are already displayed as the operand
       // value; everything else captured shows up under LOCALS (mirrors LocalsProvider).
@@ -200,27 +212,31 @@ namespace Assertive.Generators
         : $"new (string, object)[] {{ {string.Join(", ", displayedLocals.Select(l => $"({Quote(l.Name)}, (object){l.Name})"))} }}";
 
       var negated = call.Negated ? "true" : "false";
+      var rightIsConstant = call.RightIsConstant ? "true" : "false";
+      var tail = $"{localsArray},\n{indent}  {tailArgs}";
 
-      if (call.Kind == InterceptionKind.ReferenceEquals)
+      var throwArgs = call.Kind switch
       {
-        sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.ReferenceEqualsFailure(");
-        sb.AppendLine($"{indent}  {assertionTextArg},");
-        sb.AppendLine($"{indent}  {Quote(call.LeftDisplay)}, (object)__left,");
-        sb.AppendLine($"{indent}  {Quote(call.RightDisplay)}, (object)__right,");
-        sb.AppendLine($"{indent}  {negated},");
-        sb.AppendLine($"{indent}  {localsArray},");
-        sb.AppendLine($"{indent}  {tailArgs});");
-      }
-      else
-      {
-        sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.EqualityFailure(");
-        sb.AppendLine($"{indent}  {assertionTextArg},");
-        sb.AppendLine($"{indent}  {Quote(call.LeftDisplay)}, (object)__left,");
-        sb.AppendLine($"{indent}  {Quote(call.RightDisplay)}, (object)__right,");
-        sb.AppendLine($"{indent}  {(call.RightIsConstant ? "true" : "false")}, {negated},");
-        sb.AppendLine($"{indent}  {localsArray},");
-        sb.AppendLine($"{indent}  {tailArgs});");
-      }
+        InterceptionKind.Equality =>
+          $"EqualityFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {rightIsConstant}, {negated},\n{indent}  {tail}",
+        InterceptionKind.ReferenceEquals =>
+          $"ReferenceEqualsFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {negated},\n{indent}  {tail}",
+        InterceptionKind.Bool =>
+          $"BoolFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, {negated},\n{indent}  {tail}",
+        InterceptionKind.Null =>
+          $"NullFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left, {negated},\n{indent}  {tail}",
+        InterceptionKind.HasValue =>
+          $"HasValueFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left, {negated},\n{indent}  {tail}",
+        InterceptionKind.Is =>
+          $"IsTypeFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left, {call.TypeAccessor}, {negated},\n{indent}  {tail}",
+        InterceptionKind.Comparison =>
+          $"ComparisonFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {rightIsConstant}, {Quote(call.ComparisonLabel ?? "")},\n{indent}  {tail}",
+        InterceptionKind.Length =>
+          $"LengthFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.OperandDisplay)}, {(call.FilterSource != null ? Quote(call.FilterSource) : "null")}, {Quote(call.CountLabel)}, {Quote(call.ComparisonLabel ?? "")},\n{indent}  (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right, {rightIsConstant},\n{indent}  {tail}",
+        _ => throw new System.InvalidOperationException($"Unhandled kind {call.Kind}"),
+      };
+
+      sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.{throwArgs});");
     }
 
     private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
@@ -252,6 +268,12 @@ namespace Assertive.Generators
   {
     Equality,
     ReferenceEquals,
+    Bool,
+    Null,
+    HasValue,
+    Is,
+    Comparison,
+    Length,
   }
 
   internal sealed class InterceptedCall
@@ -273,9 +295,27 @@ namespace Assertive.Generators
     public string LeftDisplay = "";
     public string RightDisplay = "";
 
-    /// <summary>Message-level negation: `!=`, `!(a == b)`, `!a.Equals(b)`, `!ReferenceEquals(a, b)`.</summary>
+    /// <summary>
+    /// Message-level negation. Per kind: Equality reads "should not equal", Null means
+    /// "expected null", Bool/HasValue/Is/ReferenceEquals negate their message.
+    /// </summary>
     public bool Negated;
     public bool RightIsConstant;
+
+    /// <summary>Comparison/Length: "less than", "equal to", ...</summary>
+    public string? ComparisonLabel;
+
+    /// <summary>Length: "Length" or "Count".</summary>
+    public string CountLabel = "";
+
+    /// <summary>Length: the collection/string operand (receiver of the Length/Count access).</summary>
+    public string OperandDisplay = "";
+
+    /// <summary>Length: source of the Count(...) filter lambda body, if any.</summary>
+    public string? FilterSource;
+
+    /// <summary>Is: C# expression evaluating to the checked System.Type.</summary>
+    public string? TypeAccessor;
   }
 
   /// <summary>An [AssertionWrapper] method pair (see AssertionWrapperAttribute in Assertive).</summary>

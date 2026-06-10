@@ -115,14 +115,14 @@ namespace Assertive.Test.Generators
     [Fact]
     public void Wrapper_with_non_whitelisted_body_is_not_intercepted_but_still_works()
     {
-      string? x = "not null";
+      var x = "not null";
 
       var before = GeneratedAssert.InterceptedCallCount;
-      var exception = CaptureFailure(() => x == null, "label");
+      var exception = CaptureFailure(() => x.Contains('a') && x.Contains('z'), "label");
 
       Assert.Equal(before, GeneratedAssert.InterceptedCallCount);
       Assert.NotNull(exception);
-      Assert.Contains("x == null", StripAnsi(exception!.Message));
+      Assert.Contains("x.Contains('a') && x.Contains('z')", StripAnsi(exception!.Message));
     }
   }
 }

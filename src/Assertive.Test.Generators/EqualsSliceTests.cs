@@ -156,15 +156,29 @@ namespace Assertive.Test.Generators
     }
 
     [Fact]
-    public void Null_comparison_is_not_intercepted_and_reports_source_text()
+    public void Null_comparison_is_intercepted_as_null_pattern()
     {
       string? value = "not null";
 
       var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => value == null));
 
+      Assert.True(wasIntercepted);
+
+      var (expected, actual) = Decomposition(exception!);
+      Assert.Equal("value should be null.", expected);
+      Assert.Equal("\"not null\"", actual);
+    }
+
+    [Fact]
+    public void Logical_and_is_not_intercepted_and_reports_source_text()
+    {
+      var value = "ab";
+
+      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => value.Contains('a') && value.Contains('z')));
+
       Assert.False(wasIntercepted);
       Assert.NotNull(exception);
-      Assert.Contains("value == null", StripAnsi(exception!.Message));
+      Assert.Contains("value.Contains('a') && value.Contains('z')", StripAnsi(exception!.Message));
       Assert.Empty((string[])exception.Data["Assertive.Expected"]!);
     }
 

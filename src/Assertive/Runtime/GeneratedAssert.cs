@@ -301,5 +301,132 @@ namespace Assertive.Runtime
         context,
         contextExpression);
     }
+
+    /// <summary>A failed bare-bool assertion, decomposed by the generator (BoolPattern parity).</summary>
+    public static Exception BoolFailure(
+      string assertionExpression,
+      string source,
+      bool negated,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildBool(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        source, negated, locals, message, context, contextExpression);
+    }
+
+    /// <summary>A failed null check, decomposed by the generator (NullPattern parity).</summary>
+    public static Exception NullFailure(
+      string assertionExpression,
+      string source,
+      object? value,
+      bool expectedNull,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildNull(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        source, value, expectedNull, locals, message, context, contextExpression);
+    }
+
+    /// <summary>A failed HasValue check, decomposed by the generator (HasValuePattern parity).</summary>
+    public static Exception HasValueFailure(
+      string assertionExpression,
+      string source,
+      object? value,
+      bool negated,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildHasValue(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        source, value, negated, locals, message, context, contextExpression);
+    }
+
+    /// <summary>A failed `is T` check, decomposed by the generator (IsPattern parity).</summary>
+    public static Exception IsTypeFailure(
+      string assertionExpression,
+      string source,
+      object? value,
+      Type expectedType,
+      bool negated,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildIsType(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        source, value, expectedType, negated, locals, message, context, contextExpression);
+    }
+
+    /// <summary>A failed &lt;/&lt;=/&gt;/&gt;= comparison, decomposed by the generator (LessThanOrGreaterThanPattern parity).</summary>
+    public static Exception ComparisonFailure(
+      string assertionExpression,
+      string leftSource,
+      object? leftValue,
+      string rightSource,
+      object? rightValue,
+      bool rightIsConstant,
+      string comparisonLabel,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildComparison(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        leftSource, leftValue, rightSource, rightValue, rightIsConstant, comparisonLabel,
+        locals, message, context, contextExpression);
+    }
+
+    /// <summary>A failed Length/Count comparison, decomposed by the generator (LengthPattern parity).</summary>
+    public static Exception LengthFailure(
+      string assertionExpression,
+      string operandSource,
+      string? filterSource,
+      string countLabel,
+      string comparisonLabel,
+      object? actualLength,
+      string rightSource,
+      object? rightValue,
+      bool rightIsConstant,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildLength(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        operandSource, filterSource, countLabel, comparisonLabel, actualLength,
+        rightSource, rightValue, rightIsConstant, locals, message, context, contextExpression);
+    }
+
+    /// <summary>
+    /// Count() over an untyped enumerable, for reflective operand evaluation when the
+    /// element type cannot be named in generated code.
+    /// </summary>
+    public static int EnumerableCount(object source)
+    {
+      if (source is System.Collections.ICollection collection)
+      {
+        return collection.Count;
+      }
+
+      var count = 0;
+
+      foreach (var _ in (System.Collections.IEnumerable)source)
+      {
+        count++;
+      }
+
+      return count;
+    }
   }
 }
