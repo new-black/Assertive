@@ -171,18 +171,20 @@ namespace Assertive.Test.Generators
     }
 
     [Fact]
-    public void Logical_and_is_intercepted_opaquely_and_reports_source_text()
+    public void Logical_and_is_split_and_reports_the_failing_conjunct()
     {
       var value = "ab";
 
       var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => value.Contains('a') && value.Contains('z')));
 
-      // Not a decomposable form, but still intercepted (opaquely): source text, no
-      // expected/actual decomposition; the exception path gets cause attribution.
+      // && combines multiple asserts in one statement: only the failing conjunct is
+      // reported, with its own decomposed message.
       Assert.True(wasIntercepted);
       Assert.NotNull(exception);
-      Assert.Contains("value.Contains('a') && value.Contains('z')", StripAnsi(exception!.Message));
-      Assert.Empty((string[])exception.Data["Assertive.Expected"]!);
+
+      var (expected, actual) = Decomposition(exception!);
+      Assert.Equal("value should contain the substring 'z'.", expected);
+      Assert.Equal("value: \"ab\"", actual);
     }
 
     [Fact]

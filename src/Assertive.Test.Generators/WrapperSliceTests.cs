@@ -113,17 +113,18 @@ namespace Assertive.Test.Generators
     }
 
     [Fact]
-    public void Wrapper_with_non_whitelisted_body_is_intercepted_opaquely()
+    public void Wrapper_with_logical_and_body_is_split_through_the_wrapper()
     {
       var x = "not null";
 
       var before = GeneratedAssert.InterceptedCallCount;
-      var exception = CaptureFailure(() => x.Contains('a') && x.Contains('z'), "label");
+      var exception = CaptureFailure(() => x.Contains('n') && x.Contains('z'), "label");
 
-      // Not a decomposable form, but still intercepted (opaquely) through the wrapper.
+      // The && body splits into conjuncts through the wrapper too: the failing one
+      // reports with its own decomposed message.
       Assert.True(GeneratedAssert.InterceptedCallCount > before);
       Assert.NotNull(exception);
-      Assert.Contains("x.Contains('a') && x.Contains('z')", StripAnsi(exception!.Message));
+      Assert.Contains("x should contain the substring 'z'.", StripAnsi(exception!.Message));
     }
   }
 }

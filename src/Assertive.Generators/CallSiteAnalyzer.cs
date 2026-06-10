@@ -212,7 +212,7 @@ namespace Assertive.Generators
         subCore = StripParens(negation.Operand);
       }
 
-      var subCall = new InterceptedCall();
+      var subCall = new InterceptedCall { Negated = subNegated };
 
       if (!ClassifyForm(ctx, subCore, subNegated, subCall, compiler, ct, bindings))
       {
@@ -360,6 +360,92 @@ namespace Assertive.Generators
       }
     }
 
+    /// <summary>Logical operators that split into separate assertions (&/| only over bools).</summary>
+    private static bool IsSplittableLogical(BinaryExpressionSyntax binary, GeneratorSyntaxContext ctx, CancellationToken ct)
+    {
+      switch (binary.Kind())
+      {
+        case SyntaxKind.LogicalAndExpression:
+        case SyntaxKind.LogicalOrExpression:
+          return true;
+
+        case SyntaxKind.BitwiseAndExpression:
+        case SyntaxKind.BitwiseOrExpression:
+          return ctx.SemanticModel.GetTypeInfo(binary, ct).Type?.SpecialType == SpecialType.System_Boolean;
+
+        default:
+          return false;
+      }
+    }
+
+    /// <summary>
+    /// Builds the part tree of a logically-composed assertion. Each leaf carries a pasted
+    /// re-evaluation of its source (exact semantics), its classified decomposition (when the
+    /// leaf is a whitelisted form), a custom-pattern probe, its exception steps, and the
+    /// captured locals it introduced. Null when any leaf cannot be re-evaluated.
+    /// </summary>
+    private static SplitPart? BuildSplitPart(GeneratorSyntaxContext ctx, ExpressionSyntax expression,
+      InterceptedCall call, OperandCompiler compiler, CancellationToken ct)
+    {
+      expression = StripParens(expression);
+
+      if (expression is BinaryExpressionSyntax binary && IsSplittableLogical(binary, ctx, ct))
+      {
+        var left = BuildSplitPart(ctx, binary.Left, call, compiler, ct);
+        var right = left != null ? BuildSplitPart(ctx, binary.Right, call, compiler, ct) : null;
+
+        if (right == null)
+        {
+          return null;
+        }
+
+        var kind = binary.Kind() switch
+        {
+          SyntaxKind.LogicalAndExpression => "AndAlso",
+          SyntaxKind.LogicalOrExpression => "OrElse",
+          SyntaxKind.BitwiseAndExpression => "And",
+          _ => "Or",
+        };
+
+        return new SplitPart { Kind = kind, Left = left, Right = right };
+      }
+
+      // Leaf: locals registered while compiling this leaf belong to its report.
+      var localsBefore = call.CapturedLocals.Count;
+      var condition = compiler.Compile(expression);
+
+      if (condition == null)
+      {
+        return null;
+      }
+
+      var leafNegated = false;
+      var leafCore = expression;
+
+      while (leafCore is PrefixUnaryExpressionSyntax negation && negation.IsKind(SyntaxKind.LogicalNotExpression))
+      {
+        leafNegated = !leafNegated;
+        leafCore = StripParens(negation.Operand);
+      }
+
+      // Kinds that don't recompute negation (Contains, Bool, ...) read the pre-set value.
+      var subCall = new InterceptedCall { Negated = leafNegated };
+      var classified = ClassifyForm(ctx, leafCore, leafNegated, subCall, compiler, ct);
+
+      var part = new SplitPart
+      {
+        LeafSource = expression.ToString(),
+        ConditionSource = condition,
+        SubCall = classified ? subCall : null,
+        StepsSource = new ExceptionStepWalker(ctx.SemanticModel, compiler, expression, ct).CollectSource(expression),
+        ProbeSource = BuildCustomProbe(ctx, leafCore, leafNegated, compiler, ct),
+      };
+
+      part.Locals.AddRange(call.CapturedLocals.Skip(localsBefore));
+
+      return part;
+    }
+
     private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
 
     /// <summary>
@@ -377,6 +463,22 @@ namespace Assertive.Generators
     {
       switch (core)
       {
+        case BinaryExpressionSyntax logical when IsSplittableLogical(logical, ctx, ct):
+        {
+          // `a && b` is the documented way to combine multiple asserts in one statement:
+          // each conjunct is split into its own leaf assertion with operator semantics
+          // (AssertionTreeProvider/AssertionTreeExecutor parity). Negated composites and
+          // nested sub-classifications stay opaque.
+          if (outerNegated || bindings != null)
+          {
+            return false;
+          }
+
+          call.Kind = InterceptionKind.Split;
+          call.SplitRoot = BuildSplitPart(ctx, logical, call, compiler, ct);
+          return call.SplitRoot != null;
+        }
+
         case BinaryExpressionSyntax binary when binary.Kind() is SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression:
         {
           var isNotEquals = binary.IsKind(SyntaxKind.NotEqualsExpression);
@@ -684,7 +786,7 @@ namespace Assertive.Generators
                 subCore = StripParens(subNegation.Operand);
               }
 
-              var subCall = new InterceptedCall();
+              var subCall = new InterceptedCall { Negated = subNegated };
 
               if (ClassifyForm(ctx, subCore, subNegated, subCall, compiler, ct, itemBindings, itemDisplay))
               {

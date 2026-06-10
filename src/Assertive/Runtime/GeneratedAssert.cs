@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
+using Assertive.Helpers;
 
 namespace Assertive.Runtime
 {
@@ -536,6 +538,117 @@ namespace Assertive.Runtime
         AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
         instanceSource, instanceValue, argSource, argValue, argIsConstant,
         methodLabel, negated, locals, message, context, contextExpression);
+    }
+
+    /// <summary>
+    /// A failed logically-composed assertion (`a &amp;&amp; b`, `a &amp; b`, `a || b`, `a | b`):
+    /// re-executes the part tree with the original operator semantics, reporting every
+    /// failing leaf as its own assertion (AssertionTreeExecutor parity). `&amp;&amp;` is the
+    /// documented way to combine multiple asserts in one statement.
+    /// </summary>
+    public static Exception SplitFailure(
+      string assertionExpression,
+      AssertionPart root,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      var failures = new List<Exception>();
+
+      ExecutePart(root, failures);
+
+      if (failures.Count == 0)
+      {
+        // The delegate said false but re-evaluation disagrees (non-deterministic input):
+        // report the whole assertion from source text.
+        return Failure(assertionExpression, null, message, context, contextExpression);
+      }
+
+      if (failures.Count == 1)
+      {
+        return failures[0];
+      }
+
+      var combined = ExceptionHelper.GetException(string.Join(Environment.NewLine, failures.Select(f => f.Message)));
+
+      combined.Data["Assertive.Expected"] = ConcatData(failures, "Assertive.Expected");
+      combined.Data["Assertive.Actual"] = ConcatData(failures, "Assertive.Actual");
+      combined.Data["Assertive.HandledExceptions"] = ConcatData(failures, "Assertive.HandledExceptions");
+
+      return combined;
+    }
+
+    private static string[] ConcatData(List<Exception> failures, string key)
+    {
+      return failures.SelectMany(f => f.Data[key] as string[] ?? Array.Empty<string>()).ToArray();
+    }
+
+    private static bool ExecutePart(AssertionPart part, List<Exception> failures)
+    {
+      switch (part.Kind)
+      {
+        case AssertionPartKind.AndAlso:
+          return ExecutePart(part.Left!, failures) && ExecutePart(part.Right!, failures);
+
+        case AssertionPartKind.And:
+          return ExecutePart(part.Left!, failures) & ExecutePart(part.Right!, failures);
+
+        case AssertionPartKind.OrElse:
+          return ExecutePart(part.Left!, failures) || ExecutePart(part.Right!, failures);
+
+        case AssertionPartKind.Or:
+          return ExecutePart(part.Left!, failures) | ExecutePart(part.Right!, failures);
+
+        default:
+        {
+          bool passed;
+
+          try
+          {
+            passed = part.Condition?.Invoke() ?? true;
+          }
+          catch (Exception ex) when (!IsAssertionFailure(ex))
+          {
+            failures.Add(BuildLeafFailure(part, ex));
+            return false;
+          }
+
+          if (!passed)
+          {
+            failures.Add(BuildLeafFailure(part, null));
+          }
+
+          return passed;
+        }
+      }
+    }
+
+    private static Exception BuildLeafFailure(AssertionPart part, Exception? exception)
+    {
+      try
+      {
+        if (exception != null)
+        {
+          if (part.ExceptionFailure != null)
+          {
+            return part.ExceptionFailure(exception);
+          }
+        }
+        else if (part.Failure != null)
+        {
+          return part.Failure();
+        }
+      }
+      catch
+      {
+        // Reporting is best-effort; fall through to source text.
+      }
+
+      return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails
+      {
+        AssertionText = part.Source ?? "",
+        Exception = exception,
+      });
     }
 
     /// <summary>

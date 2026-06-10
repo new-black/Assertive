@@ -250,9 +250,12 @@ namespace Assertive.Generators
     /// value; everything else captured shows up under LOCALS (mirrors LocalsProvider).
     /// </summary>
     private static string BuildLocalsArray(InterceptedCall call)
+      => BuildLocalsArray(call.CapturedLocals, call.LeftDisplay, call.RightDisplay);
+
+    private static string BuildLocalsArray(IEnumerable<(string Name, string? Type)> locals, string leftDisplay, string rightDisplay)
     {
-      var displayedLocals = call.CapturedLocals
-        .Where(l => l.Name != call.LeftDisplay.Trim() && l.Name != call.RightDisplay.Trim())
+      var displayedLocals = locals
+        .Where(l => l.Name != leftDisplay.Trim() && l.Name != rightDisplay.Trim())
         .ToList();
 
       return displayedLocals.Count == 0
@@ -272,9 +275,9 @@ namespace Assertive.Generators
 
       EmitCaptureDecls(sb, call, delegateName, indent);
 
-      // The Bool/Opaque patterns need no operand values (the delegate already evaluated
-      // the body); everything else re-evaluates the operand(s) it reports on.
-      if (call.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque))
+      // The Bool/Opaque/Split patterns need no operand values (the delegate already
+      // evaluated the body); everything else re-evaluates the operand(s) it reports on.
+      if (call.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque or InterceptionKind.Split))
       {
         sb.AppendLine($"{indent}var __left = {call.LeftSource};");
       }
@@ -299,7 +302,84 @@ namespace Assertive.Generators
         sb.AppendLine($"{indent}}}");
       }
 
+      if (call.Kind == InterceptionKind.Split)
+      {
+        sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.SplitFailure({assertionTextArg},");
+        sb.AppendLine($"{indent}  {BuildPartInitializer(call.SplitRoot!, indent + "  ", tailArgs)},");
+        sb.AppendLine($"{indent}  {tailArgs});");
+        return;
+      }
+
       sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.{BuildFailureInvocation(call, assertionTextArg, indent, tail, "__left", "__right")});");
+    }
+
+    /// <summary>
+    /// Emits the Assertive.Runtime.AssertionPart tree for a split (logically-composed)
+    /// assertion body. Leaves re-evaluate their pasted source and report through their
+    /// classified decomposition (custom patterns first), with leaf-scoped exception steps
+    /// and locals.
+    /// </summary>
+    private static string BuildPartInitializer(SplitPart part, string indent, string tailArgs)
+    {
+      const string partType = "global::Assertive.Runtime.AssertionPart";
+      const string partKind = "global::Assertive.Runtime.AssertionPartKind";
+      const string runtime = "global::Assertive.Runtime.GeneratedAssert";
+
+      if (part.Kind != "Leaf")
+      {
+        return $"new {partType}\n{indent}{{\n" +
+               $"{indent}  Kind = {partKind}.{part.Kind},\n" +
+               $"{indent}  Left = {BuildPartInitializer(part.Left!, indent + "  ", tailArgs)},\n" +
+               $"{indent}  Right = {BuildPartInitializer(part.Right!, indent + "  ", tailArgs)},\n" +
+               $"{indent}}}";
+      }
+
+      var leafText = Quote(part.LeafSource);
+      var inner = indent + "  ";
+
+      var localsArray = BuildLocalsArray(part.Locals, part.SubCall?.LeftDisplay ?? "", part.SubCall?.RightDisplay ?? "");
+      var leafTail = $"{localsArray}, {tailArgs}";
+
+      // Custom patterns take precedence over the leaf's own decomposition.
+      var probe = part.ProbeSource != null
+        ? $"{runtime}.TryCustomFailure({leafText}, {part.ProbeSource}, {leafTail}) ?? "
+        : "";
+
+      string failure;
+
+      if (part.SubCall is { } sub)
+      {
+        var body = new StringBuilder();
+        body.Append($"(global::System.Func<global::System.Exception>)(() =>\n{inner}{{\n");
+
+        if (sub.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque))
+        {
+          body.Append($"{inner}  var __subLeft = {sub.LeftSource};\n");
+        }
+
+        if (HasRightOperand(sub.Kind))
+        {
+          body.Append($"{inner}  var __subRight = {sub.RightSource};\n");
+        }
+
+        var subTail = $"{localsArray},\n{inner}    {tailArgs}";
+
+        body.Append($"{inner}  return {probe}{runtime}.{BuildFailureInvocation(sub, leafText, inner + "  ", subTail, "__subLeft", "__subRight")});\n");
+        body.Append($"{inner}}})");
+        failure = body.ToString();
+      }
+      else
+      {
+        failure = $"() => {probe}{runtime}.Failure({leafText}, {leafTail})";
+      }
+
+      return $"new {partType}\n{indent}{{\n" +
+             $"{indent}  Kind = {partKind}.Leaf,\n" +
+             $"{indent}  Source = {leafText},\n" +
+             $"{indent}  Condition = () => (bool)(object)({part.ConditionSource}),\n" +
+             $"{indent}  Failure = {failure},\n" +
+             $"{indent}  ExceptionFailure = (__leafEx) => {runtime}.EvaluationFailure({leafText}, __leafEx, {part.StepsSource ?? "null"}, {localsArray}, {tailArgs}),\n" +
+             $"{indent}}}";
     }
 
     private static bool HasRightOperand(InterceptionKind kind)
@@ -443,6 +523,12 @@ namespace Assertive.Generators
     ThrowsPredicate,
 
     /// <summary>
+    /// A logically-composed body (`a &amp;&amp; b`, `a &amp; b`, ...): split into leaf assertions
+    /// that report individually with operator semantics.
+    /// </summary>
+    Split,
+
+    /// <summary>
     /// Not a decomposable form: the false path reports source text + locals only, but the
     /// call is still intercepted so the exception path gets cause attribution.
     /// </summary>
@@ -522,6 +608,39 @@ namespace Assertive.Generators
 
     /// <summary>ThrowsPredicate: the expected exception type, or null for the non-generic overloads.</summary>
     public string? ThrowsExceptionTypeFqn;
+
+    /// <summary>Split: the part tree of a logically-composed body.</summary>
+    public SplitPart? SplitRoot;
+  }
+
+  /// <summary>
+  /// Generator-side node of a logically-composed assertion body; emitted as an
+  /// Assertive.Runtime.AssertionPart tree.
+  /// </summary>
+  internal sealed class SplitPart
+  {
+    /// <summary>AssertionPartKind member name: Leaf, AndAlso, And, OrElse, Or.</summary>
+    public string Kind = "Leaf";
+
+    public SplitPart? Left;
+    public SplitPart? Right;
+
+    public string LeafSource = "";
+
+    /// <summary>Compiled re-evaluation of the leaf.</summary>
+    public string? ConditionSource;
+
+    /// <summary>The leaf classified as its own assertion, or null (source-text report).</summary>
+    public InterceptedCall? SubCall;
+
+    /// <summary>Exception steps scoped to this leaf, for re-evaluation throws.</summary>
+    public string? StepsSource;
+
+    /// <summary>Custom-pattern probe for the leaf root, if it is a call/property.</summary>
+    public string? ProbeSource;
+
+    /// <summary>Captured locals introduced by this leaf's compilations.</summary>
+    public List<(string Name, string? Type)> Locals { get; } = new();
   }
 
   /// <summary>An [AssertionWrapper] method pair (see AssertionWrapperAttribute in Assertive).</summary>
