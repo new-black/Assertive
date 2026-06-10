@@ -353,12 +353,39 @@ modulo `await`.
 
 | Tier | When | Behavior |
 |---|---|---|
-| **0 — full** | Lambda literal, all identifiers classifiable, decomposable shape | Complete decomposition, patterns, locals, exception attribution |
-| **1 — intercepted, coarse** | Unsupported shape (block body, method group at top level, file-local/private-nested types in operands, unclassifiable identifier) | Generated interceptor evaluates the delegate; on failure: source text, locals that *are* readable, exception type + stack, no decomposition. Emits a build-time info diagnostic (`ASRT001`) naming the limitation. |
+| **0 — full** | Lambda literal, all identifiers classifiable, decomposable shape (inaccessible types served via the §8.9 reflection shim) | Complete decomposition, patterns, locals, exception attribution |
+| **1 — intercepted, coarse** | Unsupported shape (block body, method group at top level, unclassifiable identifier, unnameable *ref struct* in operands) | Generated interceptor evaluates the delegate; on failure: source text, locals that *are* readable, exception type + stack, no decomposition. Emits a build-time info diagnostic (`ASRT001`) naming the limitation. |
 | **2 — not intercepted** | Generator absent (F#, csx, non-SDK builds, old toolchains) | The real method body runs: `[CallerArgumentExpression]` text + exception passthrough. |
 
 Tier boundaries are *per leaf* where possible (one weird conjunct shouldn't degrade its
 siblings).
+
+### 8.9 Inaccessible types and members: the access ladder
+
+The generated code lives at namespace level in the consumer assembly, so it cannot *name*
+private/protected nested types, `file`-local types, or anonymous types, and cannot *touch*
+private members. None of this forces degradation, because the semantic model resolves every
+member access and operator statically — reflection is used only as a transport that
+reproduces the known semantics. Per sub-expression, in order of preference:
+
+1. **Accessible type and member** → plain typed code (the normal case).
+2. **Private member on a nameable type** → generated `[UnsafeAccessor]` shim; zero
+   reflection, full speed.
+3. **Unnameable type** (private nested, `file`-local, anonymous mid-chain) → hold the value
+   as `object` and traverse via cached reflection (`FieldInfo`/`PropertyInfo`/`MethodInfo`,
+   resolved once per call site); cast back to typed code at the first nameable boundary
+   (e.g. `secret.Value` is `int` even when `Secret` is private). Comparisons are emitted
+   per their *statically known* resolution: built-in operator on nameable operand types →
+   cast + operator; reference equality → `ReferenceEquals`; user-defined operator declared
+   on an unnameable type → reflection-invoke of that resolved `op_*` method. Semantics are
+   exact; only the affected call site pays the (failure-path-irrelevant, success-path-small)
+   reflection cost.
+4. **Unnameable ref-like type** (cannot box, cannot reflect) → Tier 1 for that leaf. This
+   is the only true ceiling, and it requires a private nested `ref struct` in an assertion.
+
+The Phase 0.5 slice does not implement the shim — there, declining to intercept *is* the
+reflection fallback, since the expression-tree pipeline evaluates by reflection anyway. The
+slice's rejection-reason telemetry should still count these sites to size the shim's value.
 
 ## 9. Runtime engine changes
 
@@ -443,9 +470,12 @@ This is the heart of de-risking the migration.
    happens inside the wrapper). Mitigation: document the pattern of making wrappers take
    the values (not the assertion), or accept Tier-1 messages there.
 3. **F# / scripting / generator-less builds** drop to Tier 2.
-4. **`file`-local and private nested types in operands** degrade to Tier 1 (per leaf).
-5. Stored-delegate arguments (`Func<bool> f = ...; Assert.That(f)`) — compile fine, Tier 1.
+4. Stored-delegate arguments (`Func<bool> f = ...; Assert.That(f)`) — compile fine, Tier 1.
    (Today these don't compile at all, so this is technically *new*, just not decomposed.)
+
+(Not a regression: `file`-local and private nested types in operands — a common test-fixture
+idiom — are served at full fidelity via the §8.9 reflection shim; only unnameable ref
+structs degrade.)
 
 ## 15. Risks and open questions
 
