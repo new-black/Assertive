@@ -168,8 +168,10 @@ class PropertyMatch
 
 static class GeneratedAssert
   static long InterceptedCallCount { get; }
+  static Exception AnyFailure(string assertionExpression, string collectionSource, string filterSource, bool negated, int count, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception BoolFailure(string assertionExpression, string source, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception ComparisonFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool rightIsConstant, string comparisonLabel, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
+  static Exception ContainsFailure(string assertionExpression, string instanceSource, object instanceValue, string expectedSource, object expectedValue, bool expectedIsConstant, bool stringInstance, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static int EnumerableCount(object source)
   static Exception EqualityFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool rightIsConstant, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception EvaluationFailure(string assertionExpression, Exception exception, object message, Func<object> context, string contextExpression)
@@ -187,3 +189,5 @@ static class GeneratedAssert
   static void MarkIntercepted()
   static Exception NullFailure(string assertionExpression, string source, object value, bool expectedNull, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception ReferenceEqualsFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
+  static Exception SequenceEqualFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, object comparer, Type elementType, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
+  static Exception StartsEndsWithFailure(string assertionExpression, string instanceSource, object instanceValue, string argSource, object argValue, bool argIsConstant, string methodLabel, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)

@@ -408,6 +408,85 @@ namespace Assertive.Runtime
         rightSource, rightValue, rightIsConstant, locals, message, context, contextExpression);
     }
 
+    /// <summary>A failed Contains call, decomposed by the generator (ContainsPattern parity).</summary>
+    public static Exception ContainsFailure(
+      string assertionExpression,
+      string instanceSource,
+      object? instanceValue,
+      string expectedSource,
+      object? expectedValue,
+      bool expectedIsConstant,
+      bool stringInstance,
+      bool negated,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildContains(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        instanceSource, instanceValue, expectedSource, expectedValue, expectedIsConstant,
+        stringInstance, negated, locals, message, context, contextExpression);
+    }
+
+    /// <summary>A failed StartsWith/EndsWith call, decomposed by the generator (StartsWithAndEndsWithPattern parity).</summary>
+    public static Exception StartsEndsWithFailure(
+      string assertionExpression,
+      string instanceSource,
+      object? instanceValue,
+      string argSource,
+      object? argValue,
+      bool argIsConstant,
+      string methodLabel,
+      bool negated,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildStartsEndsWith(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        instanceSource, instanceValue, argSource, argValue, argIsConstant,
+        methodLabel, negated, locals, message, context, contextExpression);
+    }
+
+    /// <summary>A failed Any() call, decomposed by the generator (AnyPattern parity).</summary>
+    public static Exception AnyFailure(
+      string assertionExpression,
+      string collectionSource,
+      string? filterSource,
+      bool negated,
+      int count,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildAny(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        collectionSource, filterSource, negated, count, locals, message, context, contextExpression);
+    }
+
+    /// <summary>A failed SequenceEqual call, decomposed by the generator (SequenceEqualPattern parity).</summary>
+    public static Exception SequenceEqualFailure(
+      string assertionExpression,
+      string leftSource,
+      object? leftValue,
+      string rightSource,
+      object? rightValue,
+      object? comparer,
+      Type? elementType,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildSequenceEqual(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        leftSource, leftValue, rightSource, rightValue, comparer, elementType,
+        locals, message, context, contextExpression);
+    }
+
     /// <summary>
     /// Count() over an untyped enumerable, for reflective operand evaluation when the
     /// element type cannot be named in generated code.

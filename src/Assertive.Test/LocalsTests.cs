@@ -125,15 +125,20 @@ ending: ""4""
       }
     }
 
-    private void ShouldEqual(Expression<Func<bool>> assertion, string expected)
+    [AssertionWrapper]
+    internal void ShouldEqual(Func<bool> assertion, string expected,
+      [System.Runtime.CompilerServices.CallerArgumentExpression(nameof(assertion))] string assertionExpression = "")
+      => ShouldEqual(AssertionHandle.Degraded(assertion, assertionExpression), expected, assertionExpression);
+
+    internal void ShouldEqual(AssertionHandle assertion, string expected, string assertionExpression = "")
     {
       try
       {
-        Assert(assertion);
+        Assert.That(assertion);
         Xunit.Assert.Fail("Expected assertion to fail.");
       }
       catch (Exception ex)
-      { 
+      {
         Assert.That(() => StripAnsi(ex.Message).Trim().Contains(expected.Trim()));
       }
 

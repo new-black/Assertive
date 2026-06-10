@@ -121,6 +121,8 @@ namespace Assertive
       var rightDisplay = rightIsConstant ? rightSource : DisplayValue(rightValue);
       var leftDisplay = DisplayValue(leftValue);
 
+      leftSource = Q(leftSource);
+
       string expected;
       string actual;
 
@@ -169,6 +171,9 @@ namespace Assertive
       Func<object?>? context,
       string? contextExpression)
     {
+      leftSource = Q(leftSource);
+      rightSource = Q(rightSource);
+
       var expected = negated
         ? $"{leftSource} and {rightSource} should be different instances."
         : $"{leftSource} and {rightSource} should be the same instance.";
@@ -202,7 +207,7 @@ namespace Assertive
       return Build(new FailureDetails
       {
         AssertionText = assertionText,
-        Expected = $"{source}: {(negated ? "false" : "true")}",
+        Expected = $"{Q(source)}: {(negated ? "false" : "true")}",
         Actual = negated ? "true" : "false",
         Locals = locals,
         UserMessage = userMessage,
@@ -225,7 +230,7 @@ namespace Assertive
       return Build(new FailureDetails
       {
         AssertionText = assertionText,
-        Expected = expectedNull ? $"{source} should be null." : $"{source} should not be null.",
+        Expected = expectedNull ? $"{Q(source)} should be null." : $"{Q(source)} should not be null.",
         Actual = expectedNull ? DisplayValue(value) : "null",
         Locals = locals,
         UserMessage = userMessage,
@@ -248,7 +253,7 @@ namespace Assertive
       return Build(new FailureDetails
       {
         AssertionText = assertionText,
-        Expected = negated ? $"{source} should not have a value." : $"{source} should have a value.",
+        Expected = negated ? $"{Q(source)} should not have a value." : $"{Q(source)} should have a value.",
         Actual = negated ? $"Value: {DisplayValue(value)}." : "It was null.",
         Locals = locals,
         UserMessage = userMessage,
@@ -272,7 +277,7 @@ namespace Assertive
       return Build(new FailureDetails
       {
         AssertionText = assertionText,
-        Expected = $"{source} should {(negated ? "not " : "")}be of type {TypeHelper.TypeNameToString(expectedType)}.",
+        Expected = $"{Q(source)} should {(negated ? "not " : "")}be of type {TypeHelper.TypeNameToString(expectedType)}.",
         Actual = value == null ? "It was null." : $"Type: {TypeHelper.TypeNameToString(value.GetType())}.",
         Locals = locals,
         UserMessage = userMessage,
@@ -295,14 +300,18 @@ namespace Assertive
       Func<object?>? context,
       string? contextExpression)
     {
+      var rightSourceDisplay = rightIsConstant ? rightSource : Q(rightSource);
+
+      leftSource = Q(leftSource);
+
       var actual = rightIsConstant
         ? $"{leftSource}: {DisplayValue(leftValue)}."
-        : $"{leftSource}: {DisplayValue(leftValue)}\n{rightSource}: {DisplayValue(rightValue)}";
+        : $"{leftSource}: {DisplayValue(leftValue)}\n{rightSourceDisplay}: {DisplayValue(rightValue)}";
 
       return Build(new FailureDetails
       {
         AssertionText = assertionText,
-        Expected = $"{leftSource} should be {comparisonLabel} {rightSource}.",
+        Expected = $"{leftSource} should be {comparisonLabel} {rightSourceDisplay}.",
         Actual = actual,
         Locals = locals,
         UserMessage = userMessage,
@@ -327,11 +336,14 @@ namespace Assertive
       Func<object?>? context,
       string? contextExpression)
     {
-      var filter = filterSource != null ? $" with filter {filterSource}" : "";
+      var filter = filterSource != null ? $" with filter {Q(filterSource)}" : "";
+      var rightSourceDisplay = rightIsConstant ? rightSource : Q(rightSource);
+
+      operandSource = Q(operandSource);
 
       var expected = rightIsConstant
-        ? $"{operandSource}{filter} should have a {countLabel} {comparisonLabel} {rightSource}."
-        : $"{operandSource}{filter} should have a {countLabel} {comparisonLabel} {rightSource} (value: {DisplayValue(rightValue)}).";
+        ? $"{operandSource}{filter} should have a {countLabel} {comparisonLabel} {rightSourceDisplay}."
+        : $"{operandSource}{filter} should have a {countLabel} {comparisonLabel} {rightSourceDisplay} (value: {DisplayValue(rightValue)}).";
 
       return Build(new FailureDetails
       {
@@ -343,6 +355,329 @@ namespace Assertive
         Context = context,
         ContextExpression = contextExpression,
       });
+    }
+
+    /// <summary>ContainsPattern parity: a string/collection Contains call returned false.</summary>
+    public static Exception BuildContains(
+      string assertionText,
+      string instanceSource,
+      object? instanceValue,
+      string expectedSource,
+      object? expectedValue,
+      bool expectedIsConstant,
+      bool stringInstance,
+      bool negated,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      instanceSource = Q(instanceSource);
+
+      var expectedValueString = expectedIsConstant
+        ? expectedSource
+        : $"{Q(expectedSource)} (value: {DisplayValue(expectedValue)})";
+
+      string expected;
+      string actual;
+
+      if (stringInstance)
+      {
+        var hint = !negated ? GetStringContainsHint(instanceValue as string, expectedValue as string) : "";
+
+        expected = $"{instanceSource} should{(negated ? " not " : " ")}contain the substring {expectedValueString}.";
+        actual = $"{instanceSource}: {DisplayValue(instanceValue)}{hint}";
+      }
+      else
+      {
+        expected = $"{instanceSource} should{(negated ? " not " : " ")}contain {expectedValueString}.";
+        actual = $"{instanceSource}: {DisplayValue(instanceValue)}";
+      }
+
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = expected,
+        Actual = actual,
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>Mirrors ContainsPattern.GetStringContainsHint: line-ending/casing/closest-match hints.</summary>
+    private static string GetStringContainsHint(string? actualValue, string? expectedValue)
+    {
+      try
+      {
+        if (actualValue == null || expectedValue == null)
+        {
+          return "";
+        }
+
+        var colors = Configuration.Colors;
+        var hints = new List<string>();
+
+        var normalizedActual = actualValue.Replace("\r\n", "\n").Replace("\r", "\n");
+        var normalizedExpected = expectedValue.Replace("\r\n", "\n").Replace("\r", "\n");
+
+        if (normalizedActual.Contains(normalizedExpected))
+        {
+          hints.Add(colors.Dimmed("The strings differ only in line endings"));
+          hints.Add(StringDiffHelper.GetStringDiff(expectedValue, actualValue));
+        }
+        else if (actualValue.Contains(expectedValue, StringComparison.OrdinalIgnoreCase))
+        {
+          hints.Add(colors.Dimmed("The strings differ only in casing"));
+        }
+        else if (StringDiffHelper.GetClosestSubstringDiff(actualValue, expectedValue) is { } closestMatch)
+        {
+          hints.Add(closestMatch);
+        }
+
+        if (hints.Count > 0)
+        {
+          return "\n" + string.Join("\n", hints);
+        }
+      }
+      catch
+      {
+        // Don't let hint generation break the assertion message.
+      }
+
+      return "";
+    }
+
+    /// <summary>StartsWithAndEndsWithPattern parity.</summary>
+    public static Exception BuildStartsEndsWith(
+      string assertionText,
+      string instanceSource,
+      object? instanceValue,
+      string argSource,
+      object? argValue,
+      bool argIsConstant,
+      string methodLabel,
+      bool negated,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      instanceSource = Q(instanceSource);
+
+      var argSourceDisplay = argIsConstant ? argSource : Q(argSource);
+
+      var expected = argIsConstant
+        ? $"{instanceSource}: should{(negated ? " not " : " ")}{methodLabel} {argSourceDisplay}."
+        : $"{instanceSource}: should{(negated ? " not " : " ")}{methodLabel} {argSourceDisplay}.\n\n{argSourceDisplay}: {DisplayValue(argValue)}";
+
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = expected,
+        Actual = $"{instanceSource}: {DisplayValue(instanceValue)}",
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>
+    /// AnyPattern parity. For negated assertions, count is the number of (filter-matching)
+    /// items; otherwise it is the unfiltered item count (used to phrase the actual message).
+    /// </summary>
+    public static Exception BuildAny(
+      string assertionText,
+      string collectionSource,
+      string? filterSource,
+      bool negated,
+      int count,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      collectionSource = Q(collectionSource);
+
+      var filterString = filterSource != null ? $" that match the filter {Q(filterSource)}" : "";
+
+      string expected;
+      string actual;
+
+      if (negated)
+      {
+        expected = $"Collection {collectionSource} should not contain any items{filterString}.";
+        actual = $"It contained {count} {(count == 1 ? "item" : "items")}";
+      }
+      else
+      {
+        expected = $"Collection {collectionSource} should contain some items{filterString}.";
+        actual = filterSource == null || count == 0 ? "It contained no items." : "It contained no items matching the filter.";
+      }
+
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = expected,
+        Actual = actual,
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>SequenceEqualPattern parity: element-wise diff of the two sequences.</summary>
+    public static Exception BuildSequenceEqual(
+      string assertionText,
+      string leftSource,
+      object? leftValue,
+      string rightSource,
+      object? rightValue,
+      object? comparer,
+      Type? elementType,
+      IReadOnlyList<(string Name, object? Value)>? locals,
+      object? userMessage,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      leftSource = Q(leftSource);
+      rightSource = Q(rightSource);
+
+      var sequence1 = ((System.Collections.IEnumerable?)leftValue)?.Cast<object?>() ?? Enumerable.Empty<object?>();
+      var sequence2 = ((System.Collections.IEnumerable?)rightValue)?.Cast<object?>() ?? Enumerable.Empty<object?>();
+
+      var equals = GetSequenceComparer(comparer, elementType);
+
+      var expected = $"{leftSource} should equal {rightSource}";
+
+      string actual;
+
+      if (equals != null)
+      {
+        var differences = new List<string>();
+        var differenceCount = 0;
+        var hasMoreDifferences = false;
+        var index = 0;
+
+        using (var enumerator1 = sequence1.GetEnumerator())
+        using (var enumerator2 = sequence2.GetEnumerator())
+        {
+          while (true)
+          {
+            var moveNext1 = enumerator1.MoveNext();
+            var moveNext2 = enumerator2.MoveNext();
+
+            if (!moveNext1 && !moveNext2)
+            {
+              break;
+            }
+
+            var current1 = moveNext1 ? enumerator1.Current : null;
+            var current2 = moveNext2 ? enumerator2.Current : null;
+
+            if (!equals(current1, current2))
+            {
+              differenceCount++;
+
+              if (differences.Count == 10)
+              {
+                hasMoreDifferences = true;
+              }
+              else
+              {
+                differences.Add(
+                  $"[{index}]: {(moveNext1 ? Serializer.Serialize(current1).ToString() : "(no value)")} {Configuration.Colors.Expression("<>")} {(moveNext2 ? Serializer.Serialize(current2).ToString() : "(no value)")}");
+              }
+            }
+
+            index++;
+          }
+        }
+
+        actual = $"""
+                  There {(differenceCount > 1 ? $"were {differenceCount} differences" : "was 1 difference")}{(hasMoreDifferences ? " (first 10)" : "")}:
+
+                  {string.Join("," + Environment.NewLine, differences)}
+
+                  {leftSource}: {Serializer.Serialize(sequence1)}
+                  {rightSource}: {Serializer.Serialize(sequence2)}
+                  """;
+      }
+      else
+      {
+        actual = $"""
+                  {leftSource}: {Serializer.Serialize(sequence1)}
+                  {rightSource}: {Serializer.Serialize(sequence2)}
+                  """;
+      }
+
+      return Build(new FailureDetails
+      {
+        AssertionText = assertionText,
+        Expected = expected,
+        Actual = actual,
+        Locals = locals,
+        UserMessage = userMessage,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    private static Func<object?, object?, bool>? GetSequenceComparer(object? comparer, Type? elementType)
+    {
+      if (comparer == null && elementType != null)
+      {
+        comparer = typeof(EqualityComparer<>).MakeGenericType(elementType)
+          .GetProperty(nameof(EqualityComparer<int>.Default))?.GetValue(null);
+      }
+
+      switch (comparer)
+      {
+        case null:
+          return null;
+
+        case System.Collections.IEqualityComparer nonGeneric:
+          return (x, y) => nonGeneric.Equals(x, y);
+
+        default:
+        {
+          if (elementType == null)
+          {
+            return null;
+          }
+
+          var comparerInterface = comparer.GetType().GetInterfaces().FirstOrDefault(i =>
+            i.IsGenericType
+            && i.GetGenericTypeDefinition() == typeof(IEqualityComparer<>)
+            && i.GenericTypeArguments.Length == 1
+            && i.GenericTypeArguments[0].IsAssignableFrom(elementType));
+
+          var equalsMethod = comparerInterface?.GetMethod(nameof(IEqualityComparer<int>.Equals));
+
+          if (equalsMethod == null)
+          {
+            return null;
+          }
+
+          var capturedComparer = comparer;
+          return (x, y) => equalsMethod.Invoke(capturedComparer, new[] { x, y }) is true;
+        }
+      }
+    }
+
+    /// <summary>
+    /// Applies the configured expression quotation pattern to an expression's source text
+    /// (the expression-based pipeline applied this in ExpressionToString). Constants are
+    /// never quoted; callers skip this for constant sources.
+    /// </summary>
+    private static string Q(string source)
+    {
+      return Configuration.ExpressionQuotationPattern is { } pattern
+        ? string.Format(pattern, source)
+        : source;
     }
 
     /// <summary>

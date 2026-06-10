@@ -270,6 +270,123 @@ namespace Assertive.Generators
                    StripParens(referenceEqualsCall.ArgumentList.Arguments[1].Expression));
         }
 
+        case InvocationExpressionSyntax methodCall
+          when methodCall.Expression is MemberAccessExpressionSyntax methodAccess
+               && methodAccess.IsKind(SyntaxKind.SimpleMemberAccessExpression)
+               && methodCall.ArgumentList.Arguments.All(a => a.NameColon == null)
+               && ctx.SemanticModel.GetSymbolInfo(methodCall, ct).Symbol is IMethodSymbol calledMethod:
+        {
+          switch (calledMethod.Name)
+          {
+            case "Contains" when calledMethod.ReturnType.SpecialType == SpecialType.System_Boolean
+                                 && methodCall.ArgumentList.Arguments.Count >= 1
+                                 && (!calledMethod.IsStatic || calledMethod.ReducedFrom != null):
+            {
+              var arg = methodCall.ArgumentList.Arguments[0].Expression;
+
+              call.Kind = InterceptionKind.Contains;
+              call.StringInstance = ctx.SemanticModel.GetTypeInfo(methodAccess.Expression, ct).Type?.SpecialType == SpecialType.System_String;
+              return SetLeft(call, compiler, methodAccess.Expression) && SetRight(call, compiler, arg, StripParens(arg));
+            }
+
+            case "StartsWith" or "EndsWith" when !calledMethod.IsStatic
+                                                 && calledMethod.Parameters.Length >= 1
+                                                 && calledMethod.Parameters[0].Type.SpecialType == SpecialType.System_String
+                                                 && methodCall.ArgumentList.Arguments.Count >= 1:
+            {
+              var arg = methodCall.ArgumentList.Arguments[0].Expression;
+
+              call.Kind = InterceptionKind.StartsEndsWith;
+              call.ComparisonLabel = calledMethod.Name == "StartsWith" ? "start with" : "end with";
+              return SetLeft(call, compiler, methodAccess.Expression) && SetRight(call, compiler, arg, StripParens(arg));
+            }
+
+            case "Any" when IsLinqEnumerableMethod(calledMethod):
+            {
+              var arguments = methodCall.ArgumentList.Arguments;
+
+              call.Kind = InterceptionKind.Any;
+              call.OperandDisplay = methodAccess.Expression.ToString();
+              // The whole call as display: collection locals stay in the LOCALS section
+              // (the old LocalsProvider showed them for Any).
+              call.LeftDisplay = methodCall.ToString();
+
+              if (arguments.Count != 0
+                  && !(arguments.Count == 1 && arguments[0].Expression is LambdaExpressionSyntax { Body: ExpressionSyntax }))
+              {
+                return false;
+              }
+
+              // Collection first so LOCALS lists captures in order of appearance.
+              var collection = compiler.Compile(methodAccess.Expression);
+
+              if (collection == null)
+              {
+                return false;
+              }
+
+              if (arguments.Count == 1 && arguments[0].Expression is LambdaExpressionSyntax { Body: ExpressionSyntax filterBody } filterLambda)
+              {
+                call.FilterSource = filterBody.ToString();
+
+                // Compiling the filter registers its captured locals for the LOCALS
+                // section; only the negated form actually evaluates it (for the count).
+                var typedFilter = compiler.CompileTypedOnly(filterLambda);
+
+                if (outerNegated)
+                {
+                  // Needs the count of filter-matching items: typed collection + filter.
+                  var typedCollection = compiler.CompileTypedOnly(methodAccess.Expression);
+
+                  if (typedCollection == null || typedFilter == null)
+                  {
+                    return false;
+                  }
+
+                  call.LeftSource = $"global::System.Linq.Enumerable.Count({typedCollection}, {typedFilter})";
+                  return true;
+                }
+              }
+
+              call.LeftSource = $"global::Assertive.Runtime.GeneratedAssert.EnumerableCount({collection})";
+              return true;
+            }
+
+            case "SequenceEqual" when IsLinqEnumerableMethod(calledMethod)
+                                      && !outerNegated
+                                      && methodCall.ArgumentList.Arguments.Count is 1 or 2:
+            {
+              call.Kind = InterceptionKind.SequenceEqual;
+
+              var arg = methodCall.ArgumentList.Arguments[0].Expression;
+
+              if (!SetLeft(call, compiler, methodAccess.Expression) || !SetRight(call, compiler, arg, StripParens(arg)))
+              {
+                return false;
+              }
+
+              if (methodCall.ArgumentList.Arguments.Count == 2)
+              {
+                call.ComparerSource = compiler.Compile(methodCall.ArgumentList.Arguments[1].Expression);
+
+                if (call.ComparerSource == null)
+                {
+                  return false;
+                }
+              }
+
+              call.TypeAccessor = calledMethod.TypeArguments.Length == 1
+                ? compiler.TypeAccessor(calledMethod.TypeArguments[0])
+                : null;
+
+              return true;
+            }
+
+            default:
+              return false;
+          }
+        }
+
         case MemberAccessExpressionSyntax { Name.Identifier.ValueText: "HasValue" } hasValueAccess
           when hasValueAccess.IsKind(SyntaxKind.SimpleMemberAccessExpression)
                && IsNullableValueType(ctx.SemanticModel.GetTypeInfo(hasValueAccess.Expression, ct).Type):
@@ -384,6 +501,9 @@ namespace Assertive.Generators
         _call = call;
         _ct = ct;
       }
+
+      /// <summary>Typed strategy only — for code that must keep its static type (LINQ Count with filter).</summary>
+      public string? CompileTypedOnly(ExpressionSyntax operand) => CompileTyped(operand);
 
       public string? Compile(ExpressionSyntax operand)
       {
@@ -976,6 +1096,11 @@ namespace Assertive.Generators
       }
 
       return false;
+    }
+
+    private static bool IsLinqEnumerableMethod(IMethodSymbol method)
+    {
+      return method is { ReducedFrom: not null, ContainingType: { Name: "Enumerable", ContainingNamespace: { Name: "Linq", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } } } };
     }
 
     private static bool IsNullableValueType(ITypeSymbol? type)

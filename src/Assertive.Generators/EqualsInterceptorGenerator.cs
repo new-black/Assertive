@@ -194,7 +194,8 @@ namespace Assertive.Generators
       }
 
       var hasRight = call.Kind is InterceptionKind.Equality or InterceptionKind.ReferenceEquals
-        or InterceptionKind.Comparison or InterceptionKind.Length;
+        or InterceptionKind.Comparison or InterceptionKind.Length
+        or InterceptionKind.Contains or InterceptionKind.StartsEndsWith or InterceptionKind.SequenceEqual;
 
       if (hasRight)
       {
@@ -233,6 +234,14 @@ namespace Assertive.Generators
           $"ComparisonFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {rightIsConstant}, {Quote(call.ComparisonLabel ?? "")},\n{indent}  {tail}",
         InterceptionKind.Length =>
           $"LengthFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.OperandDisplay)}, {(call.FilterSource != null ? Quote(call.FilterSource) : "null")}, {Quote(call.CountLabel)}, {Quote(call.ComparisonLabel ?? "")},\n{indent}  (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right, {rightIsConstant},\n{indent}  {tail}",
+        InterceptionKind.Contains =>
+          $"ContainsFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {rightIsConstant}, {(call.StringInstance ? "true" : "false")}, {negated},\n{indent}  {tail}",
+        InterceptionKind.StartsEndsWith =>
+          $"StartsEndsWithFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {rightIsConstant}, {Quote(call.ComparisonLabel ?? "")}, {negated},\n{indent}  {tail}",
+        InterceptionKind.Any =>
+          $"AnyFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.OperandDisplay)}, {(call.FilterSource != null ? Quote(call.FilterSource) : "null")}, {negated}, __left,\n{indent}  {tail}",
+        InterceptionKind.SequenceEqual =>
+          $"SequenceEqualFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {(call.ComparerSource != null ? $"(object)({call.ComparerSource})" : "null")}, {call.TypeAccessor ?? "null"},\n{indent}  {tail}",
         _ => throw new System.InvalidOperationException($"Unhandled kind {call.Kind}"),
       };
 
@@ -274,6 +283,10 @@ namespace Assertive.Generators
     Is,
     Comparison,
     Length,
+    Contains,
+    StartsEndsWith,
+    Any,
+    SequenceEqual,
   }
 
   internal sealed class InterceptedCall
@@ -314,8 +327,14 @@ namespace Assertive.Generators
     /// <summary>Length: source of the Count(...) filter lambda body, if any.</summary>
     public string? FilterSource;
 
-    /// <summary>Is: C# expression evaluating to the checked System.Type.</summary>
+    /// <summary>Is: C# expression evaluating to the checked System.Type. SequenceEqual: the element type.</summary>
     public string? TypeAccessor;
+
+    /// <summary>Contains: whether the receiver is a string (substring wording + hints).</summary>
+    public bool StringInstance;
+
+    /// <summary>SequenceEqual: compiled comparer argument, if present.</summary>
+    public string? ComparerSource;
   }
 
   /// <summary>An [AssertionWrapper] method pair (see AssertionWrapperAttribute in Assertive).</summary>
