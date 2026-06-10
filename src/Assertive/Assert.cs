@@ -65,12 +65,12 @@ namespace Assertive
       }
       catch (Exception ex) when (!Runtime.GeneratedAssert.IsAssertionFailure(ex))
       {
-        throw Runtime.GeneratedAssert.EvaluationFailure(assertionExpression, ex, message, context, contextExpression);
+        throw Runtime.GeneratedAssert.EvaluationFailure(assertionExpression, ex, null, null, message, context, contextExpression);
       }
 
       if (!passed)
       {
-        throw Runtime.GeneratedAssert.Failure(assertionExpression, message, context, contextExpression);
+        throw Runtime.GeneratedAssert.Failure(assertionExpression, null, message, context, contextExpression);
       }
     }
 

@@ -115,7 +115,7 @@ namespace Assertive.Generators
       sb.AppendLine("      }");
       sb.AppendLine("      catch (global::System.Exception __ex) when (!global::Assertive.Runtime.GeneratedAssert.IsAssertionFailure(__ex))");
       sb.AppendLine("      {");
-      sb.AppendLine($"        throw global::Assertive.Runtime.GeneratedAssert.EvaluationFailure(__expr, __ex, {messageArg}, {contextArg}, {contextExprArg});");
+      EmitExceptionHandler(sb, call, "__assertion", "__expr", $"{messageArg}, {contextArg}, {contextExprArg}", "        ");
       sb.AppendLine("      }");
       sb.AppendLine("    }");
     }
@@ -162,10 +162,53 @@ namespace Assertive.Generators
       sb.AppendLine("        }");
       sb.AppendLine("        catch (global::System.Exception __ex) when (!global::Assertive.Runtime.GeneratedAssert.IsAssertionFailure(__ex))");
       sb.AppendLine("        {");
-      sb.AppendLine($"          throw global::Assertive.Runtime.GeneratedAssert.EvaluationFailure({bodyText}, __ex, null, null, null);");
+      EmitExceptionHandler(sb, call, "__assertion", bodyText, "null, null, null", "          ");
       sb.AppendLine("        }");
       sb.AppendLine($"      }}){forwardedArgs});");
       sb.AppendLine("    }");
+    }
+
+    /// <summary>
+    /// Emits the body of the exception filter handler: re-declares the captured locals
+    /// (the try block's are out of scope) and reports the exception, with cause
+    /// attribution when the call site has recorded exception steps.
+    /// </summary>
+    private static void EmitExceptionHandler(StringBuilder sb, InterceptedCall call, string delegateName, string assertionTextArg, string tailArgs, string indent)
+    {
+      EmitCaptureDecls(sb, call, delegateName, indent);
+
+      var steps = call.ExceptionStepsSource ?? "null";
+
+      sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.EvaluationFailure({assertionTextArg}, __ex,");
+      sb.AppendLine($"{indent}  {steps},");
+      sb.AppendLine($"{indent}  {BuildLocalsArray(call)},");
+      sb.AppendLine($"{indent}  {tailArgs});");
+    }
+
+    private static void EmitCaptureDecls(StringBuilder sb, InterceptedCall call, string delegateName, string indent)
+    {
+      foreach (var local in call.CapturedLocals)
+      {
+        // Unnameable types are read as object; member access on them happens reflectively.
+        sb.AppendLine(local.Type != null
+          ? $"{indent}{local.Type} {local.Name} = ({local.Type})global::Assertive.Runtime.GeneratedAssert.GetCapturedValue({delegateName}, {Quote(local.Name)});"
+          : $"{indent}object {local.Name} = global::Assertive.Runtime.GeneratedAssert.GetCapturedValue({delegateName}, {Quote(local.Name)});");
+      }
+    }
+
+    /// <summary>
+    /// Locals that are themselves a whole operand are already displayed as the operand
+    /// value; everything else captured shows up under LOCALS (mirrors LocalsProvider).
+    /// </summary>
+    private static string BuildLocalsArray(InterceptedCall call)
+    {
+      var displayedLocals = call.CapturedLocals
+        .Where(l => l.Name != call.LeftDisplay.Trim() && l.Name != call.RightDisplay.Trim())
+        .ToList();
+
+      return displayedLocals.Count == 0
+        ? "global::System.Array.Empty<(string, object)>()"
+        : $"new (string, object)[] {{ {string.Join(", ", displayedLocals.Select(l => $"({Quote(l.Name)}, (object){l.Name})"))} }}";
     }
 
     /// <summary>
@@ -178,17 +221,11 @@ namespace Assertive.Generators
     {
       sb.AppendLine($"{indent}if ({delegateName}()) return;");
 
-      foreach (var local in call.CapturedLocals)
-      {
-        // Unnameable types are read as object; member access on them happens reflectively.
-        sb.AppendLine(local.Type != null
-          ? $"{indent}{local.Type} {local.Name} = ({local.Type})global::Assertive.Runtime.GeneratedAssert.GetCapturedValue({delegateName}, {Quote(local.Name)});"
-          : $"{indent}object {local.Name} = global::Assertive.Runtime.GeneratedAssert.GetCapturedValue({delegateName}, {Quote(local.Name)});");
-      }
+      EmitCaptureDecls(sb, call, delegateName, indent);
 
-      // The Bool pattern needs no operand values (the delegate already evaluated the
-      // member); everything else re-evaluates the operand(s) it reports on.
-      if (call.Kind != InterceptionKind.Bool)
+      // The Bool/Opaque patterns need no operand values (the delegate already evaluated
+      // the body); everything else re-evaluates the operand(s) it reports on.
+      if (call.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque))
       {
         sb.AppendLine($"{indent}var __left = {call.LeftSource};");
       }
@@ -202,15 +239,7 @@ namespace Assertive.Generators
         sb.AppendLine($"{indent}var __right = {call.RightSource};");
       }
 
-      // Locals that are themselves a whole operand are already displayed as the operand
-      // value; everything else captured shows up under LOCALS (mirrors LocalsProvider).
-      var displayedLocals = call.CapturedLocals
-        .Where(l => l.Name != call.LeftDisplay.Trim() && l.Name != call.RightDisplay.Trim())
-        .ToList();
-
-      var localsArray = displayedLocals.Count == 0
-        ? "global::System.Array.Empty<(string, object)>()"
-        : $"new (string, object)[] {{ {string.Join(", ", displayedLocals.Select(l => $"({Quote(l.Name)}, (object){l.Name})"))} }}";
+      var localsArray = BuildLocalsArray(call);
 
       var negated = call.Negated ? "true" : "false";
       var rightIsConstant = call.RightIsConstant ? "true" : "false";
@@ -242,6 +271,8 @@ namespace Assertive.Generators
           $"AnyFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.OperandDisplay)}, {(call.FilterSource != null ? Quote(call.FilterSource) : "null")}, {negated}, __left,\n{indent}  {tail}",
         InterceptionKind.SequenceEqual =>
           $"SequenceEqualFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object)__left,\n{indent}  {Quote(call.RightDisplay)}, (object)__right,\n{indent}  {(call.ComparerSource != null ? $"(object)({call.ComparerSource})" : "null")}, {call.TypeAccessor ?? "null"},\n{indent}  {tail}",
+        InterceptionKind.Opaque =>
+          $"Failure(\n{indent}  {assertionTextArg},\n{indent}  {tail}",
         _ => throw new System.InvalidOperationException($"Unhandled kind {call.Kind}"),
       };
 
@@ -287,6 +318,12 @@ namespace Assertive.Generators
     StartsEndsWith,
     Any,
     SequenceEqual,
+
+    /// <summary>
+    /// Not a decomposable form: the false path reports source text + locals only, but the
+    /// call is still intercepted so the exception path gets cause attribution.
+    /// </summary>
+    Opaque,
   }
 
   internal sealed class InterceptedCall
@@ -335,6 +372,12 @@ namespace Assertive.Generators
 
     /// <summary>SequenceEqual: compiled comparer argument, if present.</summary>
     public string? ComparerSource;
+
+    /// <summary>
+    /// `new ExceptionStep[] { ... }` source for exception-cause attribution on the
+    /// failure path, or null when the body has no throw-capable sub-expressions.
+    /// </summary>
+    public string? ExceptionStepsSource;
   }
 
   /// <summary>An [AssertionWrapper] method pair (see AssertionWrapperAttribute in Assertive).</summary>

@@ -26,6 +26,12 @@ namespace Assertive
       /// <summary>Exception thrown while evaluating the assertion, if any.</summary>
       public Exception? Exception { get; init; }
 
+      /// <summary>The attributed cause message (exception-pattern parity), if analysis found one.</summary>
+      public string? HandledExceptionMessage { get; init; }
+
+      /// <summary>Source text of the sub-expression that caused the exception.</summary>
+      public string? CauseSource { get; init; }
+
       /// <summary>The pattern's expected/actual strings (pre-rendered), if a pattern applied.</summary>
       public string? Expected { get; init; }
       public string? Actual { get; init; }
@@ -45,6 +51,15 @@ namespace Assertive
           : $"{colors.ExpectedHeader()}\n{details.Expected}\n";
 
         result.Add($"\n{details.AssertionText}\n\n{friendly}");
+      }
+      else if (details.HandledExceptionMessage != null)
+      {
+        result.Add($"\n{details.AssertionText}\n\n{details.HandledExceptionMessage}");
+      }
+      else if (details.Exception != null)
+      {
+        // FriendlyMessageProviderForException parity for unattributed exceptions.
+        result.Add($"\n{details.AssertionText}\n\nAssertion threw {details.Exception.GetType().FullName}: {details.Exception.Message}");
       }
       else
       {
@@ -76,6 +91,11 @@ namespace Assertive
 
       if (details.Exception != null)
       {
+        if (details.CauseSource != null)
+        {
+          result.Add($"{colors.MetadataHeader("CAUSE OF EXCEPTION")}\n{details.CauseSource}");
+        }
+
         result.Add($"""
                     {colors.MetadataHeader("EXCEPTION")}
                     {colors.Actual(details.Exception.Message)}
@@ -98,7 +118,9 @@ namespace Assertive
 
       exception.Data["Assertive.Expected"] = details.Expected != null ? new[] { details.Expected } : Array.Empty<string>();
       exception.Data["Assertive.Actual"] = details.Actual != null ? new[] { details.Actual } : Array.Empty<string>();
-      exception.Data["Assertive.HandledExceptions"] = Array.Empty<string>();
+      exception.Data["Assertive.HandledExceptions"] = details.HandledExceptionMessage != null
+        ? new[] { details.HandledExceptionMessage }
+        : Array.Empty<string>();
 
       return exception;
     }

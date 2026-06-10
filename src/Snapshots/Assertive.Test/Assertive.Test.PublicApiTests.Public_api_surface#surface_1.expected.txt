@@ -166,6 +166,51 @@ class PropertyMatch
   .ctor()
   string Name { get; set; }
 
+sealed class ExceptionStep
+  .ctor()
+  bool[] ArgIsConstant
+  Func<object, int, object>[] Args
+  string[] ArgSources
+  Func<object, int, object> Collection
+  string CollectionSource
+  Func<object, object, int, bool> Filter
+  bool Filtered
+  Func<object, int, object> Index
+  bool IndexIsConstant
+  string IndexSource
+  bool IsArray
+  bool IsDictionary
+  bool IsLinqElementMethod
+  bool IsParsingMethod
+  ExceptionStep[] ItemSteps
+  ExceptionStepKind Kind
+  string LeftSource
+  string MemberName
+  string MethodDisplay
+  Func<object, int, object> Node
+  string NodeSource
+  string ParseTargetTypeName
+  Func<object, int, object> Receiver
+  string ReceiverLastMemberName
+  string ReceiverSource
+  Func<object, int, object> Right
+  bool RightIsConstant
+  string RightSource
+  string StaticTypeName
+  int StringArgIndex
+  Type TargetType
+
+enum ExceptionStepKind
+  Member
+  ArrayLength
+  Call
+  StaticCall
+  Index
+  Cast
+  Divide
+  Modulo
+  LambdaIteration
+
 static class GeneratedAssert
   static long InterceptedCallCount { get; }
   static Exception AnyFailure(string assertionExpression, string collectionSource, string filterSource, bool negated, int count, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
@@ -174,8 +219,8 @@ static class GeneratedAssert
   static Exception ContainsFailure(string assertionExpression, string instanceSource, object instanceValue, string expectedSource, object expectedValue, bool expectedIsConstant, bool stringInstance, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static int EnumerableCount(object source)
   static Exception EqualityFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool rightIsConstant, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
-  static Exception EvaluationFailure(string assertionExpression, Exception exception, object message, Func<object> context, string contextExpression)
-  static Exception Failure(string assertionExpression, object message, Func<object> context, string contextExpression)
+  static Exception EvaluationFailure(string assertionExpression, Exception exception, ExceptionStep[] steps, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
+  static Exception Failure(string assertionExpression, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static object GetCapturedThis(Delegate assertion)
   static object GetCapturedValue(Delegate assertion, string name)
   static object GetMemberValue(object target, string memberName)
@@ -183,6 +228,7 @@ static class GeneratedAssert
   static object GetStaticMemberValue(Type type, string memberName)
   static Exception HasValueFailure(string assertionExpression, string source, object value, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static object InvokeInstance(object target, string methodName, object[] arguments)
+  static object InvokeLinq(object source, string methodName)
   static bool IsAssertionFailure(Exception exception)
   static Exception IsTypeFailure(string assertionExpression, string source, object value, Type expectedType, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception LengthFailure(string assertionExpression, string operandSource, string filterSource, string countLabel, string comparisonLabel, object actualLength, string rightSource, object rightValue, bool rightIsConstant, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)

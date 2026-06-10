@@ -21,7 +21,7 @@ namespace Assertive.Generators
   /// that reads the closure and resolves members at runtime (private nested types, private
   /// members on `this`).
   /// </summary>
-  internal static class CallSiteAnalyzer
+  internal static partial class CallSiteAnalyzer
   {
     public static InterceptedCall? Analyze(GeneratorSyntaxContext ctx, CancellationToken ct)
     {
@@ -103,7 +103,25 @@ namespace Assertive.Generators
 
       var compiler = new OperandCompiler(ctx.SemanticModel, body, call, ct);
 
-      return ClassifyForm(ctx, core, outerNegated, call, compiler, ct) ? call : null;
+      if (!ClassifyForm(ctx, core, outerNegated, call, compiler, ct))
+      {
+        // Not a whitelisted decomposable form: intercept it opaquely anyway. The false
+        // path reports source text (same as the degraded path) plus readable locals; the
+        // exception path gets full cause attribution via the recorded steps.
+        call.Kind = InterceptionKind.Opaque;
+        call.Negated = false;
+        call.LeftSource = "";
+        call.RightSource = "";
+        call.LeftDisplay = "";
+        call.RightDisplay = "";
+
+        // Best-effort compile purely to register captured locals for the LOCALS section.
+        _ = compiler.Compile(body);
+      }
+
+      call.ExceptionStepsSource = new ExceptionStepWalker(ctx.SemanticModel, compiler, body, ct).CollectSource(body);
+
+      return call;
     }
 
     /// <summary>
@@ -503,11 +521,12 @@ namespace Assertive.Generators
       }
 
       /// <summary>Typed strategy only — for code that must keep its static type (LINQ Count with filter).</summary>
-      public string? CompileTypedOnly(ExpressionSyntax operand) => CompileTyped(operand);
+      public string? CompileTypedOnly(ExpressionSyntax operand, IReadOnlyDictionary<string, LambdaBinding>? bindings = null)
+        => CompileTyped(operand, bindings);
 
-      public string? Compile(ExpressionSyntax operand)
+      public string? Compile(ExpressionSyntax operand, IReadOnlyDictionary<string, LambdaBinding>? bindings = null)
       {
-        var typed = CompileTyped(operand);
+        var typed = CompileTyped(operand, bindings);
 
         if (typed != null)
         {
@@ -515,7 +534,7 @@ namespace Assertive.Generators
         }
 
         var captures = new List<(string Name, string? Type)>();
-        var reflective = CompileReflective(operand, captures);
+        var reflective = CompileReflective(operand, captures, bindings);
 
         if (reflective != null)
         {
@@ -525,7 +544,7 @@ namespace Assertive.Generators
         return reflective;
       }
 
-      private string? CompileTyped(ExpressionSyntax operand)
+      private string? CompileTyped(ExpressionSyntax operand, IReadOnlyDictionary<string, LambdaBinding>? bindings = null)
       {
         foreach (var node in operand.DescendantNodesAndSelf())
         {
@@ -629,14 +648,27 @@ namespace Assertive.Generators
               continue;
 
             case IParameterSymbol param when name is IdentifierNameSyntax:
-              // Parameters declared inside the assertion body (nested lambdas) are bound by
-              // the pasted code itself; parameters of enclosing methods/lambdas are captured
-              // like locals.
-              if (IsDeclaredWithin(param, _body))
+              // Parameters declared inside the compiled fragment (nested lambdas) are bound
+              // by the pasted code itself.
+              if (IsDeclaredWithin(param, operand))
               {
                 continue;
               }
 
+              // Lambda parameters of the assertion body that the caller bound to a value
+              // (exception-step item/index/candidate) are rewritten to their replacement.
+              if (IsDeclaredWithin(param, _body))
+              {
+                if (bindings != null && bindings.TryGetValue(param.Name, out var binding)
+                    && binding.TypedReplacement != null)
+                {
+                  continue;
+                }
+
+                return null;
+              }
+
+              // Parameters of enclosing methods/lambdas are captured like locals.
               if (!IsUsableType(param.Type, _compilation))
               {
                 return null;
@@ -653,7 +685,7 @@ namespace Assertive.Generators
           }
         }
 
-        var rewriter = new TypedRenderRewriter(_model, _ct);
+        var rewriter = new TypedRenderRewriter(_model, operand, bindings, _ct);
         var rendered = rewriter.Visit(operand);
 
         if (rewriter.Failed || rendered == null)
@@ -688,13 +720,17 @@ namespace Assertive.Generators
       private sealed class TypedRenderRewriter : CSharpSyntaxRewriter
       {
         private readonly SemanticModel _model;
+        private readonly SyntaxNode _fragment;
+        private readonly IReadOnlyDictionary<string, LambdaBinding>? _bindings;
         private readonly CancellationToken _ct;
 
         public bool Failed;
 
-        public TypedRenderRewriter(SemanticModel model, CancellationToken ct)
+        public TypedRenderRewriter(SemanticModel model, SyntaxNode fragment, IReadOnlyDictionary<string, LambdaBinding>? bindings, CancellationToken ct)
         {
           _model = model;
+          _fragment = fragment;
+          _bindings = bindings;
           _ct = ct;
         }
 
@@ -711,10 +747,23 @@ namespace Assertive.Generators
             return visited;
           }
 
-          if (_model.GetSymbolInfo(original, _ct).Symbol is INamespaceOrTypeSymbol namespaceOrType)
+          var symbol = _model.GetSymbolInfo(original, _ct).Symbol;
+
+          if (symbol is INamespaceOrTypeSymbol namespaceOrType)
           {
             return SyntaxFactory.ParseName(namespaceOrType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
               .WithTriviaFrom(original);
+          }
+
+          // Bound lambda parameters (exception-step item/index/candidate) are replaced by
+          // their typed replacement expression.
+          if (_bindings != null
+              && symbol is IParameterSymbol parameter
+              && !IsDeclaredWithin(parameter, _fragment)
+              && _bindings.TryGetValue(parameter.Name, out var binding)
+              && binding.TypedReplacement != null)
+          {
+            return SyntaxFactory.ParseExpression(binding.TypedReplacement).WithTriviaFrom(original);
           }
 
           return visited;
@@ -755,7 +804,8 @@ namespace Assertive.Generators
       /// fields/properties including enum constants on types reachable through a nameable
       /// ancestor. Anything else fails.
       /// </summary>
-      private string? CompileReflective(ExpressionSyntax expression, List<(string Name, string? Type)> captures)
+      private string? CompileReflective(ExpressionSyntax expression, List<(string Name, string? Type)> captures,
+        IReadOnlyDictionary<string, LambdaBinding>? bindings = null)
       {
         expression = StripParens(expression);
 
@@ -774,7 +824,12 @@ namespace Assertive.Generators
                 AddCapture(captures, local.Name, local.Type);
                 return local.Name;
 
-              case IParameterSymbol param when !IsDeclaredWithin(param, _body):
+              case IParameterSymbol param when IsDeclaredWithin(param, _body):
+                return bindings != null && bindings.TryGetValue(param.Name, out var binding)
+                  ? binding.ReflectiveReplacement
+                  : null;
+
+              case IParameterSymbol param:
                 AddCapture(captures, param.Name, param.Type);
                 return param.Name;
 
@@ -805,12 +860,12 @@ namespace Assertive.Generators
                 return StaticMember(staticProperty.ContainingType, staticProperty.Name);
 
               case IFieldSymbol { IsStatic: false } field:
-                return CompileReflective(memberAccess.Expression, captures) is { } fieldReceiver
+                return CompileReflective(memberAccess.Expression, captures, bindings) is { } fieldReceiver
                   ? $"{Runtime}.GetMemberValue({fieldReceiver}, {Quote(MetadataName(field))})"
                   : null;
 
               case IPropertySymbol { IsStatic: false, IsIndexer: false } property:
-                return CompileReflective(memberAccess.Expression, captures) is { } propertyReceiver
+                return CompileReflective(memberAccess.Expression, captures, bindings) is { } propertyReceiver
                   ? $"{Runtime}.GetMemberValue({propertyReceiver}, {Quote(property.Name)})"
                   : null;
 
@@ -831,14 +886,18 @@ namespace Assertive.Generators
                 && invocation.Expression is MemberAccessExpressionSyntax countAccess
                 && countAccess.IsKind(SyntaxKind.SimpleMemberAccessExpression))
             {
-              return CompileReflective(countAccess.Expression, captures) is { } countReceiver
+              return CompileReflective(countAccess.Expression, captures, bindings) is { } countReceiver
                 ? $"{Runtime}.EnumerableCount({countReceiver})"
                 : null;
             }
 
-            if (method.IsStatic
-                || method.IsGenericMethod
-                || method.ReducedFrom != null
+            if (method.IsStatic || method.ReducedFrom != null)
+            {
+              return CompileReflectiveStaticCall(invocation, method, captures, bindings)
+                     ?? CompileReflectiveLinqCall(invocation, method, captures, bindings);
+            }
+
+            if (method.IsGenericMethod
                 || method.Parameters.Any(p => p.RefKind != RefKind.None || p.IsParams)
                 || invocation.ArgumentList.Arguments.Count != method.Parameters.Length
                 || invocation.ArgumentList.Arguments.Any(a => a.NameColon != null)
@@ -850,7 +909,7 @@ namespace Assertive.Generators
             var receiver = invocation.Expression switch
             {
               MemberAccessExpressionSyntax access when access.IsKind(SyntaxKind.SimpleMemberAccessExpression)
-                => CompileReflective(access.Expression, captures),
+                => CompileReflective(access.Expression, captures, bindings),
               IdentifierNameSyntax => CapturedThis, // implicit this
               _ => null,
             };
@@ -864,7 +923,7 @@ namespace Assertive.Generators
 
             foreach (var argument in invocation.ArgumentList.Arguments)
             {
-              if (CompileReflective(argument.Expression, captures) is not { } compiled)
+              if (CompileReflective(argument.Expression, captures, bindings) is not { } compiled)
               {
                 return null;
               }
@@ -882,6 +941,110 @@ namespace Assertive.Generators
           default:
             return null;
         }
+      }
+
+      /// <summary>
+      /// A static or (reduced) extension call whose full signature is nameable: emitted as
+      /// a typed static call with explicit type arguments, each non-lambda argument compiled
+      /// reflectively and cast to its parameter type, lambda-literal arguments pasted typed.
+      /// This bridges reflective receivers (private element types upstream) into typed
+      /// static calls (int.Parse, Enumerable.Where, ...).
+      /// </summary>
+      private string? CompileReflectiveStaticCall(InvocationExpressionSyntax invocation, IMethodSymbol method,
+        List<(string Name, string? Type)> captures, IReadOnlyDictionary<string, LambdaBinding>? bindings)
+      {
+        var constructed = method.ReducedFrom != null ? method.GetConstructedReducedFrom() : method;
+
+        if (constructed == null
+            || !IsAccessibleMember(method)
+            || !IsUsableType(method.ContainingType, _compilation)
+            || constructed.TypeArguments.Any(t => !IsUsableType(t, _compilation))
+            || constructed.Parameters.Any(p => p.RefKind != RefKind.None || p.IsParams)
+            || invocation.ArgumentList.Arguments.Any(a => a.NameColon != null))
+        {
+          return null;
+        }
+
+        var syntaxArguments = new List<ExpressionSyntax>();
+
+        if (method.ReducedFrom != null)
+        {
+          if (invocation.Expression is not MemberAccessExpressionSyntax access
+              || !access.IsKind(SyntaxKind.SimpleMemberAccessExpression))
+          {
+            return null;
+          }
+
+          syntaxArguments.Add(access.Expression);
+        }
+
+        syntaxArguments.AddRange(invocation.ArgumentList.Arguments.Select(a => a.Expression));
+
+        if (syntaxArguments.Count != constructed.Parameters.Length)
+        {
+          return null; // omitted optional arguments: not worth reconstructing
+        }
+
+        var rendered = new List<string>();
+
+        for (var i = 0; i < syntaxArguments.Count; i++)
+        {
+          var parameterType = constructed.Parameters[i].Type;
+
+          if (!IsUsableType(parameterType, _compilation))
+          {
+            return null;
+          }
+
+          var parameterTypeFqn = parameterType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+          if (syntaxArguments[i] is AnonymousFunctionExpressionSyntax)
+          {
+            // Lambdas can't be object-typed; paste them typed (their parameters bind inside).
+            if (CompileTyped(syntaxArguments[i], bindings) is not { } typedLambda)
+            {
+              return null;
+            }
+
+            rendered.Add($"({parameterTypeFqn})({typedLambda})");
+            continue;
+          }
+
+          if (CompileReflective(syntaxArguments[i], captures, bindings) is not { } compiled)
+          {
+            return null;
+          }
+
+          rendered.Add($"(({parameterTypeFqn})({compiled}))");
+        }
+
+        var typeArguments = constructed.TypeArguments.Length > 0
+          ? $"<{string.Join(", ", constructed.TypeArguments.Select(t => t.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)))}>"
+          : "";
+
+        var containingType = method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+        return $"{containingType}.{method.Name}{typeArguments}({string.Join(", ", rendered)})";
+      }
+
+      /// <summary>
+      /// Parameterless LINQ extension calls (First, Single, ...) over collections whose
+      /// element type cannot be named: resolved at runtime via reflection.
+      /// </summary>
+      private string? CompileReflectiveLinqCall(InvocationExpressionSyntax invocation, IMethodSymbol method,
+        List<(string Name, string? Type)> captures, IReadOnlyDictionary<string, LambdaBinding>? bindings)
+      {
+        if (method is not { ReducedFrom: not null, Parameters.Length: 0, ContainingType.Name: "Enumerable" }
+            || method.ContainingType.ContainingNamespace is not { Name: "Linq", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } }
+            || invocation.Expression is not MemberAccessExpressionSyntax access
+            || !access.IsKind(SyntaxKind.SimpleMemberAccessExpression))
+        {
+          return null;
+        }
+
+        return CompileReflective(access.Expression, captures, bindings) is { } source
+          ? $"{Runtime}.InvokeLinq({source}, {Quote(method.Name)})"
+          : null;
       }
 
       /// <summary>

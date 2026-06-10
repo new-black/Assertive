@@ -1,6 +1,7 @@
 namespace Assertive.Test.Generators
 {
   using System;
+  using System.Linq;
   using System.Text.RegularExpressions;
   using Assertive.Runtime;
   using Xunit;
@@ -170,13 +171,15 @@ namespace Assertive.Test.Generators
     }
 
     [Fact]
-    public void Logical_and_is_not_intercepted_and_reports_source_text()
+    public void Logical_and_is_intercepted_opaquely_and_reports_source_text()
     {
       var value = "ab";
 
       var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => value.Contains('a') && value.Contains('z')));
 
-      Assert.False(wasIntercepted);
+      // Not a decomposable form, but still intercepted (opaquely): source text, no
+      // expected/actual decomposition; the exception path gets cause attribution.
+      Assert.True(wasIntercepted);
       Assert.NotNull(exception);
       Assert.Contains("value.Contains('a') && value.Contains('z')", StripAnsi(exception!.Message));
       Assert.Empty((string[])exception.Data["Assertive.Expected"]!);
@@ -271,6 +274,35 @@ namespace Assertive.Test.Generators
     private (string a, string b) GetTuple()
     {
       return ("a", "b");
+    }
+
+    [Fact]
+    public void Exception_cause_is_attributed_on_private_types()
+    {
+      Secret secret = null!;
+
+      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => secret.Value == 4));
+
+      Assert.True(wasIntercepted);
+      Assert.NotNull(exception);
+
+      var handled = (string[])exception!.Data["Assertive.HandledExceptions"]!;
+      Assert.Equal("NullReferenceException caused by accessing Value on secret which was null.", StripAnsi(handled.Single()));
+    }
+
+    [Fact]
+    public void Exception_cause_inside_lambda_gets_item_context()
+    {
+      var users = new[] { new User { Name = "a" }, new User { Name = null! } };
+
+      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => users.All(u => u.Name.Length > 0)));
+
+      Assert.True(wasIntercepted);
+      Assert.NotNull(exception);
+
+      var handled = StripAnsi(((string[])exception!.Data["Assertive.HandledExceptions"]!).Single());
+      Assert.StartsWith("NullReferenceException caused by accessing Length on u.Name which was null.", handled);
+      Assert.Contains("On item [1] of users:", handled);
     }
 
     private enum Mood

@@ -50,5 +50,23 @@ namespace Assertive.Test
       var failures = new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => list.Any(l => l.Length > 1), null, null), null)).AnalyzeAssertionFailures();
       Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is AnyPattern);
     }
+
+    private class Foo
+    {
+      public string Name { get; set; }
+    }
+    
+    [Fact]
+    public void Any_with_filter_works_on_private_class()
+    {
+      var list = new List<Foo>()
+      {
+        new Foo() { Name = "a" },
+        new Foo() { Name = "b" },
+        new Foo() { Name = "c" }
+      };
+      
+      ShouldFail(() => list.Any(l => l.Name == "d"), """Collection list should contain some items that match the filter l.Name == "d".""", "It contained no items matching the filter.");
+    }
   }
 }

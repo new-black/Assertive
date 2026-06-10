@@ -113,14 +113,15 @@ namespace Assertive.Test.Generators
     }
 
     [Fact]
-    public void Wrapper_with_non_whitelisted_body_is_not_intercepted_but_still_works()
+    public void Wrapper_with_non_whitelisted_body_is_intercepted_opaquely()
     {
       var x = "not null";
 
       var before = GeneratedAssert.InterceptedCallCount;
       var exception = CaptureFailure(() => x.Contains('a') && x.Contains('z'), "label");
 
-      Assert.Equal(before, GeneratedAssert.InterceptedCallCount);
+      // Not a decomposable form, but still intercepted (opaquely) through the wrapper.
+      Assert.True(GeneratedAssert.InterceptedCallCount > before);
       Assert.NotNull(exception);
       Assert.Contains("x.Contains('a') && x.Contains('z')", StripAnsi(exception!.Message));
     }

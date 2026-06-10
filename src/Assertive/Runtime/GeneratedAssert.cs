@@ -188,11 +188,75 @@ namespace Assertive.Runtime
 
         if (type.GetProperty(memberName, flags) is { } property)
         {
-          return property.GetValue(target);
+          try
+          {
+            return property.GetValue(target);
+          }
+          catch (TargetInvocationException ex) when (ex.InnerException != null)
+          {
+            // A throwing getter should look like a direct member access.
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
+          }
         }
       }
 
       throw new InvalidOperationException($"Assertive: could not resolve member '{memberName}' on {target.GetType()}.");
+    }
+
+    /// <summary>
+    /// Invokes a parameterless System.Linq.Enumerable extension method (First, Single, ...)
+    /// on an untyped source, for reflective evaluation when the element type cannot be
+    /// named in generated code. Exceptions thrown by the method are rethrown unwrapped.
+    /// </summary>
+    public static object? InvokeLinq(object source, string methodName)
+    {
+      var elementType = GetEnumerableElementType(source.GetType())
+        ?? throw new InvalidOperationException($"Assertive: {source.GetType()} is not an IEnumerable<T>.");
+
+      MethodInfo? match = null;
+
+      foreach (var method in typeof(System.Linq.Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static))
+      {
+        if (method.Name == methodName && method.GetParameters().Length == 1 && method.IsGenericMethodDefinition)
+        {
+          match = method;
+          break;
+        }
+      }
+
+      if (match == null)
+      {
+        throw new InvalidOperationException($"Assertive: could not resolve Enumerable.{methodName} with a single parameter.");
+      }
+
+      try
+      {
+        return match.MakeGenericMethod(elementType).Invoke(null, new[] { source });
+      }
+      catch (TargetInvocationException ex) when (ex.InnerException != null)
+      {
+        ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+        throw;
+      }
+    }
+
+    private static Type? GetEnumerableElementType(Type type)
+    {
+      if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+      {
+        return type.GetGenericArguments()[0];
+      }
+
+      foreach (var iface in type.GetInterfaces())
+      {
+        if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+        {
+          return iface.GetGenericArguments()[0];
+        }
+      }
+
+      return null;
     }
 
     /// <summary>Resolves a nested type by metadata name, ignoring accessibility.</summary>
@@ -224,24 +288,48 @@ namespace Assertive.Runtime
     }
 
     /// <summary>Throws-side entry: a failed (non-exceptional) assertion with no pattern decomposition.</summary>
-    public static Exception Failure(string assertionExpression, object? message, Func<object?>? context, string? contextExpression)
+    public static Exception Failure(string assertionExpression, (string Name, object? Value)[]? locals, object? message, Func<object?>? context, string? contextExpression)
     {
       return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails
       {
         AssertionText = AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        Locals = locals,
         UserMessage = message,
         Context = context,
         ContextExpression = contextExpression,
       });
     }
 
-    /// <summary>An exception thrown while evaluating the assertion.</summary>
-    public static Exception EvaluationFailure(string assertionExpression, Exception exception, object? message, Func<object?>? context, string? contextExpression)
+    /// <summary>
+    /// An exception thrown while evaluating the assertion. When the generator recorded
+    /// exception steps for the call site, the cause is attributed by walking them
+    /// (exception-pattern parity); otherwise the exception is reported as-is.
+    /// </summary>
+    public static Exception EvaluationFailure(string assertionExpression, Exception exception,
+      ExceptionStep[]? steps, (string Name, object? Value)[]? locals,
+      object? message, Func<object?>? context, string? contextExpression)
     {
+      GeneratedExceptionAnalyzer.Handled? handled = null;
+
+      if (steps is { Length: > 0 })
+      {
+        try
+        {
+          handled = GeneratedExceptionAnalyzer.Analyze(exception, steps);
+        }
+        catch
+        {
+          // Attribution is best-effort; fall back to the plain exception report.
+        }
+      }
+
       return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails
       {
         AssertionText = AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
         Exception = exception,
+        HandledExceptionMessage = handled?.Message,
+        CauseSource = handled?.CauseSource,
+        Locals = locals,
         UserMessage = message,
         Context = context,
         ContextExpression = contextExpression,
