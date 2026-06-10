@@ -255,7 +255,7 @@ namespace Assertive.Generators
           }
 
           steps.Add($"new {StepType} {{ Kind = {StepKind}.LambdaIteration, " +
-                    $"CollectionSource = {Quote(access.Expression.ToString())}, " +
+                    $"CollectionSource = {Quote(Display(access.Expression))}, " +
                     $"Collection = {collection}, " +
                     $"ItemSteps = {ToArrayLiteral(itemSteps)} }}");
           return;
@@ -301,9 +301,9 @@ namespace Assertive.Generators
           && _model.GetTypeInfo(receiver, _ct).Type is IArrayTypeSymbol;
 
         steps.Add($"new {StepType} {{ Kind = {StepKind}.{(isArrayLength ? "ArrayLength" : "Member")}, " +
-                  $"NodeSource = {Quote(memberAccess.ToString())}, " +
+                  $"NodeSource = {Quote(Display(memberAccess))}, " +
                   $"MemberName = {Quote(memberAccess.Name.Identifier.ValueText)}, " +
-                  $"ReceiverSource = {Quote(receiver.ToString())}, " +
+                  $"ReceiverSource = {Quote(Display(receiver))}, " +
                   $"{ReceiverLastMemberInitializer(receiver)}" +
                   $"Receiver = {receiverEval} }}");
       }
@@ -320,10 +320,10 @@ namespace Assertive.Generators
         }
 
         steps.Add($"new {StepType} {{ Kind = {StepKind}.Call, " +
-                  $"NodeSource = {Quote(invocation.ToString())}, " +
+                  $"NodeSource = {Quote(Display(invocation))}, " +
                   $"MemberName = {Quote(method.Name)}, " +
-                  $"MethodDisplay = {Quote($"{access.Name}{invocation.ArgumentList}")}, " +
-                  $"ReceiverSource = {Quote(receiver.ToString())}, " +
+                  $"MethodDisplay = {Quote($"{access.Name}{Display(invocation.ArgumentList)}")}, " +
+                  $"ReceiverSource = {Quote(Display(receiver))}, " +
                   $"{ReceiverLastMemberInitializer(receiver)}" +
                   $"Receiver = {receiverEval}, " +
                   $"Node = {Eval(invocation, bindings) ?? "null"}, " +
@@ -343,11 +343,11 @@ namespace Assertive.Generators
         }
 
         steps.Add($"new {StepType} {{ Kind = {StepKind}.StaticCall, " +
-                  $"NodeSource = {Quote(invocation.ToString())}, " +
+                  $"NodeSource = {Quote(Display(invocation))}, " +
                   $"MemberName = {Quote(method.Name)}, " +
-                  $"MethodDisplay = {Quote($"{access.Name}{invocation.ArgumentList}")}, " +
+                  $"MethodDisplay = {Quote($"{access.Name}{Display(invocation.ArgumentList)}")}, " +
                   $"StaticTypeName = {Quote(method.ContainingType.ToDisplayString(ShortTypeFormat))}, " +
-                  (isExtension ? $"ReceiverSource = {Quote(access.Expression.ToString())}, Receiver = {receiverEval}, " : "") +
+                  (isExtension ? $"ReceiverSource = {Quote(Display(access.Expression))}, Receiver = {receiverEval}, " : "") +
                   $"Node = {nodeEval ?? "null"}, " +
                   $"{CommonCallInitializers(invocation, method, bindings)} }}");
       }
@@ -370,7 +370,7 @@ namespace Assertive.Generators
           for (var i = 0; i < arguments.Count; i++)
           {
             var expression = arguments[i].Expression;
-            sources.Add(Quote(expression.ToString()));
+            sources.Add(Quote(Display(expression)));
             constants.Add(IsConstantish(expression) ? "true" : "false");
             evals.Add(expression is AnonymousFunctionExpressionSyntax ? "null" : Eval(expression, bindings) ?? "null");
 
@@ -443,12 +443,12 @@ namespace Assertive.Generators
         }
 
         steps.Add($"new {StepType} {{ Kind = {StepKind}.Index, " +
-                  $"NodeSource = {Quote(elementAccess.ToString())}, " +
+                  $"NodeSource = {Quote(Display(elementAccess))}, " +
                   $"MemberName = \"get_Item\", " +
-                  $"ReceiverSource = {Quote(receiver.ToString())}, " +
+                  $"ReceiverSource = {Quote(Display(receiver))}, " +
                   $"{ReceiverLastMemberInitializer(receiver)}" +
                   $"Receiver = {receiverEval}, " +
-                  $"IndexSource = {Quote(index.ToString())}, " +
+                  $"IndexSource = {Quote(Display(index))}, " +
                   $"IndexIsConstant = {(IsConstantish(index) ? "true" : "false")}, " +
                   $"Index = {indexEval}, " +
                   $"IsArray = {(receiverType is IArrayTypeSymbol ? "true" : "false")}, " +
@@ -479,8 +479,8 @@ namespace Assertive.Generators
         }
 
         steps.Add($"new {StepType} {{ Kind = {StepKind}.Cast, " +
-                  $"NodeSource = {Quote(cast.ToString())}, " +
-                  $"ReceiverSource = {Quote(cast.Expression.ToString())}, " +
+                  $"NodeSource = {Quote(Display(cast))}, " +
+                  $"ReceiverSource = {Quote(Display(cast.Expression))}, " +
                   $"Receiver = {operandEval}, " +
                   $"TargetType = {typeAccessor} }}");
       }
@@ -497,9 +497,9 @@ namespace Assertive.Generators
         var kind = binary.IsKind(SyntaxKind.DivideExpression) ? "Divide" : "Modulo";
 
         steps.Add($"new {StepType} {{ Kind = {StepKind}.{kind}, " +
-                  $"NodeSource = {Quote(binary.ToString())}, " +
-                  $"LeftSource = {Quote(binary.Left.ToString())}, " +
-                  $"RightSource = {Quote(binary.Right.ToString())}, " +
+                  $"NodeSource = {Quote(Display(binary))}, " +
+                  $"LeftSource = {Quote(Display(binary.Left))}, " +
+                  $"RightSource = {Quote(Display(binary.Right))}, " +
                   $"RightIsConstant = {(IsConstantish(binary.Right) ? "true" : "false")}, " +
                   $"Right = {rightEval} }}");
       }
@@ -611,6 +611,27 @@ namespace Assertive.Generators
       }
 
       private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
+
+      private static readonly SuppressionStripper _suppressionStripper = new();
+
+      /// <summary>
+      /// Displayed source with nullable-suppression operators removed (`sb!.Append(..)` is
+      /// displayed as `sb.Append(..)`, matching the expression-tree rendering, which never
+      /// saw the compile-time-only `!`).
+      /// </summary>
+      private static string Display(SyntaxNode node) => _suppressionStripper.Visit(node)?.ToString() ?? node.ToString();
+
+      private sealed class SuppressionStripper : CSharpSyntaxRewriter
+      {
+        public override SyntaxNode? VisitPostfixUnaryExpression(PostfixUnaryExpressionSyntax node)
+        {
+          var visited = base.VisitPostfixUnaryExpression(node);
+
+          return visited is PostfixUnaryExpressionSyntax postfix && postfix.IsKind(SyntaxKind.SuppressNullableWarningExpression)
+            ? postfix.Operand.WithTriviaFrom(postfix)
+            : visited;
+        }
+      }
     }
   }
 }

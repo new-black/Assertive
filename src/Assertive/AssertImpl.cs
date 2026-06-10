@@ -50,7 +50,8 @@ namespace Assertive
     }
 
     public static async Task<ThrowsResult> Throws(Func<Task> action, string actionExpression,
-      Type? expectedExceptionType = null, Func<Exception, bool>? exceptionAssertion = null, string? exceptionExpression = null)
+      Type? expectedExceptionType = null, Func<Exception, bool>? exceptionAssertion = null, string? exceptionExpression = null,
+      Func<object?, int, Exception>? predicateFailure = null)
     {
       var threw = false;
       var expressionBody = GetLambdaBody(actionExpression);
@@ -78,13 +79,14 @@ namespace Assertive
         return new ThrowsResult(ExceptionHelper.GetException($"Expected {expressionBody} to throw an exception, but it did not."), null);
       }
 
-      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, exceptionExpression, thrownException!);
+      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, exceptionExpression, thrownException!, predicateFailure);
 
       return new ThrowsResult(assertionFailure, thrownException);
     }
 
     public static ThrowsResult Throws(Action action, string actionExpression,
-      Type? expectedExceptionType = null, Func<Exception, bool>? exceptionAssertion = null, string? exceptionExpression = null)
+      Type? expectedExceptionType = null, Func<Exception, bool>? exceptionAssertion = null, string? exceptionExpression = null,
+      Func<object?, int, Exception>? predicateFailure = null)
     {
       var threw = false;
       var expressionBody = GetLambdaBody(actionExpression);
@@ -111,7 +113,7 @@ namespace Assertive
         return new ThrowsResult(ExceptionHelper.GetException($"Expected {expressionBody} to throw an exception, but it did not."), null);
       }
 
-      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, exceptionExpression, thrownException!);
+      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, exceptionExpression, thrownException!, predicateFailure);
 
       return new ThrowsResult(assertionFailure, thrownException);
     }
@@ -128,7 +130,8 @@ namespace Assertive
       return expression;
     }
 
-    private static Exception? EvaluateExceptionAssertion(Func<Exception, bool>? exceptionAssertion, string? exceptionExpression, Exception exception)
+    private static Exception? EvaluateExceptionAssertion(Func<Exception, bool>? exceptionAssertion, string? exceptionExpression, Exception exception,
+      Func<object?, int, Exception>? predicateFailure = null)
     {
       if (exceptionAssertion == null)
       {
@@ -155,6 +158,20 @@ namespace Assertive
       if (matched)
       {
         return null;
+      }
+
+      // The generated path supplies a factory that decomposes the predicate body with the
+      // thrown exception bound to its parameter.
+      if (predicateFailure != null)
+      {
+        try
+        {
+          return predicateFailure(exception, 0);
+        }
+        catch
+        {
+          // Fall through to the plain report.
+        }
       }
 
       return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails

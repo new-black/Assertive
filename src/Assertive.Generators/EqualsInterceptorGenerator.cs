@@ -76,6 +76,10 @@ namespace Assertive.Generators
           {
             EmitWrapperInterceptor(sb, call, index++);
           }
+          else if (call.Kind == InterceptionKind.ThrowsPredicate)
+          {
+            EmitThrowsInterceptor(sb, call, index++);
+          }
           else
           {
             EmitThatInterceptor(sb, call, index++);
@@ -165,6 +169,51 @@ namespace Assertive.Generators
       EmitExceptionHandler(sb, call, "__assertion", bodyText, "null, null, null", "          ");
       sb.AppendLine("        }");
       sb.AppendLine($"      }}){forwardedArgs});");
+      sb.AppendLine("    }");
+    }
+
+    /// <summary>
+    /// Emits an interceptor for an Assert.Throws call with an exception-predicate lambda.
+    /// Behavior is delegated to the runtime (GeneratedAssert.ThrowsIntercepted); the
+    /// interceptor contributes a factory that decomposes the classified predicate body
+    /// with the thrown exception bound to its parameter. The predicate parameter is named
+    /// __assertion because compiled operands read captured locals from that delegate.
+    /// </summary>
+    private static void EmitThrowsInterceptor(StringBuilder sb, InterceptedCall call, int index)
+    {
+      var exceptionType = call.ThrowsExceptionTypeFqn ?? "global::System.Exception";
+
+      var actionType = call.ThrowsActionKind switch
+      {
+        ThrowsActionKind.Action => "global::System.Action",
+        ThrowsActionKind.FuncObject => "global::System.Func<object>",
+        _ => "global::System.Func<global::System.Threading.Tasks.Task>",
+      };
+
+      var isAsync = call.ThrowsActionKind == ThrowsActionKind.FuncTask;
+      var returnType = isAsync ? $"global::System.Threading.Tasks.Task<{exceptionType}>" : exceptionType;
+
+      var actionArg = call.ThrowsActionKind == ThrowsActionKind.FuncObject
+        ? "new global::System.Action(() => { _ = __action(); })"
+        : "__action";
+
+      var expectedTypeArg = call.ThrowsExceptionTypeFqn != null ? $"typeof({call.ThrowsExceptionTypeFqn})" : "null";
+      var runtimeEntry = isAsync ? "ThrowsInterceptedAsync" : "ThrowsIntercepted";
+      var awaitKeyword = isAsync ? "await " : "";
+
+      sb.AppendLine($"    // {call.DisplayLocation}");
+      sb.AppendLine("    [global::System.Diagnostics.StackTraceHidden]");
+      sb.AppendLine($"    [global::System.Runtime.CompilerServices.InterceptsLocation({call.LocationVersion}, {Quote(call.LocationData)})]");
+      sb.AppendLine($"    public static {(isAsync ? "async " : "")}{returnType} Throws{index}({actionType} __action, global::System.Func<{exceptionType}, bool> __assertion, string __actionExpr, string __exceptionExpr)");
+      sb.AppendLine("    {");
+      sb.AppendLine("      global::Assertive.Runtime.GeneratedAssert.MarkIntercepted();");
+      EmitCaptureDecls(sb, call, "__assertion", "      ");
+      sb.AppendLine($"      return ({exceptionType}){awaitKeyword}global::Assertive.Runtime.GeneratedAssert.{runtimeEntry}(");
+      sb.AppendLine($"        {actionArg},");
+      sb.AppendLine($"        {expectedTypeArg},");
+      sb.AppendLine($"        __assertion == null ? null : new global::System.Func<global::System.Exception, bool>(__e => __assertion(({exceptionType})__e)),");
+      sb.AppendLine("        __actionExpr, __exceptionExpr,");
+      sb.AppendLine($"        {BuildSubRenderer(call.AllSubCall, Quote(call.BodySource), "        ")});");
       sb.AppendLine("    }");
     }
 
@@ -295,7 +344,7 @@ namespace Assertive.Generators
         InterceptionKind.SequenceEqual =>
           $"SequenceEqualFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.LeftDisplay)}, (object){left},\n{indent}  {Quote(call.RightDisplay)}, (object){right},\n{indent}  {(call.ComparerSource != null ? $"(object)({call.ComparerSource})" : "null")}, {call.TypeAccessor ?? "null"},\n{indent}  {tail}",
         InterceptionKind.All =>
-          $"AllFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.OperandDisplay)}, {Quote(call.FilterSource ?? "")}, {(call.CollectionIsMethodCall ? "true" : "false")}, (object){left}, {negated},\n{indent}  {call.AllFilterFunc ?? "null"},\n{indent}  {BuildAllSubRenderer(call, indent)},\n{indent}  {tail}",
+          $"AllFailure(\n{indent}  {assertionTextArg},\n{indent}  {Quote(call.OperandDisplay)}, {Quote(call.FilterSource ?? "")}, {(call.CollectionIsMethodCall ? "true" : "false")}, (object){left}, {negated},\n{indent}  {call.AllFilterFunc ?? "null"},\n{indent}  {BuildSubRenderer(call.AllSubCall, Quote(call.FilterSource ?? ""), indent)},\n{indent}  {tail}",
         InterceptionKind.Opaque =>
           $"Failure(\n{indent}  {assertionTextArg},\n{indent}  {tail}",
         _ => throw new System.InvalidOperationException($"Unhandled kind {call.Kind}"),
@@ -303,13 +352,13 @@ namespace Assertive.Generators
     }
 
     /// <summary>
-    /// The per-item sub-failure factory for the All pattern: evaluates the classified
-    /// filter-body operands with the item bound and builds the corresponding failure
-    /// exception, whose expected/actual data becomes the item's sub-message.
+    /// A bound sub-failure factory: evaluates the classified sub-assertion's operands with
+    /// the bound value (an All item, or the exception caught by Throws) and builds the
+    /// corresponding failure exception. Its expected/actual data becomes the sub-message.
     /// </summary>
-    private static string BuildAllSubRenderer(InterceptedCall call, string indent)
+    private static string BuildSubRenderer(InterceptedCall? sub, string assertionTextArg, string indent)
     {
-      if (call.AllSubCall is not { } sub)
+      if (sub == null)
       {
         return "null";
       }
@@ -332,7 +381,7 @@ namespace Assertive.Generators
 
       var subTail = $"global::System.Array.Empty<(string, object)>(),\n{inner}  null, null, null";
 
-      renderer.Append($"{inner}return global::Assertive.Runtime.GeneratedAssert.{BuildFailureInvocation(sub, Quote(call.FilterSource ?? ""), inner, subTail, "__subLeft", "__subRight")});\n");
+      renderer.Append($"{inner}return global::Assertive.Runtime.GeneratedAssert.{BuildFailureInvocation(sub, assertionTextArg, inner, subTail, "__subLeft", "__subRight")});\n");
       renderer.Append($"{indent}  }})");
 
       return renderer.ToString();
@@ -363,6 +412,14 @@ namespace Assertive.Generators
     MessageContext,
   }
 
+  /// <summary>The shape of an intercepted Assert.Throws first parameter.</summary>
+  internal enum ThrowsActionKind
+  {
+    Action,
+    FuncObject,
+    FuncTask,
+  }
+
   internal enum InterceptionKind
   {
     Equality,
@@ -378,6 +435,12 @@ namespace Assertive.Generators
     Any,
     SequenceEqual,
     All,
+
+    /// <summary>
+    /// An Assert.Throws call with an exception-predicate lambda; the predicate body is
+    /// classified as a sub-assertion bound to the thrown exception.
+    /// </summary>
+    ThrowsPredicate,
 
     /// <summary>
     /// Not a decomposable form: the false path reports source text + locals only, but the
@@ -453,6 +516,12 @@ namespace Assertive.Generators
     /// null when the body root is not a method call / property access.
     /// </summary>
     public string? CustomProbeSource;
+
+    /// <summary>ThrowsPredicate: the shape of the intercepted Throws action parameter.</summary>
+    public ThrowsActionKind ThrowsActionKind;
+
+    /// <summary>ThrowsPredicate: the expected exception type, or null for the non-generic overloads.</summary>
+    public string? ThrowsExceptionTypeFqn;
   }
 
   /// <summary>An [AssertionWrapper] method pair (see AssertionWrapperAttribute in Assertive).</summary>

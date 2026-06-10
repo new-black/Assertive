@@ -32,6 +32,13 @@ namespace Assertive.Generators
         return null;
       }
 
+      var isAssertiveContainer = method.ContainingType is { Name: "Assert" or "DSL", ContainingNamespace: { Name: "Assertive", ContainingNamespace.IsGlobalNamespace: true } };
+
+      if (method.Name == "Throws" && isAssertiveContainer)
+      {
+        return AnalyzeThrows(ctx, invocation, method, ct);
+      }
+
       // First parameter must be the assertion delegate; this also excludes the DSL's
       // snapshot overload (first parameter is `object`) and the AssertionHandle overloads.
       if (method.Parameters.Length == 0
@@ -121,6 +128,99 @@ namespace Assertive.Generators
 
       call.ExceptionStepsSource = new ExceptionStepWalker(ctx.SemanticModel, compiler, body, ct).CollectSource(body);
       call.CustomProbeSource = BuildCustomProbe(ctx, core, outerNegated, compiler, ct);
+
+      return call;
+    }
+
+    /// <summary>
+    /// Analyzes an Assert.Throws / DSL.Throws call site with an exception-predicate lambda:
+    /// the predicate body is classified as a sub-assertion with the parameter bound to the
+    /// thrown exception, so a failing predicate gets a decomposed report instead of just
+    /// source text. Call sites without a predicate lambda stay on the normal path.
+    /// </summary>
+    private static InterceptedCall? AnalyzeThrows(GeneratorSyntaxContext ctx, InvocationExpressionSyntax invocation, IMethodSymbol method, CancellationToken ct)
+    {
+      if (invocation.ArgumentList.Arguments.Count < 2
+          || invocation.ArgumentList.Arguments.Any(a => a.NameColon != null)
+          || invocation.ArgumentList.Arguments[1].Expression is not SimpleLambdaExpressionSyntax { Body: ExpressionSyntax predicateBody } predicateLambda)
+      {
+        return null;
+      }
+
+      // Only the delegate-based overloads (Action / Func<object?> / Func<Task>).
+      ThrowsActionKind? actionKind = method.Parameters[0].Type switch
+      {
+        INamedTypeSymbol { Name: "Action", Arity: 0 } => ThrowsActionKind.Action,
+        INamedTypeSymbol { Name: "Func", Arity: 1 } func when func.TypeArguments[0].Name == "Task" => ThrowsActionKind.FuncTask,
+        INamedTypeSymbol { Name: "Func", Arity: 1 } => ThrowsActionKind.FuncObject,
+        _ => null,
+      };
+
+      if (actionKind == null)
+      {
+        return null;
+      }
+
+      // The exception type appears in the interceptor signature, so it must be nameable.
+      var exceptionType = method.IsGenericMethod ? method.TypeArguments[0] : null;
+      var exceptionTypeForBinding = exceptionType
+        ?? ctx.SemanticModel.Compilation.GetTypeByMetadataName("System.Exception")!;
+
+      if (exceptionType != null && !IsUsableType(exceptionType, ctx.SemanticModel.Compilation))
+      {
+        return null;
+      }
+
+      if (ctx.SemanticModel.GetDeclaredSymbol(predicateLambda.Parameter, ct) is not { } parameterSymbol)
+      {
+        return null;
+      }
+
+      var location = ctx.SemanticModel.GetInterceptableLocation(invocation, ct);
+
+      if (location == null)
+      {
+        return null;
+      }
+
+      var call = new InterceptedCall
+      {
+        LocationVersion = location.Version,
+        LocationData = location.Data,
+        DisplayLocation = location.GetDisplayLocation(),
+        FilePath = invocation.SyntaxTree.FilePath,
+        Kind = InterceptionKind.ThrowsPredicate,
+        ThrowsActionKind = actionKind.Value,
+        ThrowsExceptionTypeFqn = exceptionType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+        BodySource = predicateLambda.ToString(),
+      };
+
+      var exceptionTypeFqn = (exceptionType ?? exceptionTypeForBinding).ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+      var compiler = new OperandCompiler(ctx.SemanticModel, predicateLambda, call, ct);
+
+      var bindings = new Dictionary<string, LambdaBinding>
+      {
+        [parameterSymbol.Name] = new LambdaBinding($"(({exceptionTypeFqn})__item)", "__item"),
+      };
+
+      var subNegated = false;
+      var subCore = StripParens(predicateBody);
+
+      while (subCore is PrefixUnaryExpressionSyntax negation && negation.IsKind(SyntaxKind.LogicalNotExpression))
+      {
+        subNegated = !subNegated;
+        subCore = StripParens(negation.Operand);
+      }
+
+      var subCall = new InterceptedCall();
+
+      if (!ClassifyForm(ctx, subCore, subNegated, subCall, compiler, ct, bindings))
+      {
+        // No decomposable predicate body: nothing to gain from interception.
+        return null;
+      }
+
+      call.AllSubCall = subCall;
 
       return call;
     }

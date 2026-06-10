@@ -637,6 +637,48 @@ namespace Assertive.Runtime
         locals, message, context, contextExpression);
     }
 
+    /// <summary>
+    /// Intercepted Assert.Throws with an exception predicate: same semantics as the public
+    /// overloads, plus a generated factory that decomposes the predicate body (with the
+    /// thrown exception bound to its parameter) when the predicate fails.
+    /// </summary>
+    public static Exception ThrowsIntercepted(
+      Action action,
+      Type? expectedExceptionType,
+      Func<Exception, bool>? exceptionAssertion,
+      string actionExpression,
+      string? exceptionExpression,
+      Func<object?, int, Exception>? predicateFailure)
+    {
+      var result = AssertImpl.Throws(action, actionExpression, expectedExceptionType, exceptionAssertion, exceptionExpression, predicateFailure);
+
+      if (result.Failure != null)
+      {
+        throw result.Failure;
+      }
+
+      return result.Thrown!;
+    }
+
+    /// <summary>Async counterpart of ThrowsIntercepted.</summary>
+    public static async System.Threading.Tasks.Task<Exception> ThrowsInterceptedAsync(
+      Func<System.Threading.Tasks.Task> action,
+      Type? expectedExceptionType,
+      Func<Exception, bool>? exceptionAssertion,
+      string actionExpression,
+      string? exceptionExpression,
+      Func<object?, int, Exception>? predicateFailure)
+    {
+      var result = await AssertImpl.Throws(action, actionExpression, expectedExceptionType, exceptionAssertion, exceptionExpression, predicateFailure);
+
+      if (result.Failure != null)
+      {
+        throw result.Failure;
+      }
+
+      return result.Thrown!;
+    }
+
     /// <summary>Equals-based equality for reflective filter evaluation over object-typed operands.</summary>
     public static bool ObjectEquals(object? left, object? right) => Equals(left, right);
 
