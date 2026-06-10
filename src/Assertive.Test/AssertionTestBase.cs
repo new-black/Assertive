@@ -134,10 +134,11 @@ namespace Assertive.Test
     }
 
     [AssertionWrapper]
-    protected void ShouldFail(Expression<Func<bool>> assertion, string expectedMessage, string actualMessage = null, bool exactMatch = false)
-      => ShouldFail(AssertionHandle.Degraded(assertion), expectedMessage, actualMessage, exactMatch);
+    protected void ShouldFail(Func<bool> assertion, string expectedMessage, string actualMessage = null, bool exactMatch = false,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "")
+      => ShouldFail(AssertionHandle.Degraded(assertion, assertionExpression), expectedMessage, actualMessage, exactMatch, assertionExpression);
 
-    internal void ShouldFail(AssertionHandle assertion, string expectedMessage, string actualMessage = null, bool exactMatch = false)
+    internal void ShouldFail(AssertionHandle assertion, string expectedMessage, string actualMessage = null, bool exactMatch = false, string assertionExpression = "")
     {
       bool throws = false;
 
@@ -200,13 +201,15 @@ namespace Assertive.Test
       Xunit.Assert.True(throws);
     }
 
-    protected void ShouldFail(Expression<Func<bool>> assertion, Expression<Func<object>> context, string expectedMessage)
+    protected void ShouldFail(Func<bool> assertion, Func<object> context, string expectedMessage,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
+      [CallerArgumentExpression(nameof(context))] string contextExpression = "")
     {
       bool throws = false;
 
       try
       {
-        Assert.That(assertion, context);
+        Assert.That(assertion, context, assertionExpression, contextExpression);
         Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
@@ -218,13 +221,14 @@ namespace Assertive.Test
       Xunit.Assert.True(throws);
     }
 
-    protected void ShouldFailWithMessage(Expression<Func<bool>> assertion, object message, string expectedMessage)
+    protected void ShouldFailWithMessage(Func<bool> assertion, object message, string expectedMessage,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "")
     {
       bool throws = false;
 
       try
       {
-        Assert.That(assertion, message);
+        Assert.That(assertion, message, assertionExpression: assertionExpression);
         Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)

@@ -1,5 +1,4 @@
 using System;
-using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
@@ -11,103 +10,67 @@ namespace Assertive
   public static class Assert
   {
     /// <summary>
-    /// Asserts that the given expression evaluates to true.
+    /// Asserts that the given condition evaluates to true.
     /// </summary>
-    /// <param name="assertion">A boolean expression to evaluate.</param>
-    public static void That(Expression<Func<bool>> assertion)
-    {
-      var exception = AssertImpl.That(assertion, null, null);
-
-      if (exception != null)
-      {
-        throw exception;
-      }
-    }
-
-    /// <summary>
-    /// Asserts that the given expression evaluates to true.
-    /// </summary>
-    /// <param name="assertion">A boolean expression to evaluate.</param>
-    /// <param name="message">A custom message to include in the failure output.</param>
-    public static void That(Expression<Func<bool>> assertion, object message)
-    {
-      var exception = AssertImpl.That(assertion, message, null);
-
-      if (exception != null)
-      {
-        throw exception;
-      }
-    }
-
-    /// <summary>
-    /// Asserts that the given expression evaluates to true.
-    /// </summary>
-    /// <param name="assertion">A boolean expression to evaluate.</param>
-    /// <param name="context">Additional context to include in the failure output.</param>
-    public static void That(Expression<Func<bool>> assertion, Expression<Func<object>> context)
-    {
-      var exception = AssertImpl.That(assertion, null, context);
-
-      if (exception != null)
-      {
-        throw exception;
-      }
-    }
-
-    /// <summary>
-    /// Asserts that the given expression evaluates to true.
-    /// </summary>
-    /// <param name="assertion">A boolean expression to evaluate.</param>
+    /// <param name="assertion">A boolean condition to evaluate.</param>
     /// <param name="message">A custom message to include in the failure output.</param>
     /// <param name="context">Additional context to include in the failure output.</param>
-    public static void That(Expression<Func<bool>> assertion, object message, Expression<Func<object>> context)
+    /// <param name="assertionExpression">The assertion source text (automatically captured).</param>
+    /// <param name="contextExpression">The context source text (automatically captured).</param>
+    public static void That(Func<bool> assertion, object? message = null, Func<object?>? context = null,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
+      [CallerArgumentExpression(nameof(context))] string? contextExpression = null)
     {
-      var exception = AssertImpl.That(assertion, message, context);
+      ThatCore(assertion, message, context, assertionExpression, contextExpression);
+    }
 
-      if (exception != null)
-      {
-        throw exception;
-      }
+    /// <summary>
+    /// Asserts that the given condition evaluates to true.
+    /// </summary>
+    /// <param name="assertion">A boolean condition to evaluate.</param>
+    /// <param name="context">Additional context to include in the failure output.</param>
+    /// <param name="assertionExpression">The assertion source text (automatically captured).</param>
+    /// <param name="contextExpression">The context source text (automatically captured).</param>
+    public static void That(Func<bool> assertion, Func<object?> context,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
+      [CallerArgumentExpression(nameof(context))] string? contextExpression = null)
+    {
+      ThatCore(assertion, null, context, assertionExpression, contextExpression);
     }
 
     /// <summary>
     /// Asserts an assertion received through an assertion wrapper
-    /// (see <see cref="AssertionWrapperAttribute"/>). Uses the generated evaluator when the
-    /// wrapper call site was intercepted; otherwise evaluates through the standard pipeline.
+    /// (see <see cref="AssertionWrapperAttribute"/>). Uses the generated assertion when the
+    /// wrapper call site was intercepted; otherwise evaluates the plain delegate.
     /// </summary>
     /// <param name="assertion">The assertion handle to evaluate.</param>
     public static void That(AssertionHandle assertion)
     {
-      if (assertion.GeneratedEvaluator is { } evaluator)
+      if (assertion.GeneratedAssertion is { } generated)
       {
-        bool passed;
-
-        try
-        {
-          passed = evaluator();
-        }
-        catch
-        {
-          // Evaluation failed; defer entirely to the standard pipeline, which re-evaluates
-          // the expression and analyzes the exception as usual.
-          Runtime.GeneratedAssert.Fallback(assertion.Assertion, null, null);
-          return;
-        }
-
-        if (passed)
-        {
-          return;
-        }
-
-        Runtime.GeneratedAssert.Fallback(assertion.Assertion, null, null);
+        generated();
         return;
       }
 
-      var exception = AssertImpl.That(assertion.Assertion, null, null);
+      ThatCore(assertion.Condition!, null, null, assertion.SourceText ?? "", null);
+    }
 
-      if (exception != null)
+    internal static void ThatCore(Func<bool> assertion, object? message, Func<object?>? context, string assertionExpression, string? contextExpression)
+    {
+      bool passed;
+
+      try
       {
-        throw exception;
+        passed = assertion();
+      }
+      catch (Exception ex) when (!Runtime.GeneratedAssert.IsAssertionFailure(ex))
+      {
+        throw Runtime.GeneratedAssert.EvaluationFailure(assertionExpression, ex, message, context, contextExpression);
+      }
+
+      if (!passed)
+      {
+        throw Runtime.GeneratedAssert.Failure(assertionExpression, message, context, contextExpression);
       }
     }
 
@@ -117,10 +80,13 @@ namespace Assertive
     /// <param name="action">An action that should throw an exception.</param>
     /// <param name="exceptionAssertion">An optional predicate to validate the thrown exception.</param>
     /// <param name="actionExpression">The action expression text (automatically captured).</param>
+    /// <param name="exceptionExpression">The predicate source text (automatically captured).</param>
     /// <returns>The exception that was thrown.</returns>
-    public static Exception Throws(Action action, Expression<Func<Exception, bool>>? exceptionAssertion = null, [CallerArgumentExpression(nameof(action))] string actionExpression = "")
+    public static Exception Throws(Action action, Func<Exception, bool>? exceptionAssertion = null,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerArgumentExpression(nameof(exceptionAssertion))] string? exceptionExpression = null)
     {
-      var result = AssertImpl.Throws(action, actionExpression, null, exceptionAssertion);
+      var result = AssertImpl.Throws(action, actionExpression, null, exceptionAssertion, exceptionExpression);
 
       if (result.Failure != null)
       {
@@ -137,10 +103,13 @@ namespace Assertive
     /// <param name="action">An action that should throw an exception.</param>
     /// <param name="exceptionAssertion">An optional predicate to validate the thrown exception.</param>
     /// <param name="actionExpression">The action expression text (automatically captured).</param>
+    /// <param name="exceptionExpression">The predicate source text (automatically captured).</param>
     /// <returns>The exception that was thrown.</returns>
-    public static TException Throws<TException>(Action action, Expression<Func<TException, bool>>? exceptionAssertion = null, [CallerArgumentExpression(nameof(action))] string actionExpression = "") where TException : Exception
+    public static TException Throws<TException>(Action action, Func<TException, bool>? exceptionAssertion = null,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerArgumentExpression(nameof(exceptionAssertion))] string? exceptionExpression = null) where TException : Exception
     {
-      var result = AssertImpl.Throws(action, actionExpression, typeof(TException), exceptionAssertion);
+      var result = AssertImpl.Throws(action, actionExpression, typeof(TException), Wrap(exceptionAssertion), exceptionExpression);
 
       if (result.Failure != null)
       {
@@ -156,10 +125,13 @@ namespace Assertive
     /// <param name="func">A function that should throw an exception.</param>
     /// <param name="exceptionAssertion">An optional predicate to validate the thrown exception.</param>
     /// <param name="funcExpression">The function expression text (automatically captured).</param>
+    /// <param name="exceptionExpression">The predicate source text (automatically captured).</param>
     /// <returns>The exception that was thrown.</returns>
-    public static Exception Throws(Func<object?> func, Expression<Func<Exception, bool>>? exceptionAssertion = null, [CallerArgumentExpression(nameof(func))] string funcExpression = "")
+    public static Exception Throws(Func<object?> func, Func<Exception, bool>? exceptionAssertion = null,
+      [CallerArgumentExpression(nameof(func))] string funcExpression = "",
+      [CallerArgumentExpression(nameof(exceptionAssertion))] string? exceptionExpression = null)
     {
-      var result = AssertImpl.Throws(() => { _ = func(); }, funcExpression, null, exceptionAssertion);
+      var result = AssertImpl.Throws(() => { _ = func(); }, funcExpression, null, exceptionAssertion, exceptionExpression);
 
       if (result.Failure != null)
       {
@@ -176,10 +148,13 @@ namespace Assertive
     /// <param name="func">A function that should throw an exception.</param>
     /// <param name="exceptionAssertion">An optional predicate to validate the thrown exception.</param>
     /// <param name="funcExpression">The function expression text (automatically captured).</param>
+    /// <param name="exceptionExpression">The predicate source text (automatically captured).</param>
     /// <returns>The exception that was thrown.</returns>
-    public static TException Throws<TException>(Func<object?> func, Expression<Func<TException, bool>>? exceptionAssertion = null, [CallerArgumentExpression(nameof(func))] string funcExpression = "") where TException : Exception
+    public static TException Throws<TException>(Func<object?> func, Func<TException, bool>? exceptionAssertion = null,
+      [CallerArgumentExpression(nameof(func))] string funcExpression = "",
+      [CallerArgumentExpression(nameof(exceptionAssertion))] string? exceptionExpression = null) where TException : Exception
     {
-      var result = AssertImpl.Throws(() => { _ = func(); }, funcExpression, typeof(TException), exceptionAssertion);
+      var result = AssertImpl.Throws(() => { _ = func(); }, funcExpression, typeof(TException), Wrap(exceptionAssertion), exceptionExpression);
 
       if (result.Failure != null)
       {
@@ -195,10 +170,13 @@ namespace Assertive
     /// <param name="action">An async action that should throw an exception.</param>
     /// <param name="exceptionAssertion">An optional predicate to validate the thrown exception.</param>
     /// <param name="actionExpression">The action expression text (automatically captured).</param>
+    /// <param name="exceptionExpression">The predicate source text (automatically captured).</param>
     /// <returns>The exception that was thrown.</returns>
-    public static async Task<Exception> Throws(Func<Task> action, Expression<Func<Exception, bool>>? exceptionAssertion = null, [CallerArgumentExpression(nameof(action))] string actionExpression = "")
+    public static async Task<Exception> Throws(Func<Task> action, Func<Exception, bool>? exceptionAssertion = null,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerArgumentExpression(nameof(exceptionAssertion))] string? exceptionExpression = null)
     {
-      var result = await AssertImpl.Throws(action, actionExpression, null, exceptionAssertion);
+      var result = await AssertImpl.Throws(action, actionExpression, null, exceptionAssertion, exceptionExpression);
 
       if (result.Failure != null)
       {
@@ -215,10 +193,13 @@ namespace Assertive
     /// <param name="action">An async action that should throw an exception.</param>
     /// <param name="exceptionAssertion">An optional predicate to validate the thrown exception.</param>
     /// <param name="actionExpression">The action expression text (automatically captured).</param>
+    /// <param name="exceptionExpression">The predicate source text (automatically captured).</param>
     /// <returns>The exception that was thrown.</returns>
-    public static async Task<TException> Throws<TException>(Func<Task> action, Expression<Func<TException, bool>>? exceptionAssertion = null, [CallerArgumentExpression(nameof(action))] string actionExpression = "") where TException : Exception
+    public static async Task<TException> Throws<TException>(Func<Task> action, Func<TException, bool>? exceptionAssertion = null,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerArgumentExpression(nameof(exceptionAssertion))] string? exceptionExpression = null) where TException : Exception
     {
-      var result = await AssertImpl.Throws(action, actionExpression, typeof(TException), exceptionAssertion);
+      var result = await AssertImpl.Throws(action, actionExpression, typeof(TException), Wrap(exceptionAssertion), exceptionExpression);
 
       if (result.Failure != null)
       {
@@ -243,6 +224,11 @@ namespace Assertive
       {
         throw exception;
       }
+    }
+
+    internal static Func<Exception, bool>? Wrap<TException>(Func<TException, bool>? exceptionAssertion) where TException : Exception
+    {
+      return exceptionAssertion == null ? null : ex => exceptionAssertion((TException)ex);
     }
   }
 }

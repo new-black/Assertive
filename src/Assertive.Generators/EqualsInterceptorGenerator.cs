@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -11,17 +10,14 @@ using Microsoft.CodeAnalysis.Text;
 namespace Assertive.Generators
 {
   /// <summary>
-  /// Phase 0.5 vertical slice (docs/source-generator-design.md §16.1).
+  /// Intercepts Assert.That / DSL.Assert / [AssertionWrapper] call sites whose lambda body
+  /// is a binary ==/!= comparison, replacing delegate evaluation with directly emitted,
+  /// typed C#: captured locals are read from the delegate's closure, each operand is
+  /// evaluated exactly once, and failures are reported through
+  /// GeneratedAssert.EqualityFailure with captured values (EqualsPattern parity).
   ///
-  /// Intercepts Assert.That(Expression&lt;Func&lt;bool&gt;&gt;) call sites whose lambda body is a
-  /// binary ==/!= comparison that would route to EqualsPattern/NotEqualsPattern, and replaces
-  /// the expression Compile + interpreted evaluation with directly emitted, typed C#.
-  /// Captured locals are extracted from the expression tree's closure constants at runtime.
-  ///
-  /// On failure — or on any surprise during extraction/evaluation — the interceptor defers to
-  /// the existing runtime pipeline (GeneratedAssert.Fallback), so failure messages and exception
-  /// analysis are byte-for-byte identical to the non-intercepted implementation. Call sites that
-  /// don't fit the whitelist are simply not intercepted and are completely unaffected.
+  /// There is no expression-tree fallback: call sites outside the whitelist run the plain
+  /// delegate and report from source text only, until their patterns are ported.
   /// </summary>
   [Generator]
   public sealed class EqualsInterceptorGenerator : IIncrementalGenerator
@@ -30,8 +26,7 @@ namespace Assertive.Generators
     {
       var calls = context.SyntaxProvider.CreateSyntaxProvider(
           // Cheap syntax pre-filter: any invocation whose first argument is a zero-parameter
-          // lambda literal. Covers Assert.That, the DSL's bare Assert, and [AssertionWrapper]
-          // methods; the transform's symbol checks reject everything else.
+          // lambda literal. The transform's symbol checks reject everything else.
           predicate: static (node, _) => node is InvocationExpressionSyntax invocation
             && invocation.ArgumentList.Arguments.Count > 0
             && invocation.ArgumentList.Arguments[0].Expression is ParenthesizedLambdaExpressionSyntax { ParameterList.Parameters.Count: 0 },
@@ -83,7 +78,7 @@ namespace Assertive.Generators
           }
           else
           {
-            EmitInterceptor(sb, call, index++);
+            EmitThatInterceptor(sb, call, index++);
           }
 
           sb.AppendLine();
@@ -96,22 +91,17 @@ namespace Assertive.Generators
       }
     }
 
-    private static void EmitInterceptor(StringBuilder sb, InterceptedCall call, int index)
+    private static void EmitThatInterceptor(StringBuilder sb, InterceptedCall call, int index)
     {
-      const string expressionType = "global::System.Linq.Expressions.Expression<global::System.Func<bool>>";
-      const string contextType = "global::System.Linq.Expressions.Expression<global::System.Func<object>>";
-
       var parameters = call.Overload switch
       {
-        ThatOverload.Plain => $"{expressionType} __assertion",
-        ThatOverload.Message => $"{expressionType} __assertion, object __message",
-        ThatOverload.Context => $"{expressionType} __assertion, {contextType} __context",
-        _ => $"{expressionType} __assertion, object __message, {contextType} __context",
+        ThatOverload.Context => "global::System.Func<bool> __assertion, global::System.Func<object> __context, string __expr, string __contextExpr",
+        _ => "global::System.Func<bool> __assertion, object __message, global::System.Func<object> __context, string __expr, string __contextExpr",
       };
 
-      var messageArg = call.Overload is ThatOverload.Message or ThatOverload.MessageContext ? "__message" : "null";
-      var contextArg = call.Overload is ThatOverload.Context or ThatOverload.MessageContext ? "__context" : "null";
-      var fallback = $"global::Assertive.Runtime.GeneratedAssert.Fallback(__assertion, {messageArg}, {contextArg});";
+      var messageArg = call.Overload is ThatOverload.MessageContext ? "__message" : "null";
+      var contextArg = "__context";
+      var contextExprArg = "__contextExpr";
 
       sb.AppendLine($"    // {call.DisplayLocation}");
       sb.AppendLine("    [global::System.Diagnostics.StackTraceHidden]");
@@ -119,38 +109,25 @@ namespace Assertive.Generators
       sb.AppendLine($"    public static void That{index}({parameters})");
       sb.AppendLine("    {");
       sb.AppendLine("      global::Assertive.Runtime.GeneratedAssert.MarkIntercepted();");
-      sb.AppendLine("      bool __Assertive_passed;");
       sb.AppendLine("      try");
       sb.AppendLine("      {");
-
-      foreach (var local in call.CapturedLocals)
-      {
-        sb.AppendLine($"        {local.Type} {local.Name} = ({local.Type})global::Assertive.Runtime.GeneratedAssert.GetCapturedValue(__assertion, {Quote(local.Name)});");
-      }
-
-      sb.AppendLine($"        __Assertive_passed = {call.LeftSource} {call.Operator} {call.RightSource};");
+      EmitEvaluation(sb, call, "__assertion", "__expr", $"{messageArg}, {contextArg}, {contextExprArg}", "        ");
       sb.AppendLine("      }");
-      sb.AppendLine("      catch");
+      sb.AppendLine("      catch (global::System.Exception __ex) when (!global::Assertive.Runtime.GeneratedAssert.IsAssertionFailure(__ex))");
       sb.AppendLine("      {");
-      sb.AppendLine("        // Extraction or evaluation failed; defer entirely to the standard pipeline,");
-      sb.AppendLine("        // which re-evaluates the expression and analyzes any exception as usual.");
-      sb.AppendLine($"        {fallback}");
-      sb.AppendLine("        return;");
+      sb.AppendLine($"        throw global::Assertive.Runtime.GeneratedAssert.EvaluationFailure(__expr, __ex, {messageArg}, {contextArg}, {contextExprArg});");
       sb.AppendLine("      }");
-      sb.AppendLine("      if (__Assertive_passed) return;");
-      sb.AppendLine($"      {fallback}");
       sb.AppendLine("    }");
     }
 
     /// <summary>
     /// Emits an interceptor for an [AssertionWrapper] call site: routes to the wrapper's
-    /// AssertionHandle overload, carrying a generated evaluator for the assertion. Instance
-    /// wrappers are intercepted with an extension method (receiver as first parameter).
+    /// AssertionHandle overload carrying a generated assertion action. Instance wrappers
+    /// are intercepted with an extension method (receiver as first parameter).
     /// </summary>
     private static void EmitWrapperInterceptor(StringBuilder sb, InterceptedCall call, int index)
     {
       var wrapper = call.Wrapper!;
-      const string expressionType = "global::System.Linq.Expressions.Expression<global::System.Func<bool>>";
 
       var parameters = new List<string>();
 
@@ -159,7 +136,7 @@ namespace Assertive.Generators
         parameters.Add($"this {wrapper.ContainingTypeFqn} __receiver");
       }
 
-      parameters.Add($"{expressionType} __assertion");
+      parameters.Add("global::System.Func<bool> __assertion");
 
       for (var i = 0; i < wrapper.ExtraParameterTypes.Count; i++)
       {
@@ -169,6 +146,7 @@ namespace Assertive.Generators
       var forwardedArgs = string.Concat(Enumerable.Range(0, wrapper.ExtraParameterTypes.Count).Select(i => $", __p{i}"));
       var target = wrapper.IsStatic ? wrapper.ContainingTypeFqn : "__receiver";
       var returnKeyword = wrapper.ReturnTypeFqn == "void" ? "" : "return ";
+      var bodyText = Quote(call.BodySource);
 
       sb.AppendLine($"    // {call.DisplayLocation}");
       sb.AppendLine("    [global::System.Diagnostics.StackTraceHidden]");
@@ -176,17 +154,59 @@ namespace Assertive.Generators
       sb.AppendLine($"    public static {wrapper.ReturnTypeFqn} Wrapper{index}({string.Join(", ", parameters)})");
       sb.AppendLine("    {");
       sb.AppendLine("      global::Assertive.Runtime.GeneratedAssert.MarkIntercepted();");
-      sb.AppendLine($"      {returnKeyword}{target}.{wrapper.MethodName}(global::Assertive.AssertionHandle.Generated(__assertion, () =>");
+      sb.AppendLine($"      {returnKeyword}{target}.{wrapper.MethodName}(global::Assertive.AssertionHandle.Generated(() =>");
       sb.AppendLine("      {");
-
-      foreach (var local in call.CapturedLocals)
-      {
-        sb.AppendLine($"        {local.Type} {local.Name} = ({local.Type})global::Assertive.Runtime.GeneratedAssert.GetCapturedValue(__assertion, {Quote(local.Name)});");
-      }
-
-      sb.AppendLine($"        return {call.LeftSource} {call.Operator} {call.RightSource};");
+      sb.AppendLine("        try");
+      sb.AppendLine("        {");
+      EmitEvaluation(sb, call, "__assertion", bodyText, "null, null, null", "          ");
+      sb.AppendLine("        }");
+      sb.AppendLine("        catch (global::System.Exception __ex) when (!global::Assertive.Runtime.GeneratedAssert.IsAssertionFailure(__ex))");
+      sb.AppendLine("        {");
+      sb.AppendLine($"          throw global::Assertive.Runtime.GeneratedAssert.EvaluationFailure({bodyText}, __ex, null, null, null);");
+      sb.AppendLine("        }");
       sb.AppendLine($"      }}){forwardedArgs});");
       sb.AppendLine("    }");
+    }
+
+    /// <summary>
+    /// Emits the shared evaluation core: captured-local declarations, single evaluation of
+    /// each operand, early return on success, and the equality-failure throw.
+    /// </summary>
+    private static void EmitEvaluation(StringBuilder sb, InterceptedCall call, string delegateName, string assertionTextArg, string tailArgs, string indent)
+    {
+      foreach (var local in call.CapturedLocals)
+      {
+        sb.AppendLine($"{indent}{local.Type} {local.Name} = ({local.Type})global::Assertive.Runtime.GeneratedAssert.GetCapturedValue({delegateName}, {Quote(local.Name)});");
+      }
+
+      sb.AppendLine($"{indent}var __left = {call.LeftSource};");
+      sb.AppendLine($"{indent}var __right = {call.RightSource};");
+
+      var condition = call.IsEqualsMethod ? "__left.Equals(__right)" : $"__left {call.Operator} __right";
+
+      sb.AppendLine($"{indent}if ({(call.OuterNegated ? $"!({condition})" : condition)}) return;");
+
+      // Locals that are themselves a whole operand are already displayed as the operand
+      // value; everything else captured shows up under LOCALS (mirrors LocalsProvider).
+      var displayedLocals = call.CapturedLocals
+        .Where(l => l.Name != call.LeftDisplay.Trim() && l.Name != call.RightDisplay.Trim())
+        .ToList();
+
+      var localsArray = displayedLocals.Count == 0
+        ? "global::System.Array.Empty<(string, object)>()"
+        : $"new (string, object)[] {{ {string.Join(", ", displayedLocals.Select(l => $"({Quote(l.Name)}, (object){l.Name})"))} }}";
+
+      // Message-level negation: `!=`, `!(a == b)`, and `!a.Equals(b)` all read as
+      // "should not equal"; double negation cancels.
+      var negated = ((call.Operator == "!=") ^ call.OuterNegated) ? "true" : "false";
+
+      sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.EqualityFailure(");
+      sb.AppendLine($"{indent}  {assertionTextArg},");
+      sb.AppendLine($"{indent}  {Quote(call.LeftDisplay)}, (object)__left,");
+      sb.AppendLine($"{indent}  {Quote(call.RightDisplay)}, (object)__right,");
+      sb.AppendLine($"{indent}  {(call.RightIsConstant ? "true" : "false")}, {negated},");
+      sb.AppendLine($"{indent}  {localsArray},");
+      sb.AppendLine($"{indent}  {tailArgs});");
     }
 
     private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
@@ -210,8 +230,6 @@ namespace Assertive.Generators
 
   internal enum ThatOverload
   {
-    Plain,
-    Message,
     Context,
     MessageContext,
   }
@@ -225,9 +243,15 @@ namespace Assertive.Generators
     public ThatOverload Overload;
     public WrapperModel? Wrapper;
     public List<(string Name, string Type)> CapturedLocals { get; } = new();
+    public string BodySource = "";
     public string LeftSource = "";
     public string RightSource = "";
+    public string LeftDisplay = "";
+    public string RightDisplay = "";
     public string Operator = "";
+    public bool IsEqualsMethod;
+    public bool OuterNegated;
+    public bool RightIsConstant;
   }
 
   /// <summary>An [AssertionWrapper] method pair (see AssertionWrapperAttribute in Assertive).</summary>

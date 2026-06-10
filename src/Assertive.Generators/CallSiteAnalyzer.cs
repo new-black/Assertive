@@ -8,16 +8,15 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Assertive.Generators
 {
   /// <summary>
-  /// Decides whether an Assert.That call site is whitelisted for the equality slice, and if
+  /// Decides whether an assertion call site is whitelisted for the equality slice, and if
   /// so produces everything emission needs. The whitelist is deliberately conservative: any
-  /// doubt means "don't intercept", which leaves the call site byte-for-byte on the existing
-  /// runtime pipeline.
+  /// doubt means "don't intercept", which leaves the call site on the degraded delegate
+  /// path (source text only, no decomposition).
   ///
-  /// Whitelisted: a () => lambda whose body is a binary ==/!= that routes to
-  /// EqualsPattern/NotEqualsPattern today (no null/default literals, no Length/Count member
-  /// comparison, not negated), where every free identifier is a captured local or parameter
-  /// of a nameable type, or a type/namespace qualifier (which gets fully qualified in the
-  /// emitted code).
+  /// Whitelisted: a () => lambda whose body is a binary ==/!= comparison (no null/default
+  /// literals, no Length/Count member comparison), where every free identifier is a captured
+  /// local or parameter of a nameable type, or a type/namespace qualifier (which gets fully
+  /// qualified in the emitted code).
   /// </summary>
   internal static class CallSiteAnalyzer
   {
@@ -30,10 +29,10 @@ namespace Assertive.Generators
         return null;
       }
 
-      // First parameter must be the assertion expression; this also excludes the DSL's
-      // snapshot overload (first parameter is `object`).
+      // First parameter must be the assertion delegate; this also excludes the DSL's
+      // snapshot overload (first parameter is `object`) and the AssertionHandle overloads.
       if (method.Parameters.Length == 0
-          || method.Parameters[0].Type is not INamedTypeSymbol { Name: "Expression", Arity: 1 })
+          || method.Parameters[0].Type is not INamedTypeSymbol { Name: "Func", Arity: 1 })
       {
         return null;
       }
@@ -64,26 +63,58 @@ namespace Assertive.Generators
         return null;
       }
 
-      // Wrapper call sites must pass remaining arguments positionally for the interceptor's
-      // straight forwarding to be faithful.
-      if (wrapper != null && invocation.ArgumentList.Arguments.Any(a => a.NameColon != null))
+      // Arguments must be positional for the interceptor's straight forwarding to be faithful.
+      if (invocation.ArgumentList.Arguments.Any(a => a.NameColon != null))
       {
         return null;
       }
 
-      var comparison = StripParens(body) as BinaryExpressionSyntax;
+      // Recognize: a == b, a != b, a.Equals(b), and outer !-negations of each.
+      var outerNegated = false;
+      var core = StripParens(body);
 
-      if (comparison == null
-          || comparison.Kind() is not (SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression))
+      while (core is PrefixUnaryExpressionSyntax negation && negation.IsKind(SyntaxKind.LogicalNotExpression))
+      {
+        outerNegated = !outerNegated;
+        core = StripParens(negation.Operand);
+      }
+
+      ExpressionSyntax leftOperand;
+      ExpressionSyntax rightOperand;
+      var isEqualsMethod = false;
+      var operatorToken = "==";
+
+      if (core is BinaryExpressionSyntax comparison
+          && comparison.Kind() is SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression)
+      {
+        leftOperand = comparison.Left;
+        rightOperand = comparison.Right;
+        operatorToken = comparison.OperatorToken.Text;
+      }
+      else if (core is InvocationExpressionSyntax
+               {
+                 Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Equals" } equalsAccess,
+                 ArgumentList.Arguments.Count: 1
+               } equalsCall
+               && ctx.SemanticModel.GetSymbolInfo(equalsCall, ct).Symbol is IMethodSymbol
+               {
+                 Name: "Equals", IsStatic: false, ReturnType.SpecialType: SpecialType.System_Boolean, Parameters.Length: 1
+               })
+      {
+        leftOperand = equalsAccess.Expression;
+        rightOperand = equalsCall.ArgumentList.Arguments[0].Expression;
+        isEqualsMethod = true;
+      }
+      else
       {
         return null;
       }
 
-      var left = StripParens(comparison.Left);
-      var right = StripParens(comparison.Right);
+      var left = StripParens(leftOperand);
+      var right = StripParens(rightOperand);
 
       // Shapes that route to other patterns today (NullPattern, LengthPattern) stay on the
-      // existing pipeline so their messages are untouched by the slice.
+      // degraded path until those patterns are ported.
       if (IsNullOrDefaultLiteral(left) || IsNullOrDefaultLiteral(right)
           || IsLengthOrCountAccess(left) || IsLengthOrCountAccess(right))
       {
@@ -121,8 +152,9 @@ namespace Assertive.Generators
         LocationData = location.Data,
         DisplayLocation = location.GetDisplayLocation(),
         FilePath = invocation.SyntaxTree.FilePath,
-        Overload = overload ?? ThatOverload.Plain,
+        Overload = overload ?? ThatOverload.MessageContext,
         Wrapper = wrapper,
+        BodySource = body.ToString(),
       };
 
       // Classify every free simple name in the body and collect type-qualifier rewrites
@@ -156,7 +188,7 @@ namespace Assertive.Generators
             continue;
 
           case ILocalSymbol local when name is IdentifierNameSyntax:
-            // Const locals have no closure field (they're baked into the tree as constants).
+            // Const locals have no closure field (they're baked in as constants).
             if (local.IsConst || !IsUsableType(local.Type, ctx.SemanticModel.Compilation))
             {
               return null;
@@ -190,9 +222,16 @@ namespace Assertive.Generators
         }
       }
 
-      call.LeftSource = SourceWithRewrites(comparison.Left, typeRewrites);
-      call.RightSource = SourceWithRewrites(comparison.Right, typeRewrites);
-      call.Operator = comparison.OperatorToken.Text;
+      call.LeftSource = SourceWithRewrites(leftOperand, typeRewrites);
+      call.RightSource = SourceWithRewrites(rightOperand, typeRewrites);
+      call.Operator = operatorToken;
+      call.IsEqualsMethod = isEqualsMethod;
+      call.OuterNegated = outerNegated;
+      call.RightIsConstant = right is LiteralExpressionSyntax;
+
+      // For display purposes: the source text as written, no rewrites.
+      call.LeftDisplay = leftOperand.ToString();
+      call.RightDisplay = rightOperand.ToString();
 
       return call;
     }
@@ -300,12 +339,12 @@ namespace Assertive.Generators
 
     private static ThatOverload? ClassifyOverload(IMethodSymbol method)
     {
+      // That(Func<bool>, object? message, Func<object?>? context, [CAE] string, [CAE] string)
+      // and That(Func<bool>, Func<object?> context, [CAE] string, [CAE] string).
       return method.Parameters.Length switch
       {
-        1 => ThatOverload.Plain,
-        2 when method.Parameters[1].Type.SpecialType == SpecialType.System_Object => ThatOverload.Message,
-        2 => ThatOverload.Context,
-        3 => ThatOverload.MessageContext,
+        4 when method.Parameters[1].Type is INamedTypeSymbol { Name: "Func" } => ThatOverload.Context,
+        5 when method.Parameters[1].Type.SpecialType == SpecialType.System_Object => ThatOverload.MessageContext,
         _ => null,
       };
     }

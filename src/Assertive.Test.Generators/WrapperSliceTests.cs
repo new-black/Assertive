@@ -1,7 +1,8 @@
 namespace Assertive.Test.Generators
 {
   using System;
-  using System.Linq.Expressions;
+  using System.Runtime.CompilerServices;
+  using System.Text.RegularExpressions;
   using Assertive.Runtime;
   using Xunit;
   using Assert = Xunit.Assert;
@@ -9,17 +10,20 @@ namespace Assertive.Test.Generators
 
   /// <summary>
   /// Tests for [AssertionWrapper] interception: wrapper call sites with whitelisted lambda
-  /// literals are routed to the AssertionHandle overload with a generated evaluator; all
-  /// other call sites run the sugar overload's degraded path with identical behavior.
+  /// literals are routed to the AssertionHandle overload with a generated assertion; all
+  /// other call sites run the sugar overload's degraded path.
   /// </summary>
   public class WrapperSliceTests
   {
+    private static string StripAnsi(string input) => Regex.Replace(input, @"\[[0-9;]*[A-Za-z]", "");
+
     // Static wrapper pair.
     [AssertionWrapper]
-    internal static Exception? CaptureFailure(Expression<Func<bool>> assertion, string label)
-      => CaptureFailure(AssertionHandle.Degraded(assertion), label);
+    internal static Exception? CaptureFailure(Func<bool> assertion, string label,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "")
+      => CaptureFailure(AssertionHandle.Degraded(assertion, assertionExpression), label, assertionExpression);
 
-    internal static Exception? CaptureFailure(AssertionHandle assertion, string label)
+    internal static Exception? CaptureFailure(AssertionHandle assertion, string label, string assertionExpression = "")
     {
       try
       {
@@ -34,10 +38,11 @@ namespace Assertive.Test.Generators
 
     // Instance wrapper pair (intercepted via an extension-method interceptor).
     [AssertionWrapper]
-    internal Exception? CaptureFailureInstance(Expression<Func<bool>> assertion)
-      => CaptureFailureInstance(AssertionHandle.Degraded(assertion));
+    internal Exception? CaptureFailureInstance(Func<bool> assertion,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "")
+      => CaptureFailureInstance(AssertionHandle.Degraded(assertion, assertionExpression), assertionExpression);
 
-    internal Exception? CaptureFailureInstance(AssertionHandle assertion)
+    internal Exception? CaptureFailureInstance(AssertionHandle assertion, string assertionExpression = "")
     {
       try
       {
@@ -51,39 +56,33 @@ namespace Assertive.Test.Generators
     }
 
     [Fact]
-    public void Static_wrapper_is_intercepted_and_matches_degraded_path()
+    public void Static_wrapper_is_intercepted_with_decomposed_values()
     {
       var x = "foobar";
       var expectedIndex = 5;
 
       var before = GeneratedAssert.InterceptedCallCount;
-      var intercepted = CaptureFailure(() => x.IndexOf('b') == expectedIndex, "label");
+      var exception = CaptureFailure(() => x.IndexOf('b') == expectedIndex, "label");
+
       Assert.True(GeneratedAssert.InterceptedCallCount > before);
+      Assert.NotNull(exception);
 
-      // Passing the expression as a variable can never be intercepted: the degraded baseline.
-      Expression<Func<bool>> baselineExpression = () => x.IndexOf('b') == expectedIndex;
-      var baseline = CaptureFailure(baselineExpression, "label");
-
-      Assert.NotNull(intercepted);
-      Assert.NotNull(baseline);
-      Assert.Equal(baseline!.GetType(), intercepted!.GetType());
-      Assert.Equal(baseline.Message, intercepted.Message);
+      var expected = StripAnsi(string.Join("\n", (string[])exception!.Data["Assertive.Expected"]!));
+      Assert.Equal("x.IndexOf('b'): 5", expected);
     }
 
     [Fact]
-    public void Instance_wrapper_is_intercepted_and_matches_degraded_path()
+    public void Instance_wrapper_is_intercepted_with_decomposed_values()
     {
       var value = 41;
 
       var before = GeneratedAssert.InterceptedCallCount;
-      var intercepted = CaptureFailureInstance(() => value == 42);
+      var exception = CaptureFailureInstance(() => value == 42);
+
       Assert.True(GeneratedAssert.InterceptedCallCount > before);
 
-      Expression<Func<bool>> baselineExpression = () => value == 42;
-      var baseline = CaptureFailureInstance(baselineExpression);
-
-      Assert.NotNull(intercepted);
-      Assert.Equal(baseline!.Message, intercepted!.Message);
+      var expected = StripAnsi(string.Join("\n", (string[])exception!.Data["Assertive.Expected"]!));
+      Assert.Equal("value: 42", expected);
     }
 
     [Fact]
@@ -99,32 +98,31 @@ namespace Assertive.Test.Generators
     }
 
     [Fact]
+    public void Degraded_wrapper_path_reports_source_text()
+    {
+      var x = "foobar";
+      Func<bool> storedCondition = () => x.Length == 5;
+
+      var before = GeneratedAssert.InterceptedCallCount;
+      var exception = CaptureFailure(storedCondition, "label");
+
+      Assert.Equal(before, GeneratedAssert.InterceptedCallCount);
+      Assert.NotNull(exception);
+      Assert.Contains("storedCondition", StripAnsi(exception!.Message));
+      Assert.Empty((string[])exception.Data["Assertive.Expected"]!);
+    }
+
+    [Fact]
     public void Wrapper_with_non_whitelisted_body_is_not_intercepted_but_still_works()
     {
       string? x = "not null";
 
       var before = GeneratedAssert.InterceptedCallCount;
-      var result = CaptureFailure(() => x == null, "label");
+      var exception = CaptureFailure(() => x == null, "label");
 
       Assert.Equal(before, GeneratedAssert.InterceptedCallCount);
-      Assert.NotNull(result);
-    }
-
-    [Fact]
-    public void Exception_during_wrapper_evaluation_matches_degraded_path()
-    {
-      var user = new User();
-
-      var before = GeneratedAssert.InterceptedCallCount;
-      var intercepted = CaptureFailure(() => user.Name.ToUpper() == "FOO", "label");
-      Assert.True(GeneratedAssert.InterceptedCallCount > before);
-
-      Expression<Func<bool>> baselineExpression = () => user.Name.ToUpper() == "FOO";
-      var baseline = CaptureFailure(baselineExpression, "label");
-
-      Assert.NotNull(intercepted);
-      Assert.Equal(baseline!.GetType(), intercepted!.GetType());
-      Assert.Equal(baseline.Message, intercepted.Message);
+      Assert.NotNull(exception);
+      Assert.Contains("x == null", StripAnsi(exception!.Message));
     }
   }
 }

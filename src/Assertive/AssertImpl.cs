@@ -50,7 +50,7 @@ namespace Assertive
     }
 
     public static async Task<ThrowsResult> Throws(Func<Task> action, string actionExpression,
-      Type? expectedExceptionType = null, LambdaExpression? exceptionAssertion = null)
+      Type? expectedExceptionType = null, Func<Exception, bool>? exceptionAssertion = null, string? exceptionExpression = null)
     {
       var threw = false;
       var expressionBody = GetLambdaBody(actionExpression);
@@ -78,13 +78,13 @@ namespace Assertive
         return new ThrowsResult(ExceptionHelper.GetException($"Expected {expressionBody} to throw an exception, but it did not."), null);
       }
 
-      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, thrownException!);
+      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, exceptionExpression, thrownException!);
 
       return new ThrowsResult(assertionFailure, thrownException);
     }
 
     public static ThrowsResult Throws(Action action, string actionExpression,
-      Type? expectedExceptionType = null, LambdaExpression? exceptionAssertion = null)
+      Type? expectedExceptionType = null, Func<Exception, bool>? exceptionAssertion = null, string? exceptionExpression = null)
     {
       var threw = false;
       var expressionBody = GetLambdaBody(actionExpression);
@@ -111,7 +111,7 @@ namespace Assertive
         return new ThrowsResult(ExceptionHelper.GetException($"Expected {expressionBody} to throw an exception, but it did not."), null);
       }
 
-      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, thrownException!);
+      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, exceptionExpression, thrownException!);
 
       return new ThrowsResult(assertionFailure, thrownException);
     }
@@ -128,31 +128,40 @@ namespace Assertive
       return expression;
     }
 
-    private static Exception? EvaluateExceptionAssertion(LambdaExpression? exceptionAssertion, Exception exception)
+    private static Exception? EvaluateExceptionAssertion(Func<Exception, bool>? exceptionAssertion, string? exceptionExpression, Exception exception)
     {
       if (exceptionAssertion == null)
       {
         return null;
       }
 
-      if (exceptionAssertion.Parameters.Count != 1)
+      var assertionText = exceptionExpression ?? "the exception assertion";
+
+      bool matched;
+
+      try
       {
-        throw new ArgumentException("Exception assertion must take exactly one parameter.");
+        matched = exceptionAssertion(exception);
+      }
+      catch (Exception evaluationException)
+      {
+        return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails
+        {
+          AssertionText = assertionText,
+          Exception = evaluationException,
+        });
       }
 
-      var parameterType = exceptionAssertion.Parameters[0].Type;
-      if (!parameterType.IsInstanceOfType(exception))
+      if (matched)
       {
-        throw new ArgumentException($"Exception assertion parameter type {parameterType.FullName} is not assignable from thrown exception type {exception.GetType().FullName}.");
+        return null;
       }
 
-      var replacedBody = new ParameterReplacer(exceptionAssertion.Parameters[0],
-        new NamedConstantExpression(exceptionAssertion.Parameters[0].Name ?? "exception", exception))
-        .Visit(exceptionAssertion.Body)!;
-
-      var wrapper = Expression.Lambda<Func<bool>>(replacedBody);
-
-      return That(wrapper, null, null);
+      return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails
+      {
+        AssertionText = assertionText,
+        Exception = exception,
+      });
     }
 
     private sealed class ParameterReplacer : ExpressionVisitor

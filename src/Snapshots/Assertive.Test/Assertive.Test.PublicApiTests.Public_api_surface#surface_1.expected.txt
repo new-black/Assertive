@@ -1,20 +1,18 @@
 static class Assert
   static void Snapshot(object snapshot, AssertSnapshotOptions options, string expression, string sourceFile)
-  static void That(Expression<Func<bool>> assertion)
-  static void That(Expression<Func<bool>> assertion, object message)
-  static void That(Expression<Func<bool>> assertion, Expression<Func<object>> context)
-  static void That(Expression<Func<bool>> assertion, object message, Expression<Func<object>> context)
+  static void That(Func<bool> assertion, object message, Func<object> context, string assertionExpression, string contextExpression)
+  static void That(Func<bool> assertion, Func<object> context, string assertionExpression, string contextExpression)
   static void That(AssertionHandle assertion)
-  static Exception Throws(Action action, Expression<Func<Exception, bool>> exceptionAssertion, string actionExpression)
-  static TException Throws<TException>(Action action, Expression<Func<TException, bool>> exceptionAssertion, string actionExpression)
-  static Exception Throws(Func<object> func, Expression<Func<Exception, bool>> exceptionAssertion, string funcExpression)
-  static TException Throws<TException>(Func<object> func, Expression<Func<TException, bool>> exceptionAssertion, string funcExpression)
-  static Task<Exception> Throws(Func<Task> action, Expression<Func<Exception, bool>> exceptionAssertion, string actionExpression)
-  static Task<TException> Throws<TException>(Func<Task> action, Expression<Func<TException, bool>> exceptionAssertion, string actionExpression)
+  static Exception Throws(Action action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
+  static TException Throws<TException>(Action action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
+  static Exception Throws(Func<object> func, Func<Exception, bool> exceptionAssertion, string funcExpression, string exceptionExpression)
+  static TException Throws<TException>(Func<object> func, Func<TException, bool> exceptionAssertion, string funcExpression, string exceptionExpression)
+  static Task<Exception> Throws(Func<Task> action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
+  static Task<TException> Throws<TException>(Func<Task> action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
 
 struct AssertionHandle
-  static AssertionHandle Degraded(Expression<Func<bool>> assertion)
-  static AssertionHandle Generated(Expression<Func<bool>> assertion, Func<bool> evaluator)
+  static AssertionHandle Degraded(Func<bool> assertion, string sourceText)
+  static AssertionHandle Generated(Action assertion)
 
 sealed class AssertionWrapperAttribute
   .ctor()
@@ -123,17 +121,16 @@ static class ExpressionQuotationPatterns
   static const string SquareBrackets
 
 static class DSL
-  static void Assert(Expression<Func<bool>> assertion)
-  static void Assert(Expression<Func<bool>> assertion, object message)
-  static void Assert(Expression<Func<bool>> assertion, Expression<Func<object>> context)
-  static void Assert(Expression<Func<bool>> assertion, object message, Expression<Func<object>> context)
+  static void Assert(Func<bool> assertion, object message, Func<object> context, string assertionExpression, string contextExpression)
+  static void Assert(Func<bool> assertion, Func<object> context, string assertionExpression, string contextExpression)
+  static void Assert(AssertionHandle assertion)
   static void Assert(object snapshot, AssertSnapshotOptions options, string expression, string sourceFile)
-  static Exception Throws(Action action, Expression<Func<Exception, bool>> exceptionAssertion, string actionExpression)
-  static TException Throws<TException>(Action action, Expression<Func<TException, bool>> exceptionAssertion, string actionExpression)
-  static Exception Throws(Func<object> func, Expression<Func<Exception, bool>> exceptionAssertion, string funcExpression)
-  static TException Throws<TException>(Func<object> func, Expression<Func<TException, bool>> exceptionAssertion, string funcExpression)
-  static Task<TException> Throws<TException>(Func<Task> action, Expression<Func<TException, bool>> exceptionAssertion, string actionExpression)
-  static Task<Exception> Throws(Func<Task> action, Expression<Func<Exception, bool>> exceptionAssertion, string actionExpression)
+  static Exception Throws(Action action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
+  static TException Throws<TException>(Action action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
+  static Exception Throws(Func<object> func, Func<Exception, bool> exceptionAssertion, string funcExpression, string exceptionExpression)
+  static TException Throws<TException>(Func<object> func, Func<TException, bool> exceptionAssertion, string funcExpression, string exceptionExpression)
+  static Task<Exception> Throws(Func<Task> action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
+  static Task<TException> Throws<TException>(Func<Task> action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
 
 class UnquotedExpression
   .ctor(Expression expression)
@@ -171,6 +168,9 @@ class PropertyMatch
 
 static class GeneratedAssert
   static long InterceptedCallCount { get; }
-  static void Fallback(Expression<Func<bool>> assertion, object message, Expression<Func<object>> context)
-  static object GetCapturedValue(LambdaExpression assertion, string name)
+  static Exception EqualityFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool rightIsConstant, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
+  static Exception EvaluationFailure(string assertionExpression, Exception exception, object message, Func<object> context, string contextExpression)
+  static Exception Failure(string assertionExpression, object message, Func<object> context, string contextExpression)
+  static object GetCapturedValue(Delegate assertion, string name)
+  static bool IsAssertionFailure(Exception exception)
   static void MarkIntercepted()

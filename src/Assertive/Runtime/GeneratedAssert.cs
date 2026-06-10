@@ -1,6 +1,6 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -25,64 +25,110 @@ namespace Assertive.Runtime
     public static void MarkIntercepted() => Interlocked.Increment(ref _interceptedCallCount);
 
     /// <summary>
-    /// Runs the standard (non-generated) assertion pipeline. Generated interceptors call this
-    /// on failure — and on any surprise during captured-value extraction or evaluation — so
-    /// that failure messages and exception analysis are identical to the non-intercepted
-    /// implementation. Note this re-evaluates the assertion, matching the existing pipeline's
-    /// behavior of evaluating during analysis.
+    /// Whether the exception is an Assertive assertion failure (as opposed to an exception
+    /// thrown while evaluating the assertion). Used by generated exception filters.
     /// </summary>
-    public static void Fallback(Expression<Func<bool>> assertion, object? message, Expression<Func<object>>? context)
-    {
-      var exception = AssertImpl.That(assertion, message, context);
-
-      if (exception != null)
-      {
-        throw exception;
-      }
-    }
+    public static bool IsAssertionFailure(Exception exception) => exception.Data.Contains("Assertive.Expected");
 
     /// <summary>
-    /// Extracts the value of a captured local variable or parameter from the assertion's
-    /// expression tree. The compiler represents captured variables as fields named after the
-    /// variable on a compiler-generated closure class, referenced via a ConstantExpression.
-    /// Scanning this tree is inherently scope-correct: it only ever sees the closure instances
-    /// this specific lambda references.
+    /// Extracts the value of a captured local variable or parameter from the assertion
+    /// delegate's closure. The compiler stores captured variables as public fields named
+    /// after the variable on compiler-generated display classes; captures from multiple
+    /// scopes form a chain of display classes, which is searched breadth-first.
     /// </summary>
-    public static object? GetCapturedValue(LambdaExpression assertion, string name)
+    public static object? GetCapturedValue(Delegate assertion, string name)
     {
-      var finder = new CapturedValueFinder(name);
+      var target = assertion.Target
+        ?? throw new InvalidOperationException($"Assertive: the assertion delegate has no closure to read '{name}' from.");
 
-      finder.Visit(assertion.Body);
-
-      if (!finder.Found)
+      if (TryGetCapturedValue(target, name, depth: 0, out var value))
       {
-        throw new InvalidOperationException($"Assertive: could not locate captured variable '{name}' in the assertion's expression tree.");
+        return value;
       }
 
-      return finder.Value;
+      throw new InvalidOperationException($"Assertive: could not locate captured variable '{name}' in the assertion's closure.");
     }
 
-    private sealed class CapturedValueFinder(string name) : ExpressionVisitor
+    private static bool TryGetCapturedValue(object closure, string name, int depth, out object? value)
     {
-      public bool Found { get; private set; }
-      public object? Value { get; private set; }
+      var type = closure.GetType();
+      var field = type.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 
-      protected override Expression VisitMember(MemberExpression node)
+      if (field != null)
       {
-        if (!Found
-            && node.Member is FieldInfo field
-            && field.Name == name
-            && node.Expression is ConstantExpression { Value: not null } closure
-            && closure.Type.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false))
-        {
-          Found = true;
-          Value = field.GetValue(closure.Value);
-
-          return node;
-        }
-
-        return base.VisitMember(node);
+        value = field.GetValue(closure);
+        return true;
       }
+
+      if (depth < 4)
+      {
+        // Captures from enclosing scopes live on chained display-class instances.
+        foreach (var chained in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+        {
+          if (chained.FieldType.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
+              && chained.GetValue(closure) is { } next
+              && TryGetCapturedValue(next, name, depth + 1, out value))
+          {
+            return true;
+          }
+        }
+      }
+
+      value = null;
+      return false;
+    }
+
+    /// <summary>Throws-side entry: a failed (non-exceptional) assertion with no pattern decomposition.</summary>
+    public static Exception Failure(string assertionExpression, object? message, Func<object?>? context, string? contextExpression)
+    {
+      return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails
+      {
+        AssertionText = AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        UserMessage = message,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>An exception thrown while evaluating the assertion.</summary>
+    public static Exception EvaluationFailure(string assertionExpression, Exception exception, object? message, Func<object?>? context, string? contextExpression)
+    {
+      return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails
+      {
+        AssertionText = AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        Exception = exception,
+        UserMessage = message,
+        Context = context,
+        ContextExpression = contextExpression,
+      });
+    }
+
+    /// <summary>A failed ==/!= assertion, decomposed by the generator (EqualsPattern parity).</summary>
+    public static Exception EqualityFailure(
+      string assertionExpression,
+      string leftSource,
+      object? leftValue,
+      string rightSource,
+      object? rightValue,
+      bool rightIsConstant,
+      bool negated,
+      (string Name, object? Value)[] locals,
+      object? message,
+      Func<object?>? context,
+      string? contextExpression)
+    {
+      return AssertionFailureBuilder.BuildEquality(
+        AssertionFailureBuilder.StripLambdaPrefix(assertionExpression) ?? assertionExpression,
+        leftSource,
+        leftValue,
+        rightSource,
+        rightValue,
+        rightIsConstant,
+        negated,
+        locals,
+        message,
+        context,
+        contextExpression);
     }
   }
 }
