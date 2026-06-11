@@ -477,6 +477,25 @@ namespace Assertive.Generators
         return new SplitPart { Kind = kind, Left = left, Right = right };
       }
 
+      // Expand and-patterns (e.g., n is >= 0 and <= 100) into an AndAlso sub-tree.
+      // No patternBindings guard: and-arms are simple sub-patterns with no pre-declared vars,
+      // so they work correctly in both &&-only and mixed-operator chains.
+      if (expression is IsPatternExpressionSyntax { Expression: var andSubject, Pattern: BinaryPatternSyntax { } andBinPat }
+          && andBinPat.IsKind(SyntaxKind.AndPattern))
+      {
+        return BuildAndPatternTree(ctx, andSubject, andBinPat, call, compiler, ct, patternBindings);
+      }
+
+      // Expand typed property patterns (obj is User { Name: "Bob" }) into type-check + property sub-leaves.
+      // Guarded to &&-only chains (patternBindings != null): property leaves reference a pre-declared cast
+      // variable that BuildFlagsChain would not emit.
+      if (patternBindings != null
+          && expression is IsPatternExpressionSyntax { Expression: var ppSubject, Pattern: RecursivePatternSyntax { PropertyPatternClause: not null } ppPat }
+          && ppPat.Type != null)
+      {
+        return BuildPropertyPatternSubTree(ctx, ppSubject, ppPat, call, compiler, ct, patternBindings);
+      }
+
       // Leaf: locals registered while compiling this leaf belong to its report.
       var localsBefore = call.CapturedLocals.Count;
 
@@ -510,6 +529,31 @@ namespace Assertive.Generators
         patternVarDecls.Add((typeFqn, preDeclName, tmpName));
       }
 
+      // Detect out-var declarations in method call arguments (e.g., dict.TryGetValue(k, out var v)).
+      // Uses the same pre-declaration + designation-rename mechanism as is-pattern vars.
+      // Only in &&-only chains (patternBindings != null) so BuildAndChain emits the pre-declarations.
+      if (patternBindings != null && expression is InvocationExpressionSyntax outVarCall)
+      {
+        foreach (var arg in outVarCall.ArgumentList.Arguments)
+        {
+          if (arg.RefOrOutKeyword.IsKind(SyntaxKind.OutKeyword)
+              && arg.Expression is DeclarationExpressionSyntax { Designation: SingleVariableDesignationSyntax outDesig }
+              && ctx.SemanticModel.GetDeclaredSymbol(outDesig, ct) is ILocalSymbol outLocal
+              && IsUsableType(outLocal.Type, ctx.SemanticModel.Compilation))
+          {
+            var typeFqn = outLocal.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var origName = outDesig.Identifier.ValueText;
+            var pvIdx = patternBindings.Count;
+            var preDeclName = $"__pv{pvIdx}_{origName}";
+            var tmpName = $"__pvtmp{pvIdx}_{origName}";
+
+            (designationRenames ??= new Dictionary<string, string>())[origName] = tmpName;
+            patternBindings[origName] = new LambdaBinding($"(({typeFqn}){preDeclName}!)", preDeclName);
+            patternVarDecls.Add((typeFqn, preDeclName, tmpName));
+          }
+        }
+      }
+
       var condition = compiler.Compile(expression, patternBindings, designationRenames);
 
       if (condition == null)
@@ -528,7 +572,7 @@ namespace Assertive.Generators
 
       // Kinds that don't recompute negation (Contains, Bool, ...) read the pre-set value.
       var subCall = new InterceptedCall { Negated = leafNegated };
-      var classified = ClassifyForm(ctx, leafCore, leafNegated, subCall, compiler, ct, bindings: patternBindings);
+      var classified = ClassifyForm(ctx, leafCore, leafNegated, subCall, compiler, ct, bindings: patternBindings, leafContext: true);
 
       var part = new SplitPart
       {
@@ -543,6 +587,309 @@ namespace Assertive.Generators
       part.PatternVars.AddRange(patternVarDecls);
 
       return part;
+    }
+
+    private static (string Label, string Op) GetRelationalParts(SyntaxKind kind) => kind switch
+    {
+      SyntaxKind.LessThanToken => ("less than", "<"),
+      SyntaxKind.LessThanEqualsToken => ("less than or equal to", "<="),
+      SyntaxKind.GreaterThanToken => ("greater than", ">"),
+      _ => ("greater than or equal to", ">="),
+    };
+
+    /// <summary>
+    /// Expands a BinaryPatternSyntax(and) into a left-to-right AndAlso sub-tree.
+    /// Each arm is expanded by ExpandAndArm, which recurses for nested and-patterns.
+    /// </summary>
+    private static SplitPart? BuildAndPatternTree(
+      GeneratorSyntaxContext ctx,
+      ExpressionSyntax subject,
+      BinaryPatternSyntax andPat,
+      InterceptedCall call,
+      OperandCompiler compiler,
+      CancellationToken ct,
+      IReadOnlyDictionary<string, LambdaBinding>? bindings)
+    {
+      var left = ExpandAndArm(ctx, subject, andPat.Left, call, compiler, ct, bindings);
+      if (left == null) return null;
+      var right = ExpandAndArm(ctx, subject, andPat.Right, call, compiler, ct, bindings);
+      if (right == null) return null;
+      return new SplitPart { Kind = "AndAlso", Left = left, Right = right };
+    }
+
+    private static SplitPart? ExpandAndArm(
+      GeneratorSyntaxContext ctx,
+      ExpressionSyntax subject,
+      PatternSyntax arm,
+      InterceptedCall call,
+      OperandCompiler compiler,
+      CancellationToken ct,
+      IReadOnlyDictionary<string, LambdaBinding>? bindings)
+    {
+      if (arm is BinaryPatternSyntax nested && nested.IsKind(SyntaxKind.AndPattern))
+        return BuildAndPatternTree(ctx, subject, nested, call, compiler, ct, bindings);
+      return BuildIsPatternArmLeaf(ctx, subject, arm, call, compiler, ct, bindings);
+    }
+
+    /// <summary>
+    /// Builds a SplitPart leaf from one arm of an and-pattern or a standalone is-sub-pattern.
+    /// Handles relational (is >= 0), constant (is 42), and null (is null / is not null) arms.
+    /// </summary>
+    private static SplitPart? BuildIsPatternArmLeaf(
+      GeneratorSyntaxContext ctx,
+      ExpressionSyntax subject,
+      PatternSyntax pattern,
+      InterceptedCall call,
+      OperandCompiler compiler,
+      CancellationToken ct,
+      IReadOnlyDictionary<string, LambdaBinding>? bindings)
+    {
+      var localsBefore = call.CapturedLocals.Count;
+
+      var negated = false;
+      while (pattern is UnaryPatternSyntax { RawKind: (int)SyntaxKind.NotPattern } notPat)
+      {
+        negated = !negated;
+        pattern = notPat.Pattern;
+      }
+
+      var compiledSubject = compiler.Compile(subject, bindings);
+      if (compiledSubject == null) return null;
+
+      var subjectDisplay = subject.ToString();
+      SplitPart? part = null;
+
+      switch (pattern)
+      {
+        case RelationalPatternSyntax relational when !negated:
+        {
+          var (compLabel, opStr) = GetRelationalParts(relational.OperatorToken.Kind());
+          var compiledRhs = compiler.Compile(relational.Expression, bindings);
+          if (compiledRhs == null) return null;
+          part = new SplitPart
+          {
+            LeafSource = $"{subjectDisplay} is {opStr} {relational.Expression}",
+            ConditionSource = $"{compiledSubject} {opStr} {compiledRhs}",
+            SubCall = new InterceptedCall
+            {
+              Kind = InterceptionKind.Comparison,
+              ComparisonLabel = compLabel,
+              LeftSource = compiledSubject,
+              LeftDisplay = subjectDisplay,
+              RightSource = compiledRhs,
+              RightDisplay = relational.Expression.ToString(),
+              RightIsConstant = relational.Expression is LiteralExpressionSyntax,
+            }
+          };
+          break;
+        }
+
+        case ConstantPatternSyntax nullConst when IsNullOrDefaultLiteral(nullConst.Expression):
+        {
+          var leftType = ctx.SemanticModel.GetTypeInfo(subject, ct).Type;
+          if (leftType is not { IsReferenceType: true } && !IsNullableValueType(leftType)) return null;
+          part = new SplitPart
+          {
+            LeafSource = $"{subjectDisplay} is {(negated ? "not " : "")}null",
+            ConditionSource = $"{compiledSubject} {(negated ? "!=" : "==")} null",
+            SubCall = new InterceptedCall
+            {
+              Kind = InterceptionKind.Null,
+              Negated = !negated,
+              LeftSource = compiledSubject,
+              LeftDisplay = subjectDisplay,
+            }
+          };
+          break;
+        }
+
+        case ConstantPatternSyntax otherConst when !IsNullOrDefaultLiteral(StripParens(subject)):
+        {
+          var compiledConst = compiler.Compile(otherConst.Expression, bindings);
+          if (compiledConst == null) return null;
+          var condExpr = negated
+            ? $"!({compiledSubject} == {compiledConst})"
+            : $"{compiledSubject} == {compiledConst}";
+          part = new SplitPart
+          {
+            LeafSource = $"{subjectDisplay} is {(negated ? "not " : "")}{otherConst.Expression}",
+            ConditionSource = condExpr,
+            SubCall = new InterceptedCall
+            {
+              Kind = InterceptionKind.Equality,
+              Negated = negated,
+              LeftSource = compiledSubject,
+              LeftDisplay = subjectDisplay,
+              RightSource = compiledConst,
+              RightDisplay = otherConst.Expression.ToString(),
+              RightIsConstant = otherConst.Expression is LiteralExpressionSyntax,
+            }
+          };
+          break;
+        }
+      }
+
+      if (part != null)
+        part.Locals.AddRange(call.CapturedLocals.Skip(localsBefore));
+
+      return part;
+    }
+
+    /// <summary>
+    /// Builds a SplitPart sub-tree for a typed property pattern (obj is User { Name: "Bob" }).
+    /// Emits: one type-check leaf (with a pre-declared cast variable) + one leaf per property sub-pattern.
+    /// </summary>
+    private static SplitPart? BuildPropertyPatternSubTree(
+      GeneratorSyntaxContext ctx,
+      ExpressionSyntax subject,
+      RecursivePatternSyntax recursive,
+      InterceptedCall call,
+      OperandCompiler compiler,
+      CancellationToken ct,
+      Dictionary<string, LambdaBinding>? patternBindings)
+    {
+      var checkedType = ctx.SemanticModel.GetTypeInfo(recursive.Type!, ct).Type;
+      if (checkedType == null || !IsUsableType(checkedType, ctx.SemanticModel.Compilation)) return null;
+
+      var typeAccessor = compiler.TypeAccessor(checkedType);
+      if (typeAccessor == null) return null;
+
+      var typeFqn = checkedType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+      var localsBefore = call.CapturedLocals.Count;
+      var compiledSubject = compiler.Compile(subject, patternBindings);
+      if (compiledSubject == null) return null;
+
+      // Pre-declare a cast variable via the PatternVars mechanism so it lives outside the try
+      // block and property leaves can reference it. The synthetic key is unpronounceably
+      // prefixed so it can't collide with any user-declared variable name.
+      patternBindings ??= new Dictionary<string, LambdaBinding>();
+      var pvIndex = patternBindings.Count;
+      var castPreDecl = $"__pv{pvIndex}_cast";
+      var castTmp = $"__pvtmp{pvIndex}_cast";
+      patternBindings[castPreDecl] = new LambdaBinding($"(({typeFqn}){castPreDecl}!)", castPreDecl);
+
+      var typeCheckLeaf = new SplitPart
+      {
+        LeafSource = $"{subject} is {checkedType.Name}",
+        ConditionSource = $"{compiledSubject} is {typeFqn} {castTmp}",
+        SubCall = new InterceptedCall
+        {
+          Kind = InterceptionKind.Is,
+          TypeAccessor = typeAccessor,
+          LeftSource = compiledSubject,
+          LeftDisplay = subject.ToString(),
+        }
+      };
+      typeCheckLeaf.Locals.AddRange(call.CapturedLocals.Skip(localsBefore));
+      typeCheckLeaf.PatternVars.Add((typeFqn, castPreDecl, castTmp));
+
+      SplitPart result = typeCheckLeaf;
+
+      if (recursive.PropertyPatternClause == null) return result;
+
+      var receiver = $"(({typeFqn}){castPreDecl}!)";
+      var subjectDisplay = subject.ToString();
+
+      foreach (var subpat in recursive.PropertyPatternClause.Subpatterns)
+      {
+        if (subpat.NameColon == null) return null; // positional patterns not yet supported
+
+        var propName = subpat.NameColon.Name.Identifier.ValueText;
+        var propLocalsBefore = call.CapturedLocals.Count;
+        var propLeaf = BuildPropertyLeaf(
+          $"{receiver}.{propName}", $"{subjectDisplay}.{propName}",
+          subpat.Pattern, compiler, patternBindings);
+        if (propLeaf == null) return null;
+
+        propLeaf.Locals.AddRange(call.CapturedLocals.Skip(propLocalsBefore));
+        result = new SplitPart { Kind = "AndAlso", Left = result, Right = propLeaf };
+      }
+
+      return result;
+    }
+
+    /// <summary>
+    /// Builds a SplitPart leaf for one property sub-pattern clause.
+    /// leftSource is the pre-computed receiver (e.g. "((User)__pv0_cast!).Name");
+    /// leftDisplay is the user-facing form (e.g. "obj.Name").
+    /// </summary>
+    private static SplitPart? BuildPropertyLeaf(
+      string leftSource,
+      string leftDisplay,
+      PatternSyntax pattern,
+      OperandCompiler compiler,
+      IReadOnlyDictionary<string, LambdaBinding>? bindings)
+    {
+      var negated = false;
+      while (pattern is UnaryPatternSyntax { RawKind: (int)SyntaxKind.NotPattern } notPat)
+      {
+        negated = !negated;
+        pattern = notPat.Pattern;
+      }
+
+      switch (pattern)
+      {
+        case ConstantPatternSyntax nullConst when IsNullOrDefaultLiteral(nullConst.Expression):
+          return new SplitPart
+          {
+            LeafSource = $"{leftDisplay} is {(negated ? "not " : "")}null",
+            ConditionSource = $"{leftSource} {(negated ? "!=" : "==")} null",
+            SubCall = new InterceptedCall
+            {
+              Kind = InterceptionKind.Null,
+              Negated = !negated,
+              LeftSource = leftSource,
+              LeftDisplay = leftDisplay,
+            }
+          };
+
+        case ConstantPatternSyntax otherConst:
+        {
+          var compiledConst = compiler.Compile(otherConst.Expression, bindings);
+          if (compiledConst == null) return null;
+          var condExpr = negated ? $"!({leftSource} == {compiledConst})" : $"{leftSource} == {compiledConst}";
+          return new SplitPart
+          {
+            LeafSource = $"{leftDisplay} is {(negated ? "not " : "")}{otherConst.Expression}",
+            ConditionSource = condExpr,
+            SubCall = new InterceptedCall
+            {
+              Kind = InterceptionKind.Equality,
+              Negated = negated,
+              LeftSource = leftSource,
+              LeftDisplay = leftDisplay,
+              RightSource = compiledConst,
+              RightDisplay = otherConst.Expression.ToString(),
+              RightIsConstant = otherConst.Expression is LiteralExpressionSyntax,
+            }
+          };
+        }
+
+        case RelationalPatternSyntax relational when !negated:
+        {
+          var (compLabel, opStr) = GetRelationalParts(relational.OperatorToken.Kind());
+          var compiledRhs = compiler.Compile(relational.Expression, bindings);
+          if (compiledRhs == null) return null;
+          return new SplitPart
+          {
+            LeafSource = $"{leftDisplay} is {opStr} {relational.Expression}",
+            ConditionSource = $"{leftSource} {opStr} {compiledRhs}",
+            SubCall = new InterceptedCall
+            {
+              Kind = InterceptionKind.Comparison,
+              ComparisonLabel = compLabel,
+              LeftSource = leftSource,
+              LeftDisplay = leftDisplay,
+              RightSource = compiledRhs,
+              RightDisplay = relational.Expression.ToString(),
+              RightIsConstant = relational.Expression is LiteralExpressionSyntax,
+            }
+          };
+        }
+
+        default:
+          return null;
+      }
     }
 
     private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
@@ -587,7 +934,8 @@ namespace Assertive.Generators
     private static bool ClassifyForm(GeneratorSyntaxContext ctx, ExpressionSyntax core, bool outerNegated,
       InterceptedCall call, OperandCompiler compiler, CancellationToken ct,
       IReadOnlyDictionary<string, LambdaBinding>? bindings = null,
-      System.Func<ExpressionSyntax, string>? display = null)
+      System.Func<ExpressionSyntax, string>? display = null,
+      bool leafContext = false)
     {
       switch (core)
       {
@@ -735,28 +1083,95 @@ namespace Assertive.Generators
           return call.TypeAccessor != null && SetLeft(call, compiler, binary.Left, bindings, display);
         }
 
-        // C# 7+ pattern matching: `obj is Type`, `obj is Type u`, `obj is { Prop: val }`, etc.
-        // Declaration and type patterns route to the Is kind; others fall through to Opaque.
+        // C# 7+ pattern matching: `obj is Type`, `obj is Type u`, `obj is null`, `n is > 18`,
+        // `obj is User { Name: "Bob" }`, `n is >= 0 and <= 100`, `obj is not null`, etc.
         case IsPatternExpressionSyntax isPattern:
         {
-          ITypeSymbol? checkedType = isPattern.Pattern switch
+          // Peel outer not-patterns to normalize; patternNegated tracks the parity.
+          var patternNegated = false;
+          PatternSyntax innerPat = isPattern.Pattern;
+          while (innerPat is UnaryPatternSyntax { RawKind: (int)SyntaxKind.NotPattern } notWrapper)
+          {
+            patternNegated = !patternNegated;
+            innerPat = notWrapper.Pattern;
+          }
+
+          // and-pattern (n is >= 0 and <= 100): expand into a conjunction of leaves.
+          // Only at the top level; negated, leaf-context, and nested-bindings all block it.
+          if (!patternNegated && !leafContext && !outerNegated && bindings == null
+              && innerPat is BinaryPatternSyntax andBin && andBin.IsKind(SyntaxKind.AndPattern))
+          {
+            call.Kind = InterceptionKind.Split;
+            var innerBindings = new Dictionary<string, LambdaBinding>();
+            call.SplitRoot = BuildSplitPart(ctx, isPattern, call, compiler, ct, innerBindings);
+            return call.SplitRoot != null;
+          }
+
+          // Property pattern (obj is User { Name: "Bob" }): expand into type-check + sub-leaves.
+          // Same top-level-only guards as and-pattern above.
+          if (!patternNegated && !leafContext && !outerNegated && bindings == null
+              && innerPat is RecursivePatternSyntax { PropertyPatternClause: not null } topRecPat
+              && topRecPat.Type != null)
+          {
+            call.Kind = InterceptionKind.Split;
+            var innerBindings = new Dictionary<string, LambdaBinding>();
+            call.SplitRoot = BuildSplitPart(ctx, isPattern, call, compiler, ct, innerBindings);
+            return call.SplitRoot != null;
+          }
+
+          // Simple sub-patterns: relational, constant (including null), and their not-forms.
+          switch (innerPat)
+          {
+            case RelationalPatternSyntax relational when !patternNegated && !outerNegated:
+            {
+              var (compLabel, opStr) = GetRelationalParts(relational.OperatorToken.Kind());
+              call.Kind = InterceptionKind.Comparison;
+              call.ComparisonLabel = compLabel;
+              return SetLeft(call, compiler, isPattern.Expression, bindings, display)
+                     && SetRight(call, compiler, relational.Expression, StripParens(relational.Expression), bindings, display);
+            }
+
+            case ConstantPatternSyntax nullConst when IsNullOrDefaultLiteral(nullConst.Expression):
+            {
+              var leftType = ctx.SemanticModel.GetTypeInfo(isPattern.Expression, ct).Type;
+              if (leftType is not { IsReferenceType: true } && !IsNullableValueType(leftType)) return false;
+              // is null  → Negated=true (expected null);
+              // is not null → Negated=false (expected non-null).
+              call.Kind = InterceptionKind.Null;
+              call.Negated = !patternNegated ^ outerNegated;
+              return SetLeft(call, compiler, isPattern.Expression, bindings, display);
+            }
+
+            case ConstantPatternSyntax otherConst when !IsNullOrDefaultLiteral(StripParens(isPattern.Expression)):
+            {
+              call.Kind = InterceptionKind.Equality;
+              call.Negated = patternNegated ^ outerNegated;
+              return SetLeft(call, compiler, isPattern.Expression, bindings, display)
+                     && SetRight(call, compiler, otherConst.Expression, StripParens(otherConst.Expression), bindings, display);
+            }
+          }
+
+          // Type-check patterns: obj is Type (Is kind) or obj is object / is not object (Null kind).
+          ITypeSymbol? checkedType = innerPat switch
           {
             TypePatternSyntax typePat => ctx.SemanticModel.GetTypeInfo(typePat.Type, ct).Type,
-            DeclarationPatternSyntax declPat => ctx.SemanticModel.GetTypeInfo(declPat.Type, ct).Type,
+            DeclarationPatternSyntax declPat when !patternNegated => ctx.SemanticModel.GetTypeInfo(declPat.Type, ct).Type,
             _ => null,
           };
 
-          if (checkedType == null)
-          {
-            return false;
-          }
+          if (checkedType == null) return false;
 
           if (checkedType.SpecialType == SpecialType.System_Object)
           {
+            // `x is object` = non-null check (Negated=false);
+            // `x is not object` = null check (Negated=true).
             call.Kind = InterceptionKind.Null;
-            call.Negated = outerNegated;
+            call.Negated = patternNegated ^ outerNegated;
             return SetLeft(call, compiler, isPattern.Expression, bindings, display);
           }
+
+          // `obj is not Type` / `obj is not Type u` degrade — Is kind has no Negated flag.
+          if (patternNegated) return false;
 
           call.Kind = InterceptionKind.Is;
           call.TypeAccessor = compiler.TypeAccessor(checkedType);
@@ -1188,6 +1603,13 @@ namespace Assertive.Generators
       private bool ValidateTypedFragment(SyntaxNode fragment, List<(string Name, string? Type)> captures,
         IReadOnlyDictionary<string, LambdaBinding>? bindings)
       {
+        // DeclarationExpressions (out var x) are only valid inside an enclosing expression;
+        // as a standalone compiled operand they produce non-evaluable syntax like "(object)(T x)".
+        if (fragment is DeclarationExpressionSyntax)
+        {
+          return false;
+        }
+
         foreach (var node in fragment.DescendantNodesAndSelf())
         {
           switch (node)
@@ -1490,6 +1912,35 @@ namespace Assertive.Generators
           }
 
           return base.VisitSingleVariableDesignation(node);
+        }
+
+        // Out-var declarations (out var x, out T x): GetSymbolInfo on the 'var' keyword
+        // returns an inconsistent symbol that can cause the type to render as empty. Use
+        // GetTypeInfo on the whole DeclarationExpression, which is always reliable.
+        // Applies the designation rename when _designationRenames is set (condition source)
+        // and keeps the original name otherwise (ExceptionStep Node lambdas).
+        public override SyntaxNode? VisitDeclarationExpression(DeclarationExpressionSyntax node)
+        {
+          if (node.Designation is not SingleVariableDesignationSyntax desig)
+          {
+            return base.VisitDeclarationExpression(node);
+          }
+
+          var inferredType = _model.GetTypeInfo(node, _ct).Type;
+
+          if (inferredType == null || !IsUsableType(inferredType, _model.Compilation))
+          {
+            return base.VisitDeclarationExpression(node);
+          }
+
+          var typeFqn = inferredType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+          var outName = _designationRenames != null && _designationRenames.TryGetValue(desig.Identifier.ValueText, out var tmpName)
+            ? tmpName
+            : desig.Identifier.ValueText;
+
+          return SyntaxFactory.DeclarationExpression(
+            SyntaxFactory.ParseTypeName(typeFqn).WithTrailingTrivia(SyntaxFactory.Whitespace(" ")),
+            SyntaxFactory.SingleVariableDesignation(SyntaxFactory.Identifier(outName)));
         }
 
         private SyntaxNode? RewriteName(SimpleNameSyntax original, SyntaxNode? visited)
