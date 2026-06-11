@@ -1,6 +1,4 @@
 using System.Collections.Generic;
-using Assertive.Analyzers;
-using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;
 
@@ -98,18 +96,6 @@ namespace Assertive.Test
       ShouldFail(() => value.Contains("zyxwvutsrq"),
         @"value should contain the substring ""zyxwvutsrq"".",
         @"value: ""abcdefghij""");
-    }
-
-    [Fact]
-    public void ContainsPattern_is_triggered()
-    {
-      var list = new List<string>
-      {
-        "a", "b", "c"
-      };
-
-      var failures = new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => list.Contains("d"), null, null), null)).AnalyzeAssertionFailures();
-      Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is ContainsPattern);
     }
   }
 }

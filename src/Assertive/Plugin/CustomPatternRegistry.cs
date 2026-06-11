@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using Assertive.Interfaces;
 
 namespace Assertive.Plugin
 {
@@ -9,7 +8,7 @@ namespace Assertive.Plugin
   /// </summary>
   internal static class CustomPatternRegistry
   {
-    private static readonly Dictionary<string, (PatternDefinition Definition, IFriendlyMessagePattern Pattern)> _patterns = new();
+    private static readonly Dictionary<string, PatternDefinition> _patterns = new();
     private static readonly object _lock = new();
 
     internal static void Register(string name, PatternDefinition definition)
@@ -17,7 +16,7 @@ namespace Assertive.Plugin
       lock (_lock)
       {
         // Upsert: replace existing pattern with the same name
-        _patterns[name] = (definition, new CustomPattern(definition));
+        _patterns[name] = definition;
       }
     }
 
@@ -29,20 +28,12 @@ namespace Assertive.Plugin
       }
     }
 
-    internal static ICollection<IFriendlyMessagePattern> GetPatterns()
-    {
-      lock (_lock)
-      {
-        return _patterns.Values.Select(p => p.Pattern).ToList();
-      }
-    }
-
     /// <summary>Definitions in registration order, for the generated (probe-based) matcher.</summary>
     internal static List<PatternDefinition> GetDefinitions()
     {
       lock (_lock)
       {
-        return _patterns.Values.Select(p => p.Definition).ToList();
+        return _patterns.Values.ToList();
       }
     }
 

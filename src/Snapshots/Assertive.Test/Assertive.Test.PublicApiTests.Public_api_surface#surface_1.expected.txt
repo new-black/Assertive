@@ -134,12 +134,6 @@ static class ExpressionQuotationPatterns
   static const string SingleQuotes
   static const string SquareBrackets
 
-namespace Assertive.Expressions
-
-class UnquotedExpression
-  .ctor(Expression expression)
-  Expression Expression { get; }
-
 namespace Assertive.Plugin
 
 class MatchPredicate

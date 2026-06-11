@@ -1,7 +1,4 @@
 using System;
-using System.Linq.Expressions;
-using Assertive.Analyzers;
-using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;
 
@@ -44,27 +41,22 @@ namespace Assertive.Test
       ShouldFail(() => notNullString == default(string), "notNullString should be null.", @"""a string""");
     }
 
-    private static AssertionFailureContext CreateContext(Expression<Func<bool>> assertion)
-    {
-      return new AssertionFailureContext(new Assertion(assertion, null, null), null);
-    }
-    
     [Fact]
-    public void NullPattern_is_not_triggered_for_default_expression_on_struct()
+    public void Null_message_is_not_used_for_default_expression_on_struct()
     {
       DateTime a = DateTime.UtcNow;
-      
-      var failures = new AssertionFailureAnalyzer(CreateContext(() => a == default)).AnalyzeAssertionFailures();
-      Assert(() => failures.Count == 1 && !(failures[0].FriendlyMessagePattern is NullPattern));
-    }
-    
-    [Fact]
-    public void NullPattern_is_triggered()
-    {
-      string notNullString = "a string";
-      
-      var failures = new AssertionFailureAnalyzer(CreateContext(() => notNullString == null)).AnalyzeAssertionFailures();
-      Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is NullPattern);
+
+      try
+      {
+        Assert(() => a == default);
+        Xunit.Assert.Fail("Expected assertion to fail.");
+      }
+      catch (Exception ex)
+      {
+        // default on a struct is a value comparison, not a null check.
+        Xunit.Assert.DoesNotContain("should be null", StripAnsi(ex.Message));
+        Xunit.Assert.Contains("a: ", StripAnsi(ex.Message));
+      }
     }
   }
 }

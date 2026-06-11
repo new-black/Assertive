@@ -1,10 +1,6 @@
 using System;
-using System.Linq.Expressions;
 using System.Threading.Tasks;
-using Assertive.Analyzers;
 using Assertive.Helpers;
-using Assertive.Expressions;
-using static Assertive.Expressions.ExpressionHelper;
 
 namespace Assertive
 {
@@ -20,33 +16,6 @@ namespace Assertive
 
       public Exception? Failure { get; }
       public Exception? Thrown { get; }
-    }
-
-    public static Exception? That(Expression<Func<bool>> assertion, object? message, Expression<Func<object>>? context)
-    {
-      var compiledAssertion = assertion.Compile(ShouldUseInterpreter(assertion));
-
-      Exception? exceptionToThrow = null;
-
-      try
-      {
-        var result = compiledAssertion();
-
-        if (!result)
-        {
-          var exceptionProvider = new FailedAssertionExceptionProvider(new Assertion(assertion, message, context));
-
-          exceptionToThrow = exceptionProvider.GetException();
-        }
-      }
-      catch (Exception ex)
-      {
-        var exceptionProvider = new FailedAssertionExceptionProvider(new Assertion(assertion, message, context));
-
-        exceptionToThrow = exceptionProvider.GetException(ex);
-      }
-
-      return exceptionToThrow;
     }
 
     public static async Task<ThrowsResult> Throws(Func<Task> action, string actionExpression,
@@ -179,28 +148,6 @@ namespace Assertive
         AssertionText = assertionText,
         Exception = exception,
       });
-    }
-
-    private sealed class ParameterReplacer : ExpressionVisitor
-    {
-      private readonly ParameterExpression _parameter;
-      private readonly Expression _replacement;
-
-      public ParameterReplacer(ParameterExpression parameter, Expression replacement)
-      {
-        _parameter = parameter;
-        _replacement = replacement;
-      }
-
-      protected override Expression VisitParameter(ParameterExpression node)
-      {
-        if (node == _parameter)
-        {
-          return _replacement;
-        }
-
-        return base.VisitParameter(node);
-      }
     }
   }
 }

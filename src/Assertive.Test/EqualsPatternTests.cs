@@ -1,9 +1,7 @@
 using System;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Assertive.Analyzers;
 using Assertive.Config;
-using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;
 
@@ -93,17 +91,6 @@ namespace Assertive.Test
         var foo = s.Item1;
         ShouldFail(() => foo == s.bar, @"foo: ""bar""", @"foo: ""foo""");
       }
-    }
-
-    [Fact]
-    public void EqualsPattern_is_triggered()
-    {
-      var a = "A";
-      var b = "B";
-
-      var failures =
-        new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => a == b, null, null), null)).AnalyzeAssertionFailures();
-      Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is EqualsPattern);
     }
 
     [Fact]

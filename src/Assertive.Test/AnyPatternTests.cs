@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using Assertive.Analyzers;
-using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;
 
@@ -37,18 +35,6 @@ namespace Assertive.Test
       };
       
       ShouldFail(() => !list.Any(), "Collection list should not contain any items.", "It contained 1 item");
-    }
-
-    [Fact]
-    public void AnyPattern_is_triggered()
-    {
-      var list = new List<string>
-      {
-        "a", "b", "c"
-      };
-
-      var failures = new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => list.Any(l => l.Length > 1), null, null), null)).AnalyzeAssertionFailures();
-      Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is AnyPattern);
     }
 
     private class Foo
