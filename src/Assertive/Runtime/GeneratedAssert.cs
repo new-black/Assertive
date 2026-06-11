@@ -583,29 +583,13 @@ namespace Assertive.Runtime
     }
 
     /// <summary>
-    /// A failed logically-composed assertion (`a &amp;&amp; b`, `a &amp; b`, `a || b`, `a | b`):
-    /// re-executes the part tree with the original operator semantics, reporting every
-    /// failing leaf as its own assertion (AssertionTreeExecutor parity). `&amp;&amp;` is the
-    /// documented way to combine multiple asserts in one statement.
+    /// Combines the failing leaves of a logically-composed assertion (`a &amp; b`, `a || b`,
+    /// ...) into one failure, each leaf reporting as its own assertion. The generated
+    /// flags chain evaluates every leaf and collects the failing ones; `&amp;&amp;`-only bodies
+    /// use a short-circuit chain instead, where only one leaf can fail.
     /// </summary>
-    public static Exception SplitFailure(
-      string assertionExpression,
-      AssertionPart root,
-      object? message,
-      Func<object?>? context,
-      string? contextExpression)
+    public static Exception CombinedFailure(List<Exception> failures)
     {
-      var failures = new List<Exception>();
-
-      ExecutePart(root, failures);
-
-      if (failures.Count == 0)
-      {
-        // The delegate said false but re-evaluation disagrees (non-deterministic input):
-        // report the whole assertion from source text.
-        return Failure(assertionExpression, null, message, context, contextExpression);
-      }
-
       if (failures.Count == 1)
       {
         return failures[0];
@@ -623,74 +607,6 @@ namespace Assertive.Runtime
     private static string[] ConcatData(List<Exception> failures, string key)
     {
       return failures.SelectMany(f => f.Data[key] as string[] ?? Array.Empty<string>()).ToArray();
-    }
-
-    private static bool ExecutePart(AssertionPart part, List<Exception> failures)
-    {
-      switch (part.Kind)
-      {
-        case AssertionPartKind.AndAlso:
-          return ExecutePart(part.Left!, failures) && ExecutePart(part.Right!, failures);
-
-        case AssertionPartKind.And:
-          return ExecutePart(part.Left!, failures) & ExecutePart(part.Right!, failures);
-
-        case AssertionPartKind.OrElse:
-          return ExecutePart(part.Left!, failures) || ExecutePart(part.Right!, failures);
-
-        case AssertionPartKind.Or:
-          return ExecutePart(part.Left!, failures) | ExecutePart(part.Right!, failures);
-
-        default:
-        {
-          bool passed;
-
-          try
-          {
-            passed = part.Condition?.Invoke() ?? true;
-          }
-          catch (Exception ex) when (!IsAssertionFailure(ex))
-          {
-            failures.Add(BuildLeafFailure(part, ex));
-            return false;
-          }
-
-          if (!passed)
-          {
-            failures.Add(BuildLeafFailure(part, null));
-          }
-
-          return passed;
-        }
-      }
-    }
-
-    private static Exception BuildLeafFailure(AssertionPart part, Exception? exception)
-    {
-      try
-      {
-        if (exception != null)
-        {
-          if (part.ExceptionFailure != null)
-          {
-            return part.ExceptionFailure(exception);
-          }
-        }
-        else if (part.Failure != null)
-        {
-          return part.Failure();
-        }
-      }
-      catch
-      {
-        // Reporting is best-effort; fall through to source text.
-      }
-
-      return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails
-      {
-        AssertionText = part.Source ?? "",
-        Exception = exception,
-      });
     }
 
     /// <summary>

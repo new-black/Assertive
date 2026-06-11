@@ -55,8 +55,6 @@ namespace Assertive.Generators
         // the convention of the generated locals (__f, __v1, ...). Operand
         // compilation in CallSiteAnalyzer/ExceptionStepCollector emits these same names.
         sb.AppendLine("using __A = global::Assertive.Runtime.GeneratedAssert;");
-        sb.AppendLine("using __AP = global::Assertive.Runtime.AssertionPart;");
-        sb.AppendLine("using __APK = global::Assertive.Runtime.AssertionPartKind;");
         sb.AppendLine("using __CP = global::Assertive.Runtime.CustomPatternProbe;");
         sb.AppendLine("using __ES = global::Assertive.Runtime.ExceptionStep;");
         sb.AppendLine("using __ESK = global::Assertive.Runtime.ExceptionStepKind;");
@@ -65,7 +63,6 @@ namespace Assertive.Generators
         sb.AppendLine("using __FE = global::System.Func<global::System.Exception, bool>;");
         sb.AppendLine("using __FO = global::System.Func<object, int, object>;");
         sb.AppendLine("using __FR = global::System.Func<object, int, global::System.Exception>;");
-        sb.AppendLine("using __FX = global::System.Func<global::System.Exception>;");
         sb.AppendLine("using __IL = global::System.Runtime.CompilerServices.InterceptsLocationAttribute;");
         sb.AppendLine("using __STH = global::System.Diagnostics.StackTraceHiddenAttribute;");
         sb.AppendLine();
@@ -345,82 +342,206 @@ namespace Assertive.Generators
 
       if (call.Kind == InterceptionKind.Split)
       {
-        sb.AppendLine($"{indent}return __A.SplitFailure({assertionTextArg},");
-        sb.AppendLine($"{indent}  {BuildPartInitializer(call.SplitRoot!, indent + "  ", tailArgs)},");
-        sb.AppendLine($"{indent}  {tailArgs});");
+        var leaves = FlattenLeaves(call.SplitRoot!);
+
+        if (IsPureAndAlso(call.SplitRoot!))
+        {
+          BuildAndChain(sb, leaves, assertionTextArg, tailArgs, indent);
+        }
+        else
+        {
+          BuildFlagsChain(sb, leaves, assertionTextArg, tailArgs, indent);
+        }
+
         return;
       }
 
       sb.AppendLine($"{indent}return __A.{BuildFailureInvocation(call, assertionTextArg, indent, tail, "__v1", "__v2")});");
     }
 
-    /// <summary>
-    /// Emits the Assertive.Runtime.AssertionPart tree for a split (logically-composed)
-    /// assertion body. Leaves re-evaluate their pasted source and report through their
-    /// classified decomposition (custom patterns first), with leaf-scoped exception steps
-    /// and locals.
-    /// </summary>
-    private static string BuildPartInitializer(SplitPart part, string indent, string tailArgs)
+    /// <summary>The split's leaves in evaluation order; the operator structure is not kept.</summary>
+    private static List<SplitPart> FlattenLeaves(SplitPart part)
     {
-      const string partType = "__AP";
-      const string partKind = "__APK";
-      const string runtime = "__A";
+      var leaves = new List<SplitPart>();
 
-      if (part.Kind != "Leaf")
+      Collect(part, leaves);
+
+      return leaves;
+
+      static void Collect(SplitPart part, List<SplitPart> leaves)
       {
-        return $"new {partType}\n{indent}{{\n" +
-               $"{indent}  Kind = {partKind}.{part.Kind},\n" +
-               $"{indent}  Left = {BuildPartInitializer(part.Left!, indent + "  ", tailArgs)},\n" +
-               $"{indent}  Right = {BuildPartInitializer(part.Right!, indent + "  ", tailArgs)},\n" +
-               $"{indent}}}";
+        if (part.Kind == "Leaf")
+        {
+          leaves.Add(part);
+          return;
+        }
+
+        Collect(part.Left!, leaves);
+        Collect(part.Right!, leaves);
+      }
+    }
+
+    private static bool IsPureAndAlso(SplitPart part)
+      => part.Kind == "Leaf" || (part.Kind == "AndAlso" && IsPureAndAlso(part.Left!) && IsPureAndAlso(part.Right!));
+
+    /// <summary>
+    /// The compact split form for &amp;&amp;-only bodies: re-evaluate the conjuncts in order with
+    /// short-circuit semantics, recording the index of the one that failed (or threw), then
+    /// render that leaf's classified report in a switch. &amp;&amp; short-circuits, so exactly one
+    /// conjunct can fail — no part tree needed.
+    /// </summary>
+    private static void BuildAndChain(StringBuilder sb, List<SplitPart> leaves, string assertionTextArg, string tailArgs, string indent)
+    {
+      sb.AppendLine($"{indent}var __k = 0;");
+      sb.AppendLine($"{indent}var __ok = false;");
+      sb.AppendLine($"{indent}global::System.Exception __le = null;");
+      sb.AppendLine($"{indent}try");
+      sb.AppendLine($"{indent}{{");
+      sb.AppendLine($"{indent}  __ok = (bool)(object)({leaves[0].ConditionSource});");
+
+      for (var i = 1; i < leaves.Count; i++)
+      {
+        sb.AppendLine($"{indent}  if (__ok) {{ __k = {i}; __ok = (bool)(object)({leaves[i].ConditionSource}); }}");
       }
 
+      sb.AppendLine($"{indent}}}");
+      sb.AppendLine($"{indent}catch (global::System.Exception __t) when (!__A.IsAssertionFailure(__t))");
+      sb.AppendLine($"{indent}{{");
+      sb.AppendLine($"{indent}  __le = __t;");
+      sb.AppendLine($"{indent}}}");
+      sb.AppendLine($"{indent}if (__ok)");
+      sb.AppendLine($"{indent}{{");
+      sb.AppendLine($"{indent}  // The delegate said false but re-evaluation disagrees (non-deterministic input).");
+      sb.AppendLine($"{indent}  return __A.Failure({assertionTextArg}, null, {tailArgs});");
+      sb.AppendLine($"{indent}}}");
+      sb.AppendLine($"{indent}switch (__k)");
+      sb.AppendLine($"{indent}{{");
+
+      for (var i = 0; i < leaves.Count; i++)
+      {
+        sb.AppendLine($"{indent}  {(i == leaves.Count - 1 ? "default:" : $"case {i}:")}");
+        sb.AppendLine($"{indent}  {{");
+        EmitLeafCase(sb, leaves[i], tailArgs, indent + "    ");
+        sb.AppendLine($"{indent}  }}");
+      }
+
+      sb.AppendLine($"{indent}}}");
+    }
+
+    /// <summary>One conjunct's report: leaf-scoped locals once, the exception case, then the classified decomposition.</summary>
+    private static void EmitLeafCase(StringBuilder sb, SplitPart part, string tailArgs, string indent)
+    {
       var leafText = Quote(part.LeafSource);
-      var inner = indent + "  ";
-
       var localsArray = BuildLocalsArray(part.Locals, part.SubCall?.LeftDisplay ?? "", part.SubCall?.RightDisplay ?? "");
-      var leafTail = $"{localsArray}, {tailArgs}";
 
-      // Custom patterns take precedence over the leaf's own decomposition.
+      sb.AppendLine($"{indent}var __l2 = {localsArray};");
+      sb.AppendLine($"{indent}if (__le != null)");
+      sb.AppendLine($"{indent}{{");
+      sb.AppendLine($"{indent}  return __A.EvaluationFailure({leafText}, __le, {part.StepsSource ?? "null"}, __l2, {tailArgs});");
+      sb.AppendLine($"{indent}}}");
+
+      EmitLeafOperands(sb, part, indent);
+
+      sb.AppendLine($"{indent}return {LeafReport(part, leafText, $"__l2, {tailArgs}", indent)};");
+    }
+
+    /// <summary>
+    /// The split form for bodies with &amp;, | or ||: every leaf is re-evaluated in order and
+    /// the failing ones are recorded as bits, so multiple leaves can report (the operator
+    /// structure itself is not replayed). A leaf that throws stops the chain and its
+    /// report carries the exception.
+    /// </summary>
+    private static void BuildFlagsChain(StringBuilder sb, List<SplitPart> leaves, string assertionTextArg, string tailArgs, string indent)
+    {
+      if (leaves.Count > 31)
+      {
+        // Doesn't fit the flags integer; nobody composes 32 leaves, but degrade to source text.
+        sb.AppendLine($"{indent}return __A.Failure({assertionTextArg}, __l, {tailArgs});");
+        return;
+      }
+
+      sb.AppendLine($"{indent}var __k = 0;");
+      sb.AppendLine($"{indent}var __n = 0;");
+      sb.AppendLine($"{indent}global::System.Exception __le = null;");
+      sb.AppendLine($"{indent}try");
+      sb.AppendLine($"{indent}{{");
+
+      for (var i = 0; i < leaves.Count; i++)
+      {
+        var track = i == 0 ? "" : $"__n = {i}; ";
+        sb.AppendLine($"{indent}  {track}if (!(bool)(object)({leaves[i].ConditionSource})) __k |= {1 << i};");
+      }
+
+      sb.AppendLine($"{indent}}}");
+      sb.AppendLine($"{indent}catch (global::System.Exception __t) when (!__A.IsAssertionFailure(__t))");
+      sb.AppendLine($"{indent}{{");
+      sb.AppendLine($"{indent}  __le = __t;");
+      sb.AppendLine($"{indent}  __k |= 1 << __n;");
+      sb.AppendLine($"{indent}}}");
+      sb.AppendLine($"{indent}if (__k == 0)");
+      sb.AppendLine($"{indent}{{");
+      sb.AppendLine($"{indent}  // The delegate said false but re-evaluation disagrees (non-deterministic input).");
+      sb.AppendLine($"{indent}  return __A.Failure({assertionTextArg}, null, {tailArgs});");
+      sb.AppendLine($"{indent}}}");
+      sb.AppendLine($"{indent}var __fs = new global::System.Collections.Generic.List<global::System.Exception>();");
+
+      for (var i = 0; i < leaves.Count; i++)
+      {
+        EmitLeafFlag(sb, leaves[i], i, tailArgs, indent);
+      }
+
+      sb.AppendLine($"{indent}return __A.CombinedFailure(__fs);");
+    }
+
+    private static void EmitLeafFlag(StringBuilder sb, SplitPart part, int index, string tailArgs, string indent)
+    {
+      var inner = indent + "  ";
+      var leafText = Quote(part.LeafSource);
+      var localsArray = BuildLocalsArray(part.Locals, part.SubCall?.LeftDisplay ?? "", part.SubCall?.RightDisplay ?? "");
+
+      sb.AppendLine($"{indent}if ((__k & {1 << index}) != 0)");
+      sb.AppendLine($"{indent}{{");
+      sb.AppendLine($"{inner}var __l2 = {localsArray};");
+      sb.AppendLine($"{inner}if (__le != null && __n == {index})");
+      sb.AppendLine($"{inner}{{");
+      sb.AppendLine($"{inner}  __fs.Add(__A.EvaluationFailure({leafText}, __le, {part.StepsSource ?? "null"}, __l2, {tailArgs}));");
+      sb.AppendLine($"{inner}}}");
+      sb.AppendLine($"{inner}else");
+      sb.AppendLine($"{inner}{{");
+      EmitLeafOperands(sb, part, inner + "  ");
+      sb.AppendLine($"{inner}  __fs.Add({LeafReport(part, leafText, $"__l2, {tailArgs}", inner + "  ")});");
+      sb.AppendLine($"{inner}}}");
+      sb.AppendLine($"{indent}}}");
+    }
+
+    private static void EmitLeafOperands(StringBuilder sb, SplitPart part, string indent)
+    {
+      if (part.SubCall is not { } sub)
+      {
+        return;
+      }
+
+      if (sub.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque))
+      {
+        sb.AppendLine($"{indent}var __y1 = {sub.LeftSource};");
+      }
+
+      if (HasRightOperand(sub.Kind))
+      {
+        sb.AppendLine($"{indent}var __y2 = {sub.RightSource};");
+      }
+    }
+
+    /// <summary>The leaf's classified decomposition, custom patterns first.</summary>
+    private static string LeafReport(SplitPart part, string leafText, string leafTail, string indent)
+    {
       var probe = part.ProbeSource != null
-        ? $"{runtime}.TryCustomFailure({leafText}, {part.ProbeSource}, {leafTail}) ?? "
+        ? $"__A.TryCustomFailure({leafText}, {part.ProbeSource}, {leafTail}) ?? "
         : "";
 
-      string failure;
-
-      if (part.SubCall is { } sub)
-      {
-        var body = new StringBuilder();
-        body.Append($"(__FX)(() =>\n{inner}{{\n");
-
-        if (sub.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque))
-        {
-          body.Append($"{inner}  var __w1 = {sub.LeftSource};\n");
-        }
-
-        if (HasRightOperand(sub.Kind))
-        {
-          body.Append($"{inner}  var __w2 = {sub.RightSource};\n");
-        }
-
-        var subTail = $"{localsArray},\n{inner}    {tailArgs}";
-
-        body.Append($"{inner}  return {probe}{runtime}.{BuildFailureInvocation(sub, leafText, inner + "  ", subTail, "__w1", "__w2")});\n");
-        body.Append($"{inner}}})");
-        failure = body.ToString();
-      }
-      else
-      {
-        failure = $"() => {probe}{runtime}.Failure({leafText}, {leafTail})";
-      }
-
-      return $"new {partType}\n{indent}{{\n" +
-             $"{indent}  Kind = {partKind}.Leaf,\n" +
-             $"{indent}  Source = {leafText},\n" +
-             $"{indent}  Condition = () => (bool)(object)({part.ConditionSource}),\n" +
-             $"{indent}  Failure = {failure},\n" +
-             $"{indent}  ExceptionFailure = (__le) => {runtime}.EvaluationFailure({leafText}, __le, {part.StepsSource ?? "null"}, {localsArray}, {tailArgs}),\n" +
-             $"{indent}}}";
+      return part.SubCall is { } sub
+        ? $"{probe}__A.{BuildFailureInvocation(sub, leafText, indent, leafTail, "__y1", "__y2")})"
+        : $"{probe}__A.Failure({leafText}, {leafTail})";
     }
 
     private static bool HasRightOperand(InterceptionKind kind)

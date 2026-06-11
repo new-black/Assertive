@@ -11,9 +11,9 @@ namespace Assertive.Test
   /// <summary>
   /// End-to-end tests for logically-composed assertions through the public API:
   /// `&amp;&amp;` is the documented way to combine multiple asserts in a single statement, so
-  /// every conjunct must report as its own assertion with its own pattern message,
-  /// following the C# operator semantics (these mirror AssertionTreeExecutorTests, which
-  /// only cover the engine internals).
+  /// every conjunct must report as its own assertion with its own pattern message.
+  /// `&amp;&amp;`-only bodies re-evaluate with short-circuit semantics (one failing conjunct);
+  /// bodies mixing in &amp;, | or || evaluate every leaf and report all failing ones.
   /// </summary>
   public class LogicalSplitTests : AssertionTestBase
   {
@@ -93,14 +93,15 @@ namespace Assertive.Test
     }
 
     [Fact]
-    public void Parenthesized_groups_keep_operator_semantics()
+    public void Parenthesized_groups_report_every_failing_leaf()
     {
       var a = 5;
       var b = 7;
       var c = 9;
 
-      // OrElse(AndAlso(a, b), c): the And group short-circuits after a, then c is reported.
-      ShouldFail(() => (a == 1 && b == 2) || c == 3, "a: 1\nc: 3", "a: 5\nc: 9", true);
+      // Bodies that mix in || (or &, |) evaluate every leaf and report all failing ones;
+      // the operator structure itself is not replayed.
+      ShouldFail(() => (a == 1 && b == 2) || c == 3, "a: 1\nb: 2\nc: 3", "a: 5\nb: 7\nc: 9", true);
     }
 
     [Fact]
