@@ -15,14 +15,20 @@ namespace Assertive.Test
   /// </summary>
   public class AsyncAssertionTests : AssertionTestBase
   {
-    // Private helpers work: generated reporting re-invokes them through
-    // GeneratedAssert.InvokeStatic, the static counterpart of the InvokeInstance path
-    // used for private instance members.
+    // Mixed accessibilities on purpose — each pins a different re-evaluation strategy:
+    // private goes through GeneratedAssert.InvokeStatic (reflective, accessibility
+    // ignored), internal is emitted as a direct typed static call, and member access on
+    // a captured local (Fetcher below) pastes typed as written.
     private static Task<int> ValueAsync(int value) => Task.FromResult(value);
 
-    private static Task<string?> NullStringAsync() => Task.FromResult<string?>(null);
-
     private static Task<List<int>> ListAsync() => Task.FromResult(new List<int> { 1, 2, 3 });
+
+    internal static Task<string?> NullStringAsync() => Task.FromResult<string?>(null);
+
+    public sealed class Fetcher
+    {
+      public Task<int> GetAsync(int value) => Task.FromResult(value);
+    }
 
     private static async Task<int> ThrowingAsync()
     {
@@ -63,6 +69,15 @@ namespace Assertive.Test
 
       await ShouldFailAsync(() => Assertive.Assert.That(async () => await ValueAsync(10) == expected),
         "await ValueAsync(10): 5", "await ValueAsync(10): 10");
+    }
+
+    [Fact]
+    public async Task Member_access_awaited_operand_is_pasted_typed()
+    {
+      var fetcher = new Fetcher();
+
+      await ShouldFailAsync(() => Assert(async () => await fetcher.GetAsync(3) == 5),
+        "await fetcher.GetAsync(3): 5", "await fetcher.GetAsync(3): 3");
     }
 
     [Fact]
