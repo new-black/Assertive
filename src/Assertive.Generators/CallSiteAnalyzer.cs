@@ -429,6 +429,7 @@ namespace Assertive.Generators
       new LogicalSplitClassifier(),
       new EqualityClassifier(),
       new ComparisonClassifier(),
+      new IsExpressionClassifier(),
       new IsPatternClassifier(),
       new MethodCallClassifier(),
       new HasValueClassifier(),
