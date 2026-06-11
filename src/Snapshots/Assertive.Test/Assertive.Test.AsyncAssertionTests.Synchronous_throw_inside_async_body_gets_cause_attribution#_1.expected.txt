@@ -7,7 +7,7 @@ values.First()
 [EXCEPTION]
 Sequence contains no elements
 [STACKTRACE]
-   at Assertive.Test.AsyncAssertionTests.<>c__DisplayClass17_0.<<Synchronous_throw_inside_async_body_gets_cause_attribution>b__1>d.MoveNext() in AsyncAssertionTests.cs:line 151
+   at Assertive.Test.AsyncAssertionTests.<>c__DisplayClass17_0.<<Synchronous_throw_inside_async_body_gets_cause_attribution>b__1>d.MoveNext() in AsyncAssertionTests.cs:line 150
 --- End of stack trace from previous location ---
 [LOCALS]
 values: [ ]

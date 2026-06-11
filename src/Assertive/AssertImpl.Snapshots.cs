@@ -47,6 +47,10 @@ internal partial class AssertImpl
     {
       if (options?.SnapshotIdentifier != null)
       {
+        if (options.Configuration.IncludeCounterForExplicitSnapshotIdentifiers)
+        {
+          return $"{options.SnapshotIdentifier}_{assertionState.GetCounter(options.SnapshotIdentifier)}";
+        }
         return options.SnapshotIdentifier;
       }
 
@@ -103,7 +107,7 @@ internal partial class AssertImpl
       return ExceptionHelper.GetException("Could not detect the currently running test.");
     }
 
-    var assertionState = UpdateState(currentTestInfo, expression);
+    var assertionState = UpdateState(currentTestInfo, options.SnapshotIdentifier ?? expression);
 
     var sourceFileInfo = new FileInfo(sourceFile);
 

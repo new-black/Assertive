@@ -6,6 +6,6 @@ Assertion threw System.InvalidOperationException: boom
 boom
 [STACKTRACE]
    at Assertive.Test.AsyncAssertionTests.ThrowingAsync() in AsyncAssertionTests.cs:line 37
-   at Assertive.Test.AsyncAssertionTests.<>c.<<Throwing_awaited_call_reports_the_exception_with_source_text>b__16_1>d.MoveNext() in AsyncAssertionTests.cs:line 140
+   at Assertive.Test.AsyncAssertionTests.<>c.<<Throwing_awaited_call_reports_the_exception_with_source_text>b__16_1>d.MoveNext() in AsyncAssertionTests.cs:line 139
 --- End of stack trace from previous location ---
 ················································································

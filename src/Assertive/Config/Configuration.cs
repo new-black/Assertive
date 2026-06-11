@@ -244,6 +244,13 @@ namespace Assertive.Config
       /// framework stack-trace frames that vary across operating systems or runtimes).
       /// </summary>
       public Func<string, string?>? StringTransform { get; set; }
+      
+      /// <summary>
+      /// When true, snapshot identifiers that are explicitly specified (via <see cref="AssertSnapshotOptions.SnapshotIdentifier"/>)
+      /// will have a counter appended to them to ensure uniqueness,
+      /// just like the default identifier generation strategy.
+      /// </summary>
+      public bool IncludeCounterForExplicitSnapshotIdentifiers { get; set; } = true;
 
       private static readonly ConcurrentDictionary<object, JsonSerializerOptions> _jsonSerializerOptionsCache = new();
 

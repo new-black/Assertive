@@ -61,6 +61,7 @@ class CompareSnapshotsConfiguration
   ExpectedFileDirectoryResolver ExpectedFileDirectoryResolver { get; set; }
   ExtraneousProperties ExtraneousProperties { get; set; }
   bool IgnoreLineEndingDifferences { get; set; }
+  bool IncludeCounterForExplicitSnapshotIdentifiers { get; set; }
   LaunchDiffTool LaunchDiffTool { get; set; }
   NormalizationConfiguration Normalization { get; set; }
   ShouldIgnore ShouldIgnore { get; set; }

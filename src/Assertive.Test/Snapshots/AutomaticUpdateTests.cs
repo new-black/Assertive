@@ -23,7 +23,8 @@ public class AutomaticUpdateTests
     {
       var config = Configuration.Snapshots with
       {
-        ExpectedFileDirectoryResolver = (_, _) => tempDir
+        ExpectedFileDirectoryResolver = (_, _) => tempDir,
+        IncludeCounterForExplicitSnapshotIdentifiers = false
       };
 
       // Step 1: establish a baseline expected file containing only Name and Price.

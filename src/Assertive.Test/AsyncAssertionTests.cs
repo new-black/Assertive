@@ -39,12 +39,11 @@ namespace Assertive.Test
 
     private async Task ShouldFailAsync(Func<Task> assertion,
       [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
-      [CallerFilePath] string callerFilePath = "",
-      [CallerLineNumber] int callerLineNumber = 0)
+      [CallerFilePath] string callerFilePath = "")
     {
       var ex = await CaptureFailureAsync(assertion);
       Assert.Snapshot(StripAnsi(ex.Message),
-        options: $"L{callerLineNumber}",
+        options: HashExpression(assertionExpression),
         expression: assertionExpression,
         sourceFile: callerFilePath);
     }

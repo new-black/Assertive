@@ -83,11 +83,10 @@ namespace Assertive.Test
     [AssertionWrapper]
     internal void ShouldEqual(Func<bool> assertion,
       [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
-      [CallerFilePath] string callerFilePath = "",
-      [CallerLineNumber] int callerLineNumber = 0)
-      => ShouldEqual(AssertionHandle.Degraded(assertion, assertionExpression), assertionExpression, callerFilePath, callerLineNumber);
+      [CallerFilePath] string callerFilePath = "")
+      => ShouldEqual(AssertionHandle.Degraded(assertion, assertionExpression), assertionExpression, callerFilePath);
 
-    internal void ShouldEqual(AssertionHandle assertion, string assertionExpression = "", string callerFilePath = "", int callerLineNumber = 0)
-      => ShouldFail(assertion, assertionExpression, callerFilePath, callerLineNumber);
+    internal void ShouldEqual(AssertionHandle assertion, string assertionExpression = "", string callerFilePath = "")
+      => ShouldFail(assertion, assertionExpression, callerFilePath);
   }
 }
