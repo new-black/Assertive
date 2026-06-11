@@ -230,8 +230,8 @@ namespace Assertive
       return Build(new FailureDetails
       {
         AssertionText = assertionText,
-        Expected = $"{Q(source)}: {(negated ? "false" : "true")}",
-        Actual = negated ? "true" : "false",
+        Expected = $"{Q(source)}: {E(negated ? "false" : "true")}",
+        Actual = E(negated ? "true" : "false"),
         Locals = locals,
         UserMessage = userMessage,
         Context = context,
@@ -254,7 +254,7 @@ namespace Assertive
       {
         AssertionText = assertionText,
         Expected = expectedNull ? $"{Q(source)} should be null." : $"{Q(source)} should not be null.",
-        Actual = expectedNull ? DisplayValue(value) : "null",
+        Actual = expectedNull ? DisplayValue(value) : E("null"),
         Locals = locals,
         UserMessage = userMessage,
         Context = context,

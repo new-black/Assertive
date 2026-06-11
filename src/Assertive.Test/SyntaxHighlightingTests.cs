@@ -15,6 +15,7 @@ namespace Assertive.Test
   public class SyntaxHighlightingTests : AssertionTestBase
   {
     private const string BrightGreen = "\u001b[92m";
+    private const string KeywordColor = "\u001b[1m\u001b[94m";
 
     private static Exception CaptureWithColors(Action assertion)
     {
@@ -72,6 +73,32 @@ namespace Assertive.Test
       // that highlighting inserted ANSI codes into the cause message at all).
       Xunit.Assert.Contains("\u001b[", handled);
       Xunit.Assert.Equal("NullReferenceException caused by accessing Count on list which was null.", StripAnsi(handled));
+    }
+
+    [Fact]
+    public void Bool_pattern_values_are_highlighted_as_keywords()
+    {
+      var flag = false;
+
+      var ex = CaptureWithColors(() => Assert(() => flag));
+
+      var expected = ((string[])ex.Data["Assertive.Expected"]!)[0];
+      var actual = ((string[])ex.Data["Assertive.Actual"]!)[0];
+
+      Xunit.Assert.Contains($"{KeywordColor}true", expected);
+      Xunit.Assert.Contains($"{KeywordColor}false", actual);
+    }
+
+    [Fact]
+    public void Null_pattern_actual_null_is_highlighted_as_a_keyword()
+    {
+      string? value = null;
+
+      var ex = CaptureWithColors(() => Assert(() => value != null));
+
+      var actual = ((string[])ex.Data["Assertive.Actual"]!)[0];
+
+      Xunit.Assert.Contains($"{KeywordColor}null", actual);
     }
 
     [Fact]
