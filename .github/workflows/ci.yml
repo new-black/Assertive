@@ -28,5 +28,19 @@ jobs:
             11.0.x
           dotnet-quality: preview
 
+      - name: Use the .NET 11 preview SDK
+        # The repo's global.json pins the stable SDK for local builds; building with
+        # the 11 preview SDK adds the net11.0 test target (escape-analysis coverage).
+        run: |
+          cat > global.json <<'EOF'
+          {
+            "sdk": {
+              "version": "11.0.100-preview.5",
+              "allowPrerelease": true,
+              "rollForward": "latestFeature"
+            }
+          }
+          EOF
+
       - name: Build and Test
         run: bash ./scripts/ci.sh
