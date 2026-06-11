@@ -259,6 +259,7 @@ static class GeneratedAssert
   static int EnumerableCount(object source)
   static Exception EqualityFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool rightIsConstant, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception EvaluationFailure(string assertionExpression, Exception exception, ExceptionStep[] steps, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
+  static void Execute(Func<bool> assertion, string assertionExpression, object message, Func<object> context, string contextExpression, Func<Exception, Exception> render)
   static Exception Failure(string assertionExpression, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static object GetCapturedThis(Delegate assertion)
   static object GetCapturedValue(Delegate assertion, string name)

@@ -37,8 +37,8 @@ namespace Assertive.Generators
     /// </summary>
     private sealed class ExceptionStepWalker
     {
-      private const string StepType = "global::Assertive.Runtime.ExceptionStep";
-      private const string StepKind = "global::Assertive.Runtime.ExceptionStepKind";
+      private const string StepType = "__ES";
+      private const string StepKind = "__ESK";
 
       private static readonly SymbolDisplayFormat ShortTypeFormat = new SymbolDisplayFormat(
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
@@ -380,10 +380,24 @@ namespace Assertive.Generators
             }
           }
 
+          // The analyzer null-guards every argument array and StringArgIndex defaults to
+          // -1: emit only what deviates from the defaults.
           parts.Add($"ArgSources = new string[] {{ {string.Join(", ", sources)} }}");
-          parts.Add($"ArgIsConstant = new bool[] {{ {string.Join(", ", constants)} }}");
-          parts.Add($"Args = new global::System.Func<object, int, object>[] {{ {string.Join(", ", evals)} }}");
-          parts.Add($"StringArgIndex = {stringArgIndex}");
+
+          if (constants.Any(c => c == "true"))
+          {
+            parts.Add($"ArgIsConstant = new bool[] {{ {string.Join(", ", constants)} }}");
+          }
+
+          if (evals.Any(e => e != "null"))
+          {
+            parts.Add($"Args = new __FO[] {{ {string.Join(", ", evals)} }}");
+          }
+
+          if (stringArgIndex >= 0)
+          {
+            parts.Add($"StringArgIndex = {stringArgIndex}");
+          }
         }
 
         if (IsParsingMethod(method))

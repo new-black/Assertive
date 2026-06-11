@@ -297,13 +297,22 @@ namespace Assertive.Generators
             var sources = argExpressions.Select(a => Quote(a.ToString()));
             var evaluators = argExpressions.Select(a =>
               a is AnonymousFunctionExpressionSyntax ? "null"
-                : compiler.Compile(a) is { } compiled ? $"() => (object)({compiled})" : "null");
+                : compiler.Compile(a) is { } compiled ? $"() => (object)({compiled})" : "null").ToList();
             var types = argExpressions.Select(a =>
-              ctx.SemanticModel.GetTypeInfo(a, ct).Type is { } argType ? compiler.TypeAccessor(argType) ?? "null" : "null");
+              ctx.SemanticModel.GetTypeInfo(a, ct).Type is { } argType ? compiler.TypeAccessor(argType) ?? "null" : "null").ToList();
 
+            // The runtime null-guards the value and type arrays: emit only non-default ones.
             parts.Add($"ArgSources = new string[] {{ {string.Join(", ", sources)} }}");
-            parts.Add($"Args = new global::System.Func<object>[] {{ {string.Join(", ", evaluators)} }}");
-            parts.Add($"ArgStaticTypes = new global::System.Type[] {{ {string.Join(", ", types)} }}");
+
+            if (evaluators.Any(e => e != "null"))
+            {
+              parts.Add($"Args = new __FC[] {{ {string.Join(", ", evaluators)} }}");
+            }
+
+            if (types.Any(t => t != "null"))
+            {
+              parts.Add($"ArgStaticTypes = new global::System.Type[] {{ {string.Join(", ", types)} }}");
+            }
           }
 
           break;
@@ -335,7 +344,7 @@ namespace Assertive.Generators
           return null;
       }
 
-      return $"new global::Assertive.Runtime.CustomPatternProbe {{ {string.Join(", ", parts)} }}";
+      return $"new __CP {{ {string.Join(", ", parts)} }}";
     }
 
     private static void AddProbeInstance(List<string> parts, GeneratorSyntaxContext ctx, ExpressionSyntax? instance,
@@ -711,7 +720,7 @@ namespace Assertive.Generators
                 }
               }
 
-              call.LeftSource = $"global::Assertive.Runtime.GeneratedAssert.EnumerableCount({collection})";
+              call.LeftSource = $"__A.EnumerableCount({collection})";
               return true;
             }
 
@@ -794,7 +803,7 @@ namespace Assertive.Generators
 
                 if (call.AllFilterFunc == null && subCall.Kind == InterceptionKind.Equality)
                 {
-                  var equalsCheck = $"global::Assertive.Runtime.GeneratedAssert.ObjectEquals({subCall.LeftSource}, {subCall.RightSource})";
+                  var equalsCheck = $"__A.ObjectEquals({subCall.LeftSource}, {subCall.RightSource})";
                   call.AllFilterFunc = $"(__item, __idx) => {(subCall.Negated ? "!" : "")}{equalsCheck}";
                 }
               }
@@ -942,7 +951,7 @@ namespace Assertive.Generators
       private readonly InterceptedCall _call;
       private readonly CancellationToken _ct;
 
-      private const string Runtime = "global::Assertive.Runtime.GeneratedAssert";
+      private const string Runtime = "__A";
       private const string CapturedThis = Runtime + ".GetCapturedThis(__assertion)";
 
       public OperandCompiler(SemanticModel model, SyntaxNode body, InterceptedCall call, CancellationToken ct)

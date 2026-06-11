@@ -24,6 +24,58 @@ namespace Assertive.Runtime
     public static bool IsAssertionFailure(Exception exception) => exception.Data.Contains("Assertive.Expected");
 
     /// <summary>
+    /// Shared scaffolding for generated interceptors: the delegate decides pass/fail —
+    /// exactly one evaluation — and only on failure (or an evaluation exception, passed as
+    /// the callback's argument) does the render callback build the decomposed report.
+    /// Reporting is best-effort: decomposition reads closures and members reflectively,
+    /// which can fail when reflection metadata was trimmed away (Native AOT); it then
+    /// falls back to the source-text report instead of leaking an infrastructure exception.
+    /// </summary>
+    public static void Execute(Func<bool> assertion, string assertionExpression, object? message,
+      Func<object?>? context, string? contextExpression, Func<Exception?, Exception> render)
+    {
+      bool passed;
+
+      try
+      {
+        passed = assertion();
+      }
+      catch (Exception ex) when (!IsAssertionFailure(ex))
+      {
+        Exception report;
+
+        try
+        {
+          report = render(ex);
+        }
+        catch (Exception rex) when (!IsAssertionFailure(rex))
+        {
+          report = EvaluationFailure(assertionExpression, ex, null, null, message, context, contextExpression);
+        }
+
+        throw report;
+      }
+
+      if (passed)
+      {
+        return;
+      }
+
+      Exception failure;
+
+      try
+      {
+        failure = render(null);
+      }
+      catch (Exception rex) when (!IsAssertionFailure(rex))
+      {
+        failure = Failure(assertionExpression, null, message, context, contextExpression);
+      }
+
+      throw failure;
+    }
+
+    /// <summary>
     /// Extracts the value of a captured local variable or parameter from the assertion
     /// delegate's closure. The compiler stores captured variables as public fields named
     /// after the variable on compiler-generated display classes; captures from multiple
