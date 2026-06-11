@@ -1044,14 +1044,44 @@ namespace Assertive.Generators
 
       private string? CompileTyped(ExpressionSyntax operand, IReadOnlyDictionary<string, LambdaBinding>? bindings = null)
       {
-        foreach (var node in operand.DescendantNodesAndSelf())
+        var captures = new List<(string Name, string? Type)>();
+
+        if (!ValidateTypedFragment(operand, captures, bindings))
+        {
+          return null;
+        }
+
+        var rewriter = new TypedRenderRewriter(_model, operand, bindings, _ct);
+        var rendered = rewriter.Visit(operand);
+
+        if (rewriter.Failed || rendered == null)
+        {
+          return null;
+        }
+
+        Commit(captures);
+
+        return rendered.ToString();
+      }
+
+      /// <summary>
+      /// Whether the fragment can be pasted into generated code as-is (modulo the
+      /// TypedRenderRewriter's qualification): every node bindable from outside the
+      /// declaring type, every type nameable, captured locals/parameters registered.
+      /// Shared by operand compilation (expressions) and local-function lifting (whole
+      /// declarations).
+      /// </summary>
+      private bool ValidateTypedFragment(SyntaxNode fragment, List<(string Name, string? Type)> captures,
+        IReadOnlyDictionary<string, LambdaBinding>? bindings)
+      {
+        foreach (var node in fragment.DescendantNodesAndSelf())
         {
           switch (node)
           {
             case ThisExpressionSyntax:
             case BaseExpressionSyntax:
             case QueryExpressionSyntax:
-              return null;
+              return false;
 
             case AwaitExpressionSyntax awaitExpression:
             {
@@ -1060,7 +1090,7 @@ namespace Assertive.Generators
               // method would not bind there. Task and friends use an instance GetAwaiter.
               if (_model.GetAwaitExpressionInfo(awaitExpression).GetAwaiterMethod is not { IsStatic: false, ReducedFrom: null })
               {
-                return null;
+                return false;
               }
 
               continue;
@@ -1073,9 +1103,16 @@ namespace Assertive.Generators
                 continue; // nameof and friends
               }
 
+              // Calls to local functions bind to the lifted declaration; the name walk
+              // below performs the lift.
+              if (innerMethod.MethodKind == MethodKind.LocalFunction)
+              {
+                continue;
+              }
+
               if (!IsAccessibleMember(innerMethod))
               {
-                return null;
+                return false;
               }
 
               // Reduced extension calls are rewritten to fully-qualified static calls,
@@ -1085,7 +1122,7 @@ namespace Assertive.Generators
                       || !extensionAccess.IsKind(SyntaxKind.SimpleMemberAccessExpression)
                       || !IsUsableType(innerMethod.ContainingType, _compilation)))
               {
-                return null;
+                return false;
               }
 
               continue;
@@ -1096,7 +1133,7 @@ namespace Assertive.Generators
             case MemberAccessExpressionSyntax memberAccess:
               if (_model.GetSymbolInfo(memberAccess, _ct).Symbol is { } memberSymbol && !IsAccessibleMember(memberSymbol))
               {
-                return null;
+                return false;
               }
 
               continue;
@@ -1104,7 +1141,7 @@ namespace Assertive.Generators
             case ElementAccessExpressionSyntax elementAccess:
               if (_model.GetSymbolInfo(elementAccess, _ct).Symbol is { } indexerSymbol && !IsAccessibleMember(indexerSymbol))
               {
-                return null;
+                return false;
               }
 
               continue;
@@ -1112,16 +1149,14 @@ namespace Assertive.Generators
             case ObjectCreationExpressionSyntax creation:
               if (_model.GetSymbolInfo(creation, _ct).Symbol is { } constructorSymbol && !IsAccessibleMember(constructorSymbol))
               {
-                return null;
+                return false;
               }
 
               continue;
           }
         }
 
-        var captures = new List<(string Name, string? Type)>();
-
-        foreach (var name in operand.DescendantNodesAndSelf().OfType<SimpleNameSyntax>())
+        foreach (var name in fragment.DescendantNodesAndSelf().OfType<SimpleNameSyntax>())
         {
           // Member names (`Length` in `x.Length`, `Ordinal` in `StringComparison.Ordinal`):
           // the receiver/qualifier determines them.
@@ -1142,25 +1177,43 @@ namespace Assertive.Generators
               // fails the typed strategy; the reflective one may still handle it.
               if (!IsUsableType(type, _compilation))
               {
-                return null;
+                return false;
+              }
+
+              continue;
+
+            case IMethodSymbol { MethodKind: MethodKind.LocalFunction } localFunction:
+              // Local functions are not members of anything callable from generated code,
+              // but their declaration is right here in the syntax tree: lift it into the
+              // generated scope, where this name then binds to the pasted copy.
+              if (!TryLiftLocalFunction(localFunction))
+              {
+                return false;
               }
 
               continue;
 
             case ILocalSymbol local when name is IdentifierNameSyntax:
+              // Locals declared inside the fragment (pattern variables, lifted local
+              // function bodies) are bound by the pasted code itself.
+              if (IsDeclaredWithin(local, fragment))
+              {
+                continue;
+              }
+
               // Const locals have no closure field (they're baked in as constants).
               if (local.IsConst || !IsUsableType(local.Type, _compilation))
               {
-                return null;
+                return false;
               }
 
               captures.Add((local.Name, local.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
               continue;
 
             case IParameterSymbol param when name is IdentifierNameSyntax:
-              // Parameters declared inside the compiled fragment (nested lambdas) are bound
-              // by the pasted code itself.
-              if (IsDeclaredWithin(param, operand))
+              // Parameters declared inside the compiled fragment (nested lambdas, lifted
+              // local functions) are bound by the pasted code itself.
+              if (IsDeclaredWithin(param, fragment))
               {
                 continue;
               }
@@ -1175,37 +1228,76 @@ namespace Assertive.Generators
                   continue;
                 }
 
-                return null;
+                return false;
               }
 
               // Parameters of enclosing methods/lambdas are captured like locals.
               if (!IsUsableType(param.Type, _compilation))
               {
-                return null;
+                return false;
               }
 
               captures.Add((param.Name, param.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
               continue;
 
             default:
-              // Fields/properties on `this`, statics via `using static`, local functions,
-              // method groups, range variables, anything unresolved: not typed-compilable;
-              // the reflective strategy may still apply.
-              return null;
+              // Fields/properties on `this`, statics via `using static`, method groups,
+              // range variables, anything unresolved: not typed-compilable; the
+              // reflective strategy may still apply.
+              return false;
           }
         }
 
-        var rewriter = new TypedRenderRewriter(_model, operand, bindings, _ct);
-        var rendered = rewriter.Visit(operand);
+        return true;
+      }
+
+      /// <summary>Lift results per local function, memoized by symbol (also breaks recursion cycles).</summary>
+      private readonly Dictionary<IMethodSymbol, bool> _liftedLocalFunctions = new(SymbolEqualityComparer.Default);
+
+      /// <summary>
+      /// Lifts a local function by pasting its (qualification-rewritten) declaration into
+      /// the generated reporting scope. Captured locals bind to the capture declarations
+      /// the render scope already makes from the closure; calls to other local functions
+      /// lift transitively. Validation is the same whitelist as typed operand pasting, so
+      /// bodies touching `this` or inaccessible members reject the lift (degradation).
+      /// </summary>
+      private bool TryLiftLocalFunction(IMethodSymbol symbol)
+      {
+        if (_liftedLocalFunctions.TryGetValue(symbol, out var lifted))
+        {
+          return lifted;
+        }
+
+        // Optimistic marker: a self-recursive body finding itself mid-lift is fine —
+        // the name will bind to the pasted declaration.
+        _liftedLocalFunctions[symbol] = true;
+
+        if (symbol.DeclaringSyntaxReferences.Length != 1
+            || symbol.DeclaringSyntaxReferences[0].GetSyntax(_ct) is not LocalFunctionStatementSyntax declaration
+            || declaration.SyntaxTree != _body.SyntaxTree)
+        {
+          return _liftedLocalFunctions[symbol] = false;
+        }
+
+        var captures = new List<(string Name, string? Type)>();
+
+        if (!ValidateTypedFragment(declaration, captures, bindings: null))
+        {
+          return _liftedLocalFunctions[symbol] = false;
+        }
+
+        var rewriter = new TypedRenderRewriter(_model, declaration, null, _ct);
+        var rendered = rewriter.Visit(declaration);
 
         if (rewriter.Failed || rendered == null)
         {
-          return null;
+          return _liftedLocalFunctions[symbol] = false;
         }
 
         Commit(captures);
+        _call.LiftedLocalFunctions.Add(rendered.ToString());
 
-        return rendered.ToString();
+        return true;
       }
 
       private bool IsAccessibleMember(ISymbol symbol)
@@ -1452,11 +1544,11 @@ namespace Assertive.Generators
               return null;
             }
 
-            // Local functions are not members of their containing type: they can neither
-            // be invoked from generated code nor resolved reflectively by name.
+            // Local functions are not members of their containing type — not resolvable
+            // reflectively — but a lifted copy of the declaration can be called directly.
             if (method.MethodKind == MethodKind.LocalFunction)
             {
-              return null;
+              return CompileLiftedLocalFunctionCall(invocation, method, captures, bindings);
             }
 
             // LINQ Count() works untyped: the element type never needs to be named.
@@ -1634,6 +1726,40 @@ namespace Assertive.Generators
         var containingType = method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
         return $"{containingType}.{method.Name}{typeArguments}({string.Join(", ", rendered)})";
+      }
+
+      /// <summary>
+      /// A local-function call inside an otherwise reflective fragment: the declaration is
+      /// lifted into the generated scope and called directly, each object-typed argument
+      /// cast back to its parameter type. Generic local functions stay typed-path-only.
+      /// </summary>
+      private string? CompileLiftedLocalFunctionCall(InvocationExpressionSyntax invocation, IMethodSymbol method,
+        List<(string Name, string? Type)> captures, IReadOnlyDictionary<string, LambdaBinding>? bindings)
+      {
+        if (method.IsGenericMethod
+            || method.Parameters.Any(p => p.RefKind != RefKind.None || p.IsParams)
+            || invocation.ArgumentList.Arguments.Count != method.Parameters.Length
+            || invocation.ArgumentList.Arguments.Any(a => a.NameColon != null)
+            || method.Parameters.Any(p => !IsUsableType(p.Type, _compilation))
+            || !TryLiftLocalFunction(method))
+        {
+          return null;
+        }
+
+        var rendered = new List<string>();
+
+        for (var i = 0; i < invocation.ArgumentList.Arguments.Count; i++)
+        {
+          if (CompileReflective(invocation.ArgumentList.Arguments[i].Expression, captures, bindings) is not { } compiled)
+          {
+            return null;
+          }
+
+          var parameterTypeFqn = method.Parameters[i].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+          rendered.Add($"(({parameterTypeFqn})({compiled}))");
+        }
+
+        return $"{Identifier(method.Name)}({string.Join(", ", rendered)})";
       }
 
       /// <summary>

@@ -50,6 +50,29 @@ namespace Assertive.Test
     }
 
     [Fact]
+    public void Local_function_operands_are_lifted()
+    {
+      var factor = 3;
+      int Scaled(int value) => value * factor;
+
+      ShouldFail(() => Scaled(2) == 7, "Scaled(2): 7", "Scaled(2): 6");
+    }
+
+    private readonly int _seed = 4;
+
+    [Fact]
+    public void Local_function_touching_this_degrades_to_source_text()
+    {
+      // The lifted body would need `this`, which generated code cannot paste typed:
+      // the lift rejects and the assertion reports source text only.
+      int Seeded(int value) => value + _seed;
+
+      var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert(() => Seeded(1) == 7));
+
+      Xunit.Assert.Contains("Seeded(1) == 7", StripAnsi(ex.Message));
+    }
+
+    [Fact]
     public void Not_equals_works()
     {
       var a = "A";

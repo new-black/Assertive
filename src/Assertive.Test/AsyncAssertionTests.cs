@@ -178,17 +178,37 @@ namespace Assertive.Test
     }
 
     [Fact]
-    public async Task Local_function_operand_degrades_to_source_text()
+    public async Task Local_function_operands_are_lifted_into_the_generated_code()
     {
-      // Local functions are not members of their containing type, so generated code can
-      // neither call nor reflectively resolve them: the assertion reports source text
-      // only. (Regression: the generator used to emit Program.LocalValueAsync(...).)
+      // Local functions are not members of their containing type, so generated code
+      // cannot call them where they live — instead the declaration itself is lifted
+      // (pasted) into the reporting scope, where the operand source binds to the copy.
       static Task<int> LocalValueAsync(int value) => Task.FromResult(value);
 
-      var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
-        () => Assert(async () => await LocalValueAsync(1) == 2));
+      await ShouldFailAsync(() => Assert(async () => await LocalValueAsync(1) == 2),
+        "await LocalValueAsync(1): 2", "await LocalValueAsync(1): 1");
+    }
 
-      Xunit.Assert.Contains("await LocalValueAsync(1) == 2", StripAnsi(ex.Message));
+    [Fact]
+    public async Task Capturing_local_function_binds_to_the_scope_captures()
+    {
+      var factor = 10;
+      Task<int> ScaledAsync(int value) => Task.FromResult(value * factor);
+
+      // The lifted body references `factor`, which binds to the capture declaration the
+      // reporting scope reads from the assertion delegate's closure.
+      await ShouldFailAsync(() => Assert(async () => await ScaledAsync(2) == 5),
+        "await ScaledAsync(2): 5", "await ScaledAsync(2): 20");
+    }
+
+    [Fact]
+    public async Task Local_functions_lift_transitively()
+    {
+      static int Twice(int value) => value * 2;
+      static Task<int> TwiceAsync(int value) => Task.FromResult(Twice(value));
+
+      await ShouldFailAsync(() => Assert(async () => await TwiceAsync(3) == 5),
+        "await TwiceAsync(3): 5", "await TwiceAsync(3): 6");
     }
 
     [Fact]

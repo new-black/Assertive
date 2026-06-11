@@ -286,6 +286,24 @@ namespace Assertive.Generators
     }
 
     /// <summary>
+    /// Pastes the lifted local-function declarations into the reporting scope, where the
+    /// compiled fragments' calls to them bind. Local functions may be declared after use,
+    /// so placement right after the capture declarations (which their bodies reference)
+    /// works for every fragment in the scope. Inner lines keep their original
+    /// indentation (cosmetic only).
+    /// </summary>
+    private static void EmitLiftedLocalFunctions(StringBuilder sb, InterceptedCall call, string indent)
+    {
+      foreach (var declaration in call.LiftedLocalFunctions)
+      {
+        foreach (var line in declaration.Split('\n'))
+        {
+          sb.Append(indent).AppendLine(line.TrimEnd('\r'));
+        }
+      }
+    }
+
+    /// <summary>
     /// Locals that are themselves a whole operand are already displayed as the operand
     /// value; everything else captured shows up under LOCALS (mirrors LocalsProvider).
     /// </summary>
@@ -319,6 +337,7 @@ namespace Assertive.Generators
     private static void BuildRender(StringBuilder sb, InterceptedCall call, string assertionTextArg, string tailArgs, string indent)
     {
       EmitCaptureDecls(sb, call, "__f", indent);
+      EmitLiftedLocalFunctions(sb, call, indent);
 
       sb.AppendLine($"{indent}(string, object)[] __l = {BuildLocalsArray(call)};");
 
@@ -629,10 +648,12 @@ namespace Assertive.Generators
       // The Throws interceptor declares its captures here rather than in the method body:
       // the renderer only runs on the (already guarded) failure path, so a reflective
       // capture failure can't break the passing path. All-pattern renderers instead use
-      // the captures already declared in the enclosing reporting scope.
+      // the captures (and lifted local functions) already declared in the enclosing
+      // reporting scope.
       if (captureFrom != null)
       {
         EmitCaptureDecls(renderer, captureFrom, "__f", inner);
+        EmitLiftedLocalFunctions(renderer, captureFrom, inner);
       }
 
       if (sub.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque))
@@ -736,6 +757,13 @@ namespace Assertive.Generators
 
     /// <summary>Captured locals to declare; Type is null for unnameable types (read as object).</summary>
     public List<(string Name, string? Type)> CapturedLocals { get; } = new();
+
+    /// <summary>
+    /// Local-function declarations referenced by compiled fragments, rewritten for pasting
+    /// into the reporting scope (where their names then bind; captures bind to the scope's
+    /// capture declarations).
+    /// </summary>
+    public List<string> LiftedLocalFunctions { get; } = new();
 
     public string BodySource = "";
 
