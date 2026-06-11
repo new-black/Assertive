@@ -1,5 +1,9 @@
 
-person is { Address: { City: "NYC" } }
- ℹ LOCALS                                                                       
-person: NppPerson { Name = Bob, Address = , Contact =  }
+person.Address is not null
+
+ ✓ EXPECTED                                                                     
+person.Address should not be null.
+ ✗ ACTUAL                                                                       
+null
+
 ················································································

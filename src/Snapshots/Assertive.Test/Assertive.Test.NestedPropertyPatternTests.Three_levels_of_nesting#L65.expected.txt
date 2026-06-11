@@ -1,5 +1,14 @@
 
-person is { Contact: { Email: "bob@example.com" } }
- ℹ LOCALS                                                                       
-person: NppPerson { Name = Bob, Address = NppAddress { City = NYC, Country = US }, Contact = NppContact { Email = wrong@example.com, Phone =  } }
+person.Contact.Email is "bob@example.com"
+
+ ✓ EXPECTED                                                                     
+person.Contact.Email: "bob@example.com"
+ ✗ ACTUAL                                                                       
+person.Contact.Email: "wrong@example.com"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] bob@example.com
++ [A1] wrong@example.com
+
+
 ················································································

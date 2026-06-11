@@ -1,5 +1,9 @@
 
-person is { Address: { City: "NYC" } }
- ℹ LOCALS                                                                       
-person: NppPerson { Name = Bob, Address = NppAddress { City = London, Country = UK }, Contact =  }
+person.Address.City is "NYC"
+
+ ✓ EXPECTED                                                                     
+person.Address.City: "NYC"
+ ✗ ACTUAL                                                                       
+person.Address.City: "London"
+
 ················································································

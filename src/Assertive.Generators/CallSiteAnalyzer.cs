@@ -486,12 +486,12 @@ namespace Assertive.Generators
         return BuildAndPatternTree(ctx, andSubject, andBinPat, call, compiler, ct, patternBindings);
       }
 
-      // Expand typed property patterns (obj is User { Name: "Bob" }) into type-check + property sub-leaves.
-      // Guarded to &&-only chains (patternBindings != null): property leaves reference a pre-declared cast
-      // variable that BuildFlagsChain would not emit.
+      // Expand property patterns (obj is User { Name: "Bob" } or obj is { Name: "Bob" }) into
+      // optional type-check + property sub-leaves.
+      // Guarded to &&-only chains (patternBindings != null): typed property leaves reference a
+      // pre-declared cast variable that BuildFlagsChain would not emit.
       if (patternBindings != null
-          && expression is IsPatternExpressionSyntax { Expression: var ppSubject, Pattern: RecursivePatternSyntax { PropertyPatternClause: not null } ppPat }
-          && ppPat.Type != null)
+          && expression is IsPatternExpressionSyntax { Expression: var ppSubject, Pattern: RecursivePatternSyntax { PropertyPatternClause: not null } ppPat })
       {
         return BuildPropertyPatternSubTree(ctx, ppSubject, ppPat, call, compiler, ct, patternBindings);
       }
@@ -757,47 +757,58 @@ namespace Assertive.Generators
       CancellationToken ct,
       Dictionary<string, LambdaBinding>? patternBindings)
     {
-      var checkedType = ctx.SemanticModel.GetTypeInfo(recursive.Type!, ct).Type;
-      if (checkedType == null || !IsUsableType(checkedType, ctx.SemanticModel.Compilation)) return null;
-
-      var typeAccessor = compiler.TypeAccessor(checkedType);
-      if (typeAccessor == null) return null;
-
-      var typeFqn = checkedType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
       var localsBefore = call.CapturedLocals.Count;
       var compiledSubject = compiler.Compile(subject, patternBindings);
       if (compiledSubject == null) return null;
 
-      // Pre-declare a cast variable via the PatternVars mechanism so it lives outside the try
-      // block and property leaves can reference it. The synthetic key is unpronounceably
-      // prefixed so it can't collide with any user-declared variable name.
-      patternBindings ??= new Dictionary<string, LambdaBinding>();
-      var pvIndex = patternBindings.Count;
-      var castPreDecl = $"__pv{pvIndex}_cast";
-      var castTmp = $"__pvtmp{pvIndex}_cast";
-      patternBindings[castPreDecl] = new LambdaBinding($"(({typeFqn}){castPreDecl}!)", castPreDecl);
+      var subjectLocalsEnd = call.CapturedLocals.Count;
+      var subjectDisplay = subject.ToString();
+      SplitPart? result = null;
+      string receiver;
 
-      var typeCheckLeaf = new SplitPart
+      if (recursive.Type != null)
       {
-        LeafSource = $"{subject} is {checkedType.Name}",
-        ConditionSource = $"{compiledSubject} is {typeFqn} {castTmp}",
-        SubCall = new InterceptedCall
-        {
-          Kind = InterceptionKind.Is,
-          TypeAccessor = typeAccessor,
-          LeftSource = compiledSubject,
-          LeftDisplay = subject.ToString(),
-        }
-      };
-      typeCheckLeaf.Locals.AddRange(call.CapturedLocals.Skip(localsBefore));
-      typeCheckLeaf.PatternVars.Add((typeFqn, castPreDecl, castTmp));
+        var checkedType = ctx.SemanticModel.GetTypeInfo(recursive.Type, ct).Type;
+        if (checkedType == null || !IsUsableType(checkedType, ctx.SemanticModel.Compilation)) return null;
 
-      SplitPart result = typeCheckLeaf;
+        var typeAccessor = compiler.TypeAccessor(checkedType);
+        if (typeAccessor == null) return null;
+
+        var typeFqn = checkedType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+        // Pre-declare a cast variable via PatternVars so it lives outside the try block
+        // and subsequent property leaves can reference it.
+        patternBindings ??= new Dictionary<string, LambdaBinding>();
+        var pvIndex = patternBindings.Count;
+        var castPreDecl = $"__pv{pvIndex}_cast";
+        var castTmp = $"__pvtmp{pvIndex}_cast";
+        patternBindings[castPreDecl] = new LambdaBinding($"(({typeFqn}){castPreDecl}!)", castPreDecl);
+
+        var typeCheckLeaf = new SplitPart
+        {
+          LeafSource = $"{subjectDisplay} is {checkedType.Name}",
+          ConditionSource = $"{compiledSubject} is {typeFqn} {castTmp}",
+          SubCall = new InterceptedCall
+          {
+            Kind = InterceptionKind.Is,
+            TypeAccessor = typeAccessor,
+            LeftSource = compiledSubject,
+            LeftDisplay = subjectDisplay,
+          }
+        };
+        typeCheckLeaf.Locals.AddRange(call.CapturedLocals.Skip(localsBefore));
+        typeCheckLeaf.PatternVars.Add((typeFqn, castPreDecl, castTmp));
+
+        result = typeCheckLeaf;
+        receiver = $"(({typeFqn}){castPreDecl}!)";
+      }
+      else
+      {
+        // No type specifier: use the subject directly as the receiver.
+        receiver = compiledSubject;
+      }
 
       if (recursive.PropertyPatternClause == null) return result;
-
-      var receiver = $"(({typeFqn}){castPreDecl}!)";
-      var subjectDisplay = subject.ToString();
 
       foreach (var subpat in recursive.PropertyPatternClause.Subpatterns)
       {
@@ -810,8 +821,14 @@ namespace Assertive.Generators
           subpat.Pattern, compiler, patternBindings);
         if (propLeaf == null) return null;
 
+        // First leaf in the no-type path carries the subject locals (e.g. person: ...).
+        if (result == null)
+          propLeaf.Locals.AddRange(call.CapturedLocals.GetRange(localsBefore, subjectLocalsEnd - localsBefore));
         propLeaf.Locals.AddRange(call.CapturedLocals.Skip(propLocalsBefore));
-        result = new SplitPart { Kind = "AndAlso", Left = result, Right = propLeaf };
+
+        result = result == null
+          ? propLeaf
+          : new SplitPart { Kind = "AndAlso", Left = result, Right = propLeaf };
       }
 
       return result;
@@ -894,6 +911,39 @@ namespace Assertive.Generators
               RightIsConstant = relational.Expression is LiteralExpressionSyntax,
             }
           };
+        }
+
+        // Nested property pattern: { Prop: { SubProp: value } }
+        // Emit a non-null guard for the intermediate receiver, then one leaf per sub-property.
+        // Recurses so arbitrarily deep nesting works. No type specifier: handled by the
+        // type-check leaf in the enclosing BuildPropertyPatternSubTree call.
+        case RecursivePatternSyntax { Type: null, PropertyPatternClause: { } nestedClause } when !negated:
+        {
+          SplitPart chain = new SplitPart
+          {
+            LeafSource = $"{leftDisplay} is not null",
+            ConditionSource = $"{leftSource} != null",
+            SubCall = new InterceptedCall
+            {
+              Kind = InterceptionKind.Null,
+              Negated = false, // Negated=false → NullFailure(expectedNull:false) → "expected non-null"
+              LeftSource = leftSource,
+              LeftDisplay = leftDisplay,
+            }
+          };
+
+          foreach (var subpat in nestedClause.Subpatterns)
+          {
+            if (subpat.NameColon == null) return null;
+            var propName = subpat.NameColon.Name.Identifier.ValueText;
+            var subLeaf = BuildPropertyLeaf(
+              $"{leftSource}.{propName}", $"{leftDisplay}.{propName}",
+              subpat.Pattern, compiler, bindings);
+            if (subLeaf == null) return null;
+            chain = new SplitPart { Kind = "AndAlso", Left = chain, Right = subLeaf };
+          }
+
+          return chain;
         }
 
         default:
@@ -1321,11 +1371,10 @@ namespace Assertive.Generators
             return call.SplitRoot != null;
           }
 
-          // Property pattern (obj is User { Name: "Bob" }): expand into type-check + sub-leaves.
-          // Same top-level-only guards as and-pattern above.
+          // Property pattern (obj is User { Name: "Bob" } or just { Name: "Bob" }):
+          // expand into optional type-check + sub-leaves. Type specifier is not required.
           if (!patternNegated && !leafContext && !outerNegated && bindings == null
-              && innerPat is RecursivePatternSyntax { PropertyPatternClause: not null } topRecPat
-              && topRecPat.Type != null)
+              && innerPat is RecursivePatternSyntax { PropertyPatternClause: not null })
           {
             call.Kind = InterceptionKind.Split;
             var innerBindings = new Dictionary<string, LambdaBinding>();
