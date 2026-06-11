@@ -905,7 +905,13 @@ With the assembly rooted, decomposition works for everything declared in it. Rea
 
 ### .NET
 
-Assertive targets .NET 8. Because it relies on C# interceptors to generate its failure analysis, a reasonably recent .NET SDK is required to build your test project. The interceptors are enabled automatically when you reference the package — no project configuration is needed.
+Assertive targets .NET 8, so your test project can target **.NET 8 or newer**.
+
+The one extra requirement concerns the **SDK you build with**, not the framework you target. Because the failure analysis is produced by a source generator that emits C# interceptors, your project needs to be built with the **.NET 9.0.300 SDK (or newer)** — equivalently Visual Studio 2022 17.14+, or any .NET 10 SDK. This is purely a build-time requirement: a project targeting `net8.0` builds and runs perfectly fine as long as a recent enough SDK is installed on the build machine. The interceptors are enabled automatically when you reference the package — no project configuration is needed.
+
+If you build with an older SDK, nothing breaks — assertions still pass and fail correctly, but failure messages fall back to showing the assertion source text instead of the fully decomposed output.
+
+If the SDK requirement is a problem for you, the older `0.25.0` release is still available on NuGet. It predates the move to source generation and is built on the .NET Expression API instead, so it runs on older toolchains — at the cost of the expanded C# syntax support (`await`, pattern matching, `?.`, tuple literals, and so on) that the interceptor-based version provides.
 
 ### Test frameworks
 
