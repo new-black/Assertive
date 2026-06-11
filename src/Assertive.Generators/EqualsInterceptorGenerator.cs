@@ -204,13 +204,12 @@ namespace Assertive.Generators
       sb.AppendLine($"    [global::System.Runtime.CompilerServices.InterceptsLocation({call.LocationVersion}, {Quote(call.LocationData)})]");
       sb.AppendLine($"    public static {(isAsync ? "async " : "")}{returnType} Throws{index}({actionType} __action, global::System.Func<{exceptionType}, bool> __assertion, string __actionExpr, string __exceptionExpr)");
       sb.AppendLine("    {");
-      EmitCaptureDecls(sb, call, "__assertion", "      ");
       sb.AppendLine($"      return ({exceptionType}){awaitKeyword}global::Assertive.Runtime.GeneratedAssert.{runtimeEntry}(");
       sb.AppendLine($"        {actionArg},");
       sb.AppendLine($"        {expectedTypeArg},");
       sb.AppendLine($"        __assertion == null ? null : new global::System.Func<global::System.Exception, bool>(__e => __assertion(({exceptionType})__e)),");
       sb.AppendLine("        __actionExpr, __exceptionExpr,");
-      sb.AppendLine($"        {BuildSubRenderer(call.AllSubCall, Quote(call.BodySource), "        ")});");
+      sb.AppendLine($"        {BuildSubRenderer(call.AllSubCall, Quote(call.BodySource), "        ", call)});");
       sb.AppendLine("    }");
     }
 
@@ -221,14 +220,23 @@ namespace Assertive.Generators
     /// </summary>
     private static void EmitExceptionHandler(StringBuilder sb, InterceptedCall call, string delegateName, string assertionTextArg, string tailArgs, string indent)
     {
-      EmitCaptureDecls(sb, call, delegateName, indent);
-
       var steps = call.ExceptionStepsSource ?? "null";
 
-      sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.EvaluationFailure({assertionTextArg}, __ex,");
-      sb.AppendLine($"{indent}  {steps},");
-      sb.AppendLine($"{indent}  {BuildLocalsArray(call)},");
-      sb.AppendLine($"{indent}  {tailArgs});");
+      // Cause attribution is best-effort (the captures read the closure reflectively,
+      // which can fail when metadata was trimmed away under Native AOT): fall back to
+      // reporting the original exception with source text only.
+      sb.AppendLine($"{indent}try");
+      sb.AppendLine($"{indent}{{");
+      EmitCaptureDecls(sb, call, delegateName, indent + "  ");
+      sb.AppendLine($"{indent}  throw global::Assertive.Runtime.GeneratedAssert.EvaluationFailure({assertionTextArg}, __ex,");
+      sb.AppendLine($"{indent}    {steps},");
+      sb.AppendLine($"{indent}    {BuildLocalsArray(call)},");
+      sb.AppendLine($"{indent}    {tailArgs});");
+      sb.AppendLine($"{indent}}}");
+      sb.AppendLine($"{indent}catch (global::System.Exception __rex) when (!global::Assertive.Runtime.GeneratedAssert.IsAssertionFailure(__rex))");
+      sb.AppendLine($"{indent}{{");
+      sb.AppendLine($"{indent}  throw global::Assertive.Runtime.GeneratedAssert.EvaluationFailure({assertionTextArg}, __ex, null, null, {tailArgs});");
+      sb.AppendLine($"{indent}}}");
     }
 
     private static void EmitCaptureDecls(StringBuilder sb, InterceptedCall call, string delegateName, string indent)
@@ -270,44 +278,59 @@ namespace Assertive.Generators
     {
       sb.AppendLine($"{indent}if ({delegateName}()) return;");
 
-      EmitCaptureDecls(sb, call, delegateName, indent);
+      // Reporting is best-effort: decomposition reads closures and members reflectively,
+      // which can fail when reflection metadata was trimmed away (Native AOT). Fall back
+      // to the source-text report instead of leaking an infrastructure exception.
+      sb.AppendLine($"{indent}try");
+      sb.AppendLine($"{indent}{{");
+
+      var inner = indent + "  ";
+
+      EmitCaptureDecls(sb, call, delegateName, inner);
 
       // The Bool/Opaque/Split patterns need no operand values (the delegate already
       // evaluated the body); everything else re-evaluates the operand(s) it reports on.
       if (call.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque or InterceptionKind.Split))
       {
-        sb.AppendLine($"{indent}var __left = {call.LeftSource};");
+        sb.AppendLine($"{inner}var __left = {call.LeftSource};");
       }
 
       if (HasRightOperand(call.Kind))
       {
-        sb.AppendLine($"{indent}var __right = {call.RightSource};");
+        sb.AppendLine($"{inner}var __right = {call.RightSource};");
       }
 
       var localsArray = BuildLocalsArray(call);
-      var tail = $"{localsArray},\n{indent}  {tailArgs}";
+      var tail = $"{localsArray},\n{inner}  {tailArgs}";
 
       // Runtime-registered custom patterns take precedence over the built-in decomposition
       // (the old FallbackPattern consulted them first).
       if (call.CustomProbeSource != null)
       {
-        sb.AppendLine($"{indent}if (global::Assertive.Runtime.GeneratedAssert.TryCustomFailure({assertionTextArg},");
-        sb.AppendLine($"{indent}  {call.CustomProbeSource},");
-        sb.AppendLine($"{indent}  {tail}) is {{ }} __custom)");
-        sb.AppendLine($"{indent}{{");
-        sb.AppendLine($"{indent}  throw __custom;");
-        sb.AppendLine($"{indent}}}");
+        sb.AppendLine($"{inner}if (global::Assertive.Runtime.GeneratedAssert.TryCustomFailure({assertionTextArg},");
+        sb.AppendLine($"{inner}  {call.CustomProbeSource},");
+        sb.AppendLine($"{inner}  {tail}) is {{ }} __custom)");
+        sb.AppendLine($"{inner}{{");
+        sb.AppendLine($"{inner}  throw __custom;");
+        sb.AppendLine($"{inner}}}");
       }
 
       if (call.Kind == InterceptionKind.Split)
       {
-        sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.SplitFailure({assertionTextArg},");
-        sb.AppendLine($"{indent}  {BuildPartInitializer(call.SplitRoot!, indent + "  ", tailArgs)},");
-        sb.AppendLine($"{indent}  {tailArgs});");
-        return;
+        sb.AppendLine($"{inner}throw global::Assertive.Runtime.GeneratedAssert.SplitFailure({assertionTextArg},");
+        sb.AppendLine($"{inner}  {BuildPartInitializer(call.SplitRoot!, inner + "  ", tailArgs)},");
+        sb.AppendLine($"{inner}  {tailArgs});");
+      }
+      else
+      {
+        sb.AppendLine($"{inner}throw global::Assertive.Runtime.GeneratedAssert.{BuildFailureInvocation(call, assertionTextArg, inner, tail, "__left", "__right")});");
       }
 
-      sb.AppendLine($"{indent}throw global::Assertive.Runtime.GeneratedAssert.{BuildFailureInvocation(call, assertionTextArg, indent, tail, "__left", "__right")});");
+      sb.AppendLine($"{indent}}}");
+      sb.AppendLine($"{indent}catch (global::System.Exception __rex) when (!global::Assertive.Runtime.GeneratedAssert.IsAssertionFailure(__rex))");
+      sb.AppendLine($"{indent}{{");
+      sb.AppendLine($"{indent}  throw global::Assertive.Runtime.GeneratedAssert.Failure({assertionTextArg}, null, {tailArgs});");
+      sb.AppendLine($"{indent}}}");
     }
 
     /// <summary>
@@ -433,7 +456,7 @@ namespace Assertive.Generators
     /// the bound value (an All item, or the exception caught by Throws) and builds the
     /// corresponding failure exception. Its expected/actual data becomes the sub-message.
     /// </summary>
-    private static string BuildSubRenderer(InterceptedCall? sub, string assertionTextArg, string indent)
+    private static string BuildSubRenderer(InterceptedCall? sub, string assertionTextArg, string indent, InterceptedCall? captureFrom = null)
     {
       if (sub == null)
       {
@@ -445,6 +468,15 @@ namespace Assertive.Generators
 
       renderer.Append("(global::System.Func<object, int, global::System.Exception>)((__item, __idx) =>\n");
       renderer.Append($"{indent}  {{\n");
+
+      // The Throws interceptor declares its captures here rather than in the method body:
+      // the renderer only runs on the (already guarded) failure path, so a reflective
+      // capture failure can't break the passing path. All-pattern renderers instead use
+      // the captures already declared in the enclosing reporting scope.
+      if (captureFrom != null)
+      {
+        EmitCaptureDecls(renderer, captureFrom, "__assertion", inner);
+      }
 
       if (sub.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque))
       {

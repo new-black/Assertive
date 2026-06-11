@@ -11,17 +11,30 @@ namespace Assertive.Test.Aot
   /// published with PublishAot=true. Each check exercises one of the reflective paths in
   /// GeneratedAssert (closure capture, captured this, private-type member access, reflective
   /// method invocation, enum-constant resolution, exception attribution) plus the degraded
-  /// and Throws paths, and verifies the decomposed output survives trimming and AOT
-  /// compilation. Exit code is the number of failed checks.
+  /// and Throws paths. Exit code is the number of failed checks.
+  ///
+  /// Two publish modes are pinned:
+  /// - default (TrimmerRootAssembly roots the app): full decomposition works;
+  /// - -p:RootApp=false + the --expect-degraded flag: closure metadata is trimmed away,
+  ///   so every failing assertion must still degrade to a source-text report instead of
+  ///   leaking an infrastructure exception, and passing assertions must stay passing.
   /// </summary>
   public static class Program
   {
     private static int _failed;
+    private static bool _expectDegraded;
 
-    public static int Main()
+    public static int Main(string[] args)
     {
+      _expectDegraded = args.Contains("--expect-degraded");
+
       // Deterministic plain-text output regardless of TTY detection.
       Config.Configuration.Colors.Enabled = false;
+
+      Console.WriteLine(_expectDegraded
+        ? "Mode: fully trimmed (expecting graceful source-text degradation)"
+        : "Mode: rooted (expecting full decomposition)");
+      Console.WriteLine();
 
       Check(nameof(Equality_is_decomposed_from_the_closure), Equality_is_decomposed_from_the_closure);
       Check(nameof(InstanceChecks.Captured_this_is_resolved), () => new InstanceChecks().Captured_this_is_resolved());
@@ -38,6 +51,8 @@ namespace Assertive.Test.Aot
       Check(nameof(Passing_assertion_does_not_throw), Passing_assertion_does_not_throw);
       Check(nameof(Throws_returns_the_exception), Throws_returns_the_exception);
       Check(nameof(Throws_fails_when_nothing_is_thrown), Throws_fails_when_nothing_is_thrown);
+      Check(nameof(Throws_with_passing_predicate_does_not_throw), Throws_with_passing_predicate_does_not_throw);
+      Check(nameof(Throws_with_failing_predicate_reports_the_predicate), Throws_with_failing_predicate_reports_the_predicate);
 
       Console.WriteLine();
       Console.WriteLine(_failed == 0 ? "All checks passed." : $"{_failed} check(s) FAILED.");
@@ -52,11 +67,12 @@ namespace Assertive.Test.Aot
 
       var exception = Capture(() => Assert(() => x.IndexOf('b') == expectedIndex));
 
-      Expect(exception != null, "assertion should fail");
-
-      var (expected, actual) = Decomposition(exception!);
-      ExpectEqual("x.IndexOf('b'): 5", expected);
-      ExpectEqual("x.IndexOf('b'): 3", actual);
+      ExpectFailure(exception, "x.IndexOf('b') == expectedIndex", () =>
+      {
+        var (expected, actual) = Decomposition(exception!);
+        ExpectEqual("x.IndexOf('b'): 5", expected);
+        ExpectEqual("x.IndexOf('b'): 3", actual);
+      });
     }
 
     private static void Private_nested_operand_type_is_read_reflectively()
@@ -65,11 +81,12 @@ namespace Assertive.Test.Aot
 
       var exception = Capture(() => Assert(() => secret.Value == 4));
 
-      Expect(exception != null, "assertion should fail");
-
-      var (expected, actual) = Decomposition(exception!);
-      ExpectEqual("secret.Value: 4", expected);
-      ExpectEqual("secret.Value: 3", actual);
+      ExpectFailure(exception, "secret.Value == 4", () =>
+      {
+        var (expected, actual) = Decomposition(exception!);
+        ExpectEqual("secret.Value: 4", expected);
+        ExpectEqual("secret.Value: 3", actual);
+      });
     }
 
     private static void Private_nested_enum_constant_is_resolved_reflectively()
@@ -78,9 +95,12 @@ namespace Assertive.Test.Aot
 
       var exception = Capture(() => Assert(() => a == Mood.Grumpy));
 
-      var (expected, actual) = Decomposition(exception!);
-      ExpectEqual("a: Mood.Grumpy", expected);
-      ExpectEqual("a: null", actual);
+      ExpectFailure(exception, "a == Mood.Grumpy", () =>
+      {
+        var (expected, actual) = Decomposition(exception!);
+        ExpectEqual("a: Mood.Grumpy", expected);
+        ExpectEqual("a: null", actual);
+      });
     }
 
     private static void Null_comparison_uses_the_null_pattern()
@@ -89,9 +109,12 @@ namespace Assertive.Test.Aot
 
       var exception = Capture(() => Assert(() => value == null));
 
-      var (expected, actual) = Decomposition(exception!);
-      ExpectEqual("value should be null.", expected);
-      ExpectEqual("\"not null\"", actual);
+      ExpectFailure(exception, "value == null", () =>
+      {
+        var (expected, actual) = Decomposition(exception!);
+        ExpectEqual("value should be null.", expected);
+        ExpectEqual("\"not null\"", actual);
+      });
     }
 
     private static void ReferenceEquals_is_decomposed()
@@ -101,8 +124,11 @@ namespace Assertive.Test.Aot
 
       var exception = Capture(() => Assert(() => ReferenceEquals(instance1, instance2)));
 
-      var (expected, _) = Decomposition(exception!);
-      ExpectEqual("instance1 and instance2 should be the same instance.", expected);
+      ExpectFailure(exception, "ReferenceEquals(instance1, instance2)", () =>
+      {
+        var (expected, _) = Decomposition(exception!);
+        ExpectEqual("instance1 and instance2 should be the same instance.", expected);
+      });
     }
 
     private static void Exception_cause_is_attributed()
@@ -111,10 +137,16 @@ namespace Assertive.Test.Aot
 
       var exception = Capture(() => Assert(() => secret.Value == 4));
 
+      // The evaluation exception must be reported in both modes.
       Expect(exception != null, "assertion should fail");
+      Expect(StripAnsi(exception!.Message).Contains("NullReferenceException"),
+        $"missing exception report: {exception.Message}");
 
-      var handled = (string[])exception!.Data["Assertive.HandledExceptions"]!;
-      ExpectEqual("NullReferenceException caused by accessing Value on secret which was null.", StripAnsi(handled.Single()));
+      ExpectFailure(exception, "secret.Value == 4", () =>
+      {
+        var handled = (string[])exception.Data["Assertive.HandledExceptions"]!;
+        ExpectEqual("NullReferenceException caused by accessing Value on secret which was null.", StripAnsi(handled.Single()));
+      });
     }
 
     private static void Exception_cause_inside_lambda_gets_item_context()
@@ -124,11 +156,16 @@ namespace Assertive.Test.Aot
       var exception = Capture(() => Assert(() => users.All(u => u.Name.Length > 0)));
 
       Expect(exception != null, "assertion should fail");
+      Expect(StripAnsi(exception!.Message).Contains("NullReferenceException"),
+        $"missing exception report: {exception.Message}");
 
-      var handled = StripAnsi(((string[])exception!.Data["Assertive.HandledExceptions"]!).Single());
-      Expect(handled.StartsWith("NullReferenceException caused by accessing Length on u.Name which was null."),
-        $"unexpected cause: {handled}");
-      Expect(handled.Contains("On item [1] of users:"), $"missing item context: {handled}");
+      ExpectFailure(exception, "users.All(u => u.Name.Length > 0)", () =>
+      {
+        var handled = StripAnsi(((string[])exception.Data["Assertive.HandledExceptions"]!).Single());
+        Expect(handled.StartsWith("NullReferenceException caused by accessing Length on u.Name which was null."),
+          $"unexpected cause: {handled}");
+        Expect(handled.Contains("On item [1] of users:"), $"missing item context: {handled}");
+      });
     }
 
     private static void Logical_and_is_split()
@@ -137,11 +174,12 @@ namespace Assertive.Test.Aot
 
       var exception = Capture(() => Assert(() => value.Contains('a') && value.Contains('z')));
 
-      Expect(exception != null, "assertion should fail");
-
-      var (expected, actual) = Decomposition(exception!);
-      ExpectEqual("value should contain the substring 'z'.", expected);
-      ExpectEqual("value: \"ab\"", actual);
+      ExpectFailure(exception, "value.Contains('a') && value.Contains('z')", () =>
+      {
+        var (expected, actual) = Decomposition(exception!);
+        ExpectEqual("value should contain the substring 'z'.", expected);
+        ExpectEqual("value: \"ab\"", actual);
+      });
     }
 
     private static void Locals_are_serialized()
@@ -151,9 +189,12 @@ namespace Assertive.Test.Aot
 
       var exception = Capture(() => Assert(() => x.IndexOf('b') == expectedIndex));
 
-      var message = StripAnsi(exception!.Message);
-      Expect(message.Contains("LOCALS"), $"missing LOCALS section: {message}");
-      Expect(message.Contains("x:"), $"missing local x: {message}");
+      ExpectFailure(exception, "x.IndexOf('b') == expectedIndex", () =>
+      {
+        var message = StripAnsi(exception!.Message);
+        Expect(message.Contains("LOCALS"), $"missing LOCALS section: {message}");
+        Expect(message.Contains("x:"), $"missing local x: {message}");
+      });
     }
 
     private static void Degraded_path_reports_source_text()
@@ -192,6 +233,32 @@ namespace Assertive.Test.Aot
       Expect(StripAnsi(exception!.Message).Contains("DoNothing()"), $"missing action source: {exception.Message}");
     }
 
+    private static void Throws_with_passing_predicate_does_not_throw()
+    {
+      // The predicate's captured local must not be read on the passing path: before the
+      // best-effort reporting fix, a fully-trimmed publish leaked an infrastructure
+      // exception here before the action even ran.
+      var expectedMessage = "boom";
+
+      var thrown = AssertiveAssert.Throws(() => ThrowSomething(), e => e.Message == expectedMessage);
+
+      Expect(thrown is InvalidOperationException, $"unexpected exception: {thrown}");
+    }
+
+    private static void Throws_with_failing_predicate_reports_the_predicate()
+    {
+      var expectedMessage = "not boom";
+
+      var exception = Capture(() => AssertiveAssert.Throws(() => ThrowSomething(), e => e.Message == expectedMessage));
+
+      ExpectFailure(exception, "e.Message == expectedMessage", () =>
+      {
+        var (expected, actual) = Decomposition(exception!);
+        ExpectEqual("e.Message: \"not boom\"", expected);
+        ExpectEqual("e.Message: \"boom\"", actual);
+      });
+    }
+
     private static void ThrowSomething() => throw new InvalidOperationException("boom");
 
     private static void DoNothing() { }
@@ -211,6 +278,27 @@ namespace Assertive.Test.Aot
         Console.WriteLine($"FAIL {name}");
         Console.WriteLine($"     {ex.Message.Replace("\n", "\n     ")}");
       }
+    }
+
+    /// <summary>
+    /// A failing assertion must throw in both modes. Rooted: the decomposed expectations
+    /// hold. Fully trimmed: reporting degrades, but the failure must still be an Assertive
+    /// failure carrying the assertion's source text — never a leaked infrastructure
+    /// exception like "could not locate captured variable".
+    /// </summary>
+    private static void ExpectFailure(Exception? exception, string sourceText, Action verifyDecomposed)
+    {
+      Expect(exception != null, "assertion should fail");
+
+      if (_expectDegraded)
+      {
+        var message = StripAnsi(exception!.Message);
+        Expect(message.Contains(sourceText), $"missing source text: {message}");
+        Expect(exception.Data.Contains("Assertive.Expected"), $"not an Assertive failure: {message}");
+        return;
+      }
+
+      verifyDecomposed();
     }
 
     private static Exception? Capture(Action assertion)
@@ -259,33 +347,35 @@ namespace Assertive.Test.Aot
       {
         var exception = Capture(() => Assert(() => _value == 42));
 
-        Expect(exception != null, "assertion should fail");
-
-        var (expected, actual) = Decomposition(exception!);
-        ExpectEqual("_value: 42", expected);
-        ExpectEqual("_value: 41", actual);
+        ExpectFailure(exception, "_value == 42", () =>
+        {
+          var (expected, actual) = Decomposition(exception!);
+          ExpectEqual("_value: 42", expected);
+          ExpectEqual("_value: 41", actual);
+        });
       }
 
       public void Private_method_on_this_is_invoked_reflectively()
       {
         var exception = Capture(() => Assert(() => GetTuple().a == GetTuple().b));
 
-        Expect(exception != null, "assertion should fail");
-
-        if (!System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported)
+        ExpectFailure(exception, "GetTuple().a == GetTuple().b", () =>
         {
-          // Known AOT limitation: tuple element access goes through GetMemberValue on
-          // ValueTuple`2, whose reflection metadata lives in CoreLib and is not rooted
-          // by TrimmerRootAssembly. The decomposition fails and degrades to a source-text
-          // report with an EXCEPTION section instead of leaking.
-          Expect(StripAnsi(exception!.Message).Contains("GetTuple().a == GetTuple().b"),
-            $"missing source text: {exception.Message}");
-          return;
-        }
+          if (!System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported)
+          {
+            // Known AOT limitation even when rooted: tuple element access goes through
+            // GetMemberValue on ValueTuple`2, whose reflection metadata lives in CoreLib
+            // and is not rooted by TrimmerRootAssembly. The decomposition fails and
+            // degrades to a source-text report instead of leaking.
+            Expect(StripAnsi(exception!.Message).Contains("GetTuple().a == GetTuple().b"),
+              $"missing source text: {exception.Message}");
+            return;
+          }
 
-        var (expected, actual) = Decomposition(exception!);
-        ExpectEqual("GetTuple().a: \"b\"", expected);
-        ExpectEqual("GetTuple().a: \"a\"", actual);
+          var (expected, actual) = Decomposition(exception!);
+          ExpectEqual("GetTuple().a: \"b\"", expected);
+          ExpectEqual("GetTuple().a: \"a\"", actual);
+        });
       }
 
       private (string a, string b) GetTuple()

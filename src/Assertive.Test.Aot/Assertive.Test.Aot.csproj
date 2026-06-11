@@ -16,10 +16,11 @@
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- Experiment: root the app assembly so compiler-generated display classes (lambda
-         closures) keep their reflection metadata, which GeneratedAssert's decomposition
-         reads by field name. -->
+  <!-- Rooting the app assembly keeps reflection metadata for compiler-generated display
+       classes (lambda closures), which GeneratedAssert's decomposition reads by field
+       name. Publish with -p:RootApp=false to test the fully-trimmed degradation; run the
+       binary with the expect-degraded flag to pin that mode's behavior. -->
+  <ItemGroup Condition="'$(RootApp)' != 'false'">
     <TrimmerRootAssembly Include="Assertive.Test.Aot" />
   </ItemGroup>
 
