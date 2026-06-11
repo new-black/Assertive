@@ -1310,7 +1310,10 @@ namespace Assertive.Generators
       {
         return (name.Parent is MemberAccessExpressionSyntax ma && ma.Name == name)
                || (name.Parent is QualifiedNameSyntax qn && qn.Right == name)
-               || name.Parent is MemberBindingExpressionSyntax;
+               || name.Parent is MemberBindingExpressionSyntax
+               // Named tuple elements ((x: 1, y: 2)) and named arguments: the name is
+               // not a free-standing reference, it pastes as written.
+               || name.Parent is NameColonSyntax;
       }
 
       /// <summary>
@@ -1535,6 +1538,34 @@ namespace Assertive.Generators
             var rightFqn = rightType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
             return $"((({leftFqn})({leftCompiled})) {binary.OperatorToken.Text} (({rightFqn})({rightCompiled})))";
+          }
+
+          case TupleExpressionSyntax tuple:
+          {
+            // Tuple literals are reconstructed element-wise: each element compiles
+            // reflectively and is cast back to its static type, producing a real
+            // ValueTuple without reflecting on the tuple itself (AOT-safe). The natural
+            // type is what the compiled fragment boxes (casting to a converted type
+            // would unbox-mismatch); ConvertedType only serves typeless elements
+            // (null/default), where the cast is a reference conversion anyway.
+            var elements = new List<string>();
+
+            foreach (var argument in tuple.Arguments)
+            {
+              var elementInfo = _model.GetTypeInfo(argument.Expression, _ct);
+              var elementType = elementInfo.Type ?? elementInfo.ConvertedType;
+
+              if (elementType == null || !IsUsableType(elementType, _compilation)
+                  || CompileReflective(argument.Expression, captures, bindings) is not { } element)
+              {
+                return null;
+              }
+
+              var elementFqn = elementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+              elements.Add($"(({elementFqn})({element}))");
+            }
+
+            return $"((object)(({string.Join(", ", elements)})))";
           }
 
           case InvocationExpressionSyntax invocation:

@@ -50,6 +50,7 @@ namespace Assertive.Test.Aot
       Check(nameof(Locals_are_serialized), Locals_are_serialized);
       Check(nameof(Degraded_path_reports_unintercepted_marker), Degraded_path_reports_unintercepted_marker);
       Check(nameof(Passing_assertion_does_not_throw), Passing_assertion_does_not_throw);
+      Check(nameof(Tuple_literal_is_reconstructed_reflectively), Tuple_literal_is_reconstructed_reflectively);
       Check(nameof(Async_equality_is_decomposed_typed), () => Async_equality_is_decomposed_typed().GetAwaiter().GetResult());
       Check(nameof(Async_equality_is_decomposed_reflectively), () => Async_equality_is_decomposed_reflectively().GetAwaiter().GetResult());
       Check(nameof(Async_degraded_path_reports_unintercepted_marker), () => Async_degraded_path_reports_unintercepted_marker().GetAwaiter().GetResult());
@@ -264,6 +265,23 @@ namespace Assertive.Test.Aot
         ExpectEqual("e.Message: \"boom\"", actual);
       });
     }
+
+    private static void Tuple_literal_is_reconstructed_reflectively()
+    {
+      // GetValue is private, so the tuple operand is rebuilt element-wise around
+      // InvokeStatic, each element cast to its static type — no reflection on the
+      // tuple itself, and the display goes through ValueTuple.ToString().
+      var exception = Capture(() => Assert(() => (GetValue(), 2) == (9, 2)));
+
+      ExpectFailure(exception, "(GetValue(), 2) == (9, 2)", () =>
+      {
+        var (expected, actual) = Decomposition(exception!);
+        ExpectEqual("(GetValue(), 2): (9, 2)", expected);
+        ExpectEqual("(GetValue(), 2): (7, 2)", actual);
+      });
+    }
+
+    private static int GetValue() => 7;
 
     private static async Task Async_equality_is_decomposed_typed()
     {

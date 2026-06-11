@@ -212,6 +212,15 @@ namespace Assertive.Test
     }
 
     [Fact]
+    public async Task Tuple_literal_with_awaited_element_is_decomposed()
+    {
+      // ValueAsync is private, so the tuple is reconstructed reflectively: the awaited
+      // element goes through InvokeStatic + a typed await cast inside the tuple literal.
+      await ShouldFailAsync(() => Assert(async () => (await ValueAsync(1), 2) == (9, 2)),
+        "(await ValueAsync(1), 2): (9, 2)", "(await ValueAsync(1), 2): (1, 2)");
+    }
+
+    [Fact]
     public async Task Stored_async_delegate_reports_the_unintercepted_marker()
     {
       Func<Task<bool>> stored = async () => await ValueAsync(1) == 2;
