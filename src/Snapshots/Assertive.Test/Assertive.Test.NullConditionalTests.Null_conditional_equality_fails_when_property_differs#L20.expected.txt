@@ -1,0 +1,11 @@
+
+user?.Name == "Bob"
+
+ ✓ EXPECTED                                                                     
+user?.Name: "Bob"
+ ✗ ACTUAL                                                                       
+user?.Name: "Alice"
+
+ ℹ LOCALS                                                                       
+user: NcUser { Name = Alice, Address =  }
+················································································

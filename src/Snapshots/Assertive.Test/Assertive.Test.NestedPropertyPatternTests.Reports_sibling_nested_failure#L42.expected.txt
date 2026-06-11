@@ -1,0 +1,5 @@
+
+person is { Name: "Bob", Address: { City: "NYC" } }
+ ℹ LOCALS                                                                       
+person: NppPerson { Name = Alice, Address = NppAddress { City = NYC, Country = US }, Contact =  }
+················································································

@@ -2477,12 +2477,14 @@ namespace Assertive.Generators
 
             if (method.IsGenericMethod
                 || method.Parameters.Any(p => p.RefKind != RefKind.None || p.IsParams)
-                || invocation.ArgumentList.Arguments.Count != method.Parameters.Length
-                || invocation.ArgumentList.Arguments.Any(a => a.NameColon != null)
                 || !HasSingleOverload(method))
             {
               return null;
             }
+
+            var instanceArgExprs = GetArgumentExpressionsInParameterOrder(
+              invocation.ArgumentList.Arguments, method.Parameters);
+            if (instanceArgExprs == null) return null;
 
             var receiver = invocation.Expression switch
             {
@@ -2499,9 +2501,9 @@ namespace Assertive.Generators
 
             var arguments = new List<string>();
 
-            foreach (var argument in invocation.ArgumentList.Arguments)
+            foreach (var argExpr in instanceArgExprs)
             {
-              if (CompileReflective(argument.Expression, captures, bindings) is not { } compiled)
+              if (CompileReflective(argExpr, captures, bindings) is not { } compiled)
               {
                 return null;
               }
@@ -2537,8 +2539,7 @@ namespace Assertive.Generators
             || !IsAccessibleMember(method)
             || !IsUsableType(method.ContainingType, _compilation)
             || constructed.TypeArguments.Any(t => !IsUsableType(t, _compilation))
-            || constructed.Parameters.Any(p => p.RefKind != RefKind.None || p.IsParams)
-            || invocation.ArgumentList.Arguments.Any(a => a.NameColon != null))
+            || constructed.Parameters.Any(p => p.RefKind != RefKind.None || p.IsParams))
         {
           return null;
         }
@@ -2556,7 +2557,16 @@ namespace Assertive.Generators
           syntaxArguments.Add(access.Expression);
         }
 
-        syntaxArguments.AddRange(invocation.ArgumentList.Arguments.Select(a => a.Expression));
+        // Sort named arguments to parameter positions; positional args pass through unchanged.
+        // For reduced extension methods, `constructed.Parameters[0]` is the receiver (already
+        // added above from access.Expression), so only match against the remaining parameters.
+        var callParameters = method.ReducedFrom != null
+          ? constructed.Parameters.RemoveAt(0)
+          : constructed.Parameters;
+        var sortedArgs = GetArgumentExpressionsInParameterOrder(
+          invocation.ArgumentList.Arguments, callParameters);
+        if (sortedArgs == null) return null;
+        syntaxArguments.AddRange(sortedArgs);
 
         if (syntaxArguments.Count != constructed.Parameters.Length)
         {
@@ -2652,19 +2662,21 @@ namespace Assertive.Generators
         if (method.ReducedFrom != null
             || method.IsGenericMethod
             || method.Parameters.Any(p => p.RefKind != RefKind.None || p.IsParams)
-            || invocation.ArgumentList.Arguments.Count != method.Parameters.Length
-            || invocation.ArgumentList.Arguments.Any(a => a.NameColon != null)
             || !HasSingleStaticOverload(method)
             || TypeAccessor(method.ContainingType) is not { } typeAccessor)
         {
           return null;
         }
 
+        var untypedArgExprs = GetArgumentExpressionsInParameterOrder(
+          invocation.ArgumentList.Arguments, method.Parameters);
+        if (untypedArgExprs == null) return null;
+
         var arguments = new List<string>();
 
-        foreach (var argument in invocation.ArgumentList.Arguments)
+        foreach (var argExpr in untypedArgExprs)
         {
-          if (CompileReflective(argument.Expression, captures, bindings) is not { } compiled)
+          if (CompileReflective(argExpr, captures, bindings) is not { } compiled)
           {
             return null;
           }
@@ -2677,6 +2689,43 @@ namespace Assertive.Generators
           : $"[{string.Join(", ", arguments)}]";
 
         return $"{Runtime}.InvokeStatic({typeAccessor}, {Quote(method.Name)}, {argumentArray})";
+      }
+
+      /// <summary>
+      /// Returns argument expressions sorted to parameter order, resolving named arguments.
+      /// Returns null if any named label doesn't match a parameter or if there's a conflict.
+      /// </summary>
+      private static List<ExpressionSyntax>? GetArgumentExpressionsInParameterOrder(
+        SeparatedSyntaxList<ArgumentSyntax> args, System.Collections.Immutable.ImmutableArray<IParameterSymbol> parameters)
+      {
+        if (args.Count != parameters.Length) return null;
+
+        if (!args.Any(a => a.NameColon != null))
+          return args.Select(a => a.Expression).ToList();
+
+        var result = new ExpressionSyntax?[parameters.Length];
+
+        for (var i = 0; i < args.Count; i++)
+        {
+          var arg = args[i];
+
+          if (arg.NameColon != null)
+          {
+            var label = arg.NameColon.Name.Identifier.ValueText;
+            var paramIdx = -1;
+            for (var j = 0; j < parameters.Length; j++)
+              if (parameters[j].Name == label) { paramIdx = j; break; }
+            if (paramIdx < 0 || result[paramIdx] != null) return null;
+            result[paramIdx] = arg.Expression;
+          }
+          else
+          {
+            if (result[i] != null) return null;
+            result[i] = arg.Expression;
+          }
+        }
+
+        return result.All(r => r != null) ? result.Select(r => r!).ToList() : null;
       }
 
       /// <summary>

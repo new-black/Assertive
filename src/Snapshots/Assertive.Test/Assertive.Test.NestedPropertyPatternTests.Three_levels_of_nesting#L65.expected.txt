@@ -1,0 +1,5 @@
+
+person is { Contact: { Email: "bob@example.com" } }
+ ℹ LOCALS                                                                       
+person: NppPerson { Name = Bob, Address = NppAddress { City = NYC, Country = US }, Contact = NppContact { Email = wrong@example.com, Phone =  } }
+················································································
