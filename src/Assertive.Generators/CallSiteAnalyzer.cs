@@ -458,6 +458,15 @@ namespace Assertive.Generators
     private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
 
     /// <summary>
+    /// Escapes a captured name for use as an identifier in generated code. Symbol names of
+    /// verbatim identifiers lack the @ (a local `@lock` is named "lock"), so emitting them
+    /// bare would put a keyword where an identifier is expected. Display strings and
+    /// closure-field lookups keep the raw name.
+    /// </summary>
+    internal static string Identifier(string name)
+      => SyntaxFacts.GetKeywordKind(name) == SyntaxKind.None ? name : "@" + name;
+
+    /// <summary>
     /// Determines which pattern the (negation-stripped) assertion body matches, compiles
     /// the operands the pattern needs, and fills the pattern-specific fields of the call.
     /// Returns false when the body is not a whitelisted form or an operand can't be compiled.
@@ -1264,7 +1273,7 @@ namespace Assertive.Generators
             {
               case ILocalSymbol { IsConst: false } local:
                 AddCapture(captures, local.Name, local.Type);
-                return local.Name;
+                return Identifier(local.Name);
 
               case IParameterSymbol param when IsDeclaredWithin(param, _body):
                 return bindings != null && bindings.TryGetValue(param.Name, out var binding)
@@ -1273,7 +1282,7 @@ namespace Assertive.Generators
 
               case IParameterSymbol param:
                 AddCapture(captures, param.Name, param.Type);
-                return param.Name;
+                return Identifier(param.Name);
 
               case IFieldSymbol { IsStatic: false } field:
                 return $"{Runtime}.GetMemberValue({CapturedThis}, {Quote(MetadataName(field))})";

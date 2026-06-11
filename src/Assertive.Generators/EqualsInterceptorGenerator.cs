@@ -264,10 +264,12 @@ namespace Assertive.Generators
     {
       foreach (var local in call.CapturedLocals)
       {
+        var name = CallSiteAnalyzer.Identifier(local.Name);
+
         // Unnameable types are read as object; member access on them happens reflectively.
         sb.AppendLine(local.Type != null
-          ? $"{indent}{local.Type} {local.Name} = ({local.Type})__A.GetCapturedValue({delegateName}, {Quote(local.Name)});"
-          : $"{indent}object {local.Name} = __A.GetCapturedValue({delegateName}, {Quote(local.Name)});");
+          ? $"{indent}{local.Type} {name} = ({local.Type})__A.GetCapturedValue({delegateName}, {Quote(local.Name)});"
+          : $"{indent}object {name} = __A.GetCapturedValue({delegateName}, {Quote(local.Name)});");
       }
     }
 
@@ -280,13 +282,14 @@ namespace Assertive.Generators
 
     private static string BuildLocalsArray(IEnumerable<(string Name, string? Type)> locals, string leftDisplay, string rightDisplay)
     {
+      // Display sources keep verbatim identifiers as written (@lock), symbol names don't.
       var displayedLocals = locals
-        .Where(l => l.Name != leftDisplay.Trim() && l.Name != rightDisplay.Trim())
+        .Where(l => l.Name != leftDisplay.Trim().TrimStart('@') && l.Name != rightDisplay.Trim().TrimStart('@'))
         .ToList();
 
       return displayedLocals.Count == 0
         ? "global::System.Array.Empty<(string, object)>()"
-        : $"new (string, object)[] {{ {string.Join(", ", displayedLocals.Select(l => $"({Quote(l.Name)}, (object){l.Name})"))} }}";
+        : $"new (string, object)[] {{ {string.Join(", ", displayedLocals.Select(l => $"({Quote(l.Name)}, (object){CallSiteAnalyzer.Identifier(l.Name)})"))} }}";
     }
 
     /// <summary>
