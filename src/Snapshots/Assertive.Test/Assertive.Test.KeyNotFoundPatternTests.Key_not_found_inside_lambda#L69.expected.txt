@@ -10,9 +10,7 @@ c.Data["x"]
 [EXCEPTION]
 The given key 'x' was not present in the dictionary.
 [STACKTRACE]
-   at System.Collections.Generic.Dictionary`2.get_Item(TKey key)
    at Assertive.Test.KeyNotFoundPatternTests.<>c.<Key_not_found_inside_lambda>b__5_1(Container c) in KeyNotFoundPatternTests.cs:line 69
-   at System.Linq.Enumerable.Any[TSource](IEnumerable`1 source, Func`2 predicate)
    at Assertive.Test.KeyNotFoundPatternTests.<>c__DisplayClass5_0.<Key_not_found_inside_lambda>b__0() in KeyNotFoundPatternTests.cs:line 69
 [LOCALS]
 containers: [ { Data = { ["a"] = 1 } }, { Data = { ["b"] = 2 } } ]

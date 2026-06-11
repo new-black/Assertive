@@ -10,10 +10,7 @@ int.Parse(i.Value)
 [EXCEPTION]
 The input string 'invalid' was not in a correct format.
 [STACKTRACE]
-   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
-   at System.Int32.Parse(String s)
    at Assertive.Test.FormatExceptionPatternTests.<>c.<Parse_inside_lambda_first_item>b__7_1(Item i) in FormatExceptionPatternTests.cs:line 74
-   at System.Linq.Enumerable.Any[TSource](IEnumerable`1 source, Func`2 predicate)
    at Assertive.Test.FormatExceptionPatternTests.<>c__DisplayClass7_0.<Parse_inside_lambda_first_item>b__0() in FormatExceptionPatternTests.cs:line 74
 [LOCALS]
 items: [ { Value = "invalid" }, { Value = "456" } ]

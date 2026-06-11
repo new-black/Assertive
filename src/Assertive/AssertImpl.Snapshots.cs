@@ -400,14 +400,20 @@ internal partial class AssertImpl
     return value.Replace("\r\n", "\n").Replace("\r", "\n");
   }
 
-  private static string ApplyStringTransform(string value, Func<string, string> transform)
+  private static string ApplyStringTransform(string value, Func<string, string?> transform)
   {
     var lines = value.Split('\n');
-    for (var i = 0; i < lines.Length; i++)
+    var result = new List<string>(lines.Length);
+    foreach (var line in lines)
     {
-      lines[i] = transform(lines[i]);
+      var transformed = transform(line);
+      // A null result means the line is dropped entirely (e.g. non-deterministic stack frames).
+      if (transformed != null)
+      {
+        result.Add(transformed);
+      }
     }
-    return string.Join('\n', lines);
+    return string.Join('\n', result);
   }
 
   private static Exception BuildStringSnapshotError(string actualString, string expectedString, FileInfo expectedFileInfo,

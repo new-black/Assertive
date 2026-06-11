@@ -1,12 +1,12 @@
 
 (await task).Name == "expected"
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 (await task).Name: "expected"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 (await task).Name: "actual"
 
- ℹ LOCALS                                                                       
+[LOCALS]
 task: {
  Result = { Name = actual },
  Id = 1,

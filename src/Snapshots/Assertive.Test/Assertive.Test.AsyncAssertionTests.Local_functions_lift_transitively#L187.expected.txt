@@ -1,9 +1,9 @@
 
 await TwiceAsync(3) == 5
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 await TwiceAsync(3): 5
- ✗ ACTUAL                                                                       
+[ACTUAL]
 await TwiceAsync(3): 6
 
 ················································································

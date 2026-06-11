@@ -1,9 +1,9 @@
 
 await LocalValueAsync(1) == 2
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 await LocalValueAsync(1): 2
- ✗ ACTUAL                                                                       
+[ACTUAL]
 await LocalValueAsync(1): 1
 
 ················································································

@@ -1,9 +1,9 @@
 
 await NullStringAsync() != null
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 await NullStringAsync() should not be null.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 null
 
 ················································································

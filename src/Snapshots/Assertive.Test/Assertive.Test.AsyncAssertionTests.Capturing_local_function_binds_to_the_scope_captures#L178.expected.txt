@@ -1,11 +1,11 @@
 
 await ScaledAsync(2) == 5
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 await ScaledAsync(2): 5
- ✗ ACTUAL                                                                       
+[ACTUAL]
 await ScaledAsync(2): 20
 
- ℹ LOCALS                                                                       
+[LOCALS]
 factor: 10
 ················································································

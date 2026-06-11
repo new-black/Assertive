@@ -1,9 +1,9 @@
 
 await ValueAsync(7) == 2
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 await ValueAsync(7): 2
- ✗ ACTUAL                                                                       
+[ACTUAL]
 await ValueAsync(7): 7
 
 ················································································

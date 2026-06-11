@@ -1,9 +1,9 @@
 
 (await ListAsync()).Count == 2
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 (await ListAsync()) should have a Count equal to 2.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Count: 3.
 
 ················································································

@@ -11,7 +11,6 @@ i.Values[5]
 Index was outside the bounds of the array.
 [STACKTRACE]
    at Assertive.Test.IndexOutOfRangeExceptionPatternTests.<>c.<Out_of_range_inside_lambda_is_caught>b__2_1(Item i) in IndexOutOfRangeExceptionPatternTests.cs:line 31
-   at System.Linq.Enumerable.Any[TSource](IEnumerable`1 source, Func`2 predicate)
    at Assertive.Test.IndexOutOfRangeExceptionPatternTests.<>c__DisplayClass2_0.<Out_of_range_inside_lambda_is_caught>b__0() in IndexOutOfRangeExceptionPatternTests.cs:line 31
 [LOCALS]
 items: [ { Values = [ 1, 2, 3 ] }, { Values = [ 4 ] } ]

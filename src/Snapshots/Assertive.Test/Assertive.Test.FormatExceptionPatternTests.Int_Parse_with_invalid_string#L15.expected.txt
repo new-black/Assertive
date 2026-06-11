@@ -7,8 +7,6 @@ int.Parse(input)
 [EXCEPTION]
 The input string 'abc' was not in a correct format.
 [STACKTRACE]
-   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
-   at System.Int32.Parse(String s)
    at Assertive.Test.FormatExceptionPatternTests.<>c__DisplayClass0_0.<Int_Parse_with_invalid_string>b__0() in FormatExceptionPatternTests.cs:line 15
 [LOCALS]
 input: "abc"

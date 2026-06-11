@@ -1,9 +1,9 @@
 
 (await ValueAsync(1), 2) == (9, 2)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 (await ValueAsync(1), 2): (9, 2)
- ✗ ACTUAL                                                                       
+[ACTUAL]
 (await ValueAsync(1), 2): (1, 2)
 
 ················································································

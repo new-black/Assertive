@@ -7,8 +7,6 @@ str.Substring(10)
 [EXCEPTION]
 startIndex cannot be larger than length of string. (Parameter 'startIndex')
 [STACKTRACE]
-   at System.String.ThrowSubstringArgumentOutOfRange(Int32 startIndex, Int32 length)
-   at System.String.Substring(Int32 startIndex)
    at Assertive.Test.ArgumentOutOfRangeExceptionPatternTests.<>c__DisplayClass0_0.<Substring_with_index_too_large>b__0() in ArgumentOutOfRangeExceptionPatternTests.cs:line 14
 [LOCALS]
 str: "hello"

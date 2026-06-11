@@ -7,8 +7,6 @@ str.Substring(3, 10)
 [EXCEPTION]
 Index and length must refer to a location within the string. (Parameter 'length')
 [STACKTRACE]
-   at System.String.ThrowSubstringArgumentOutOfRange(Int32 startIndex, Int32 length)
-   at System.String.Substring(Int32 startIndex, Int32 length)
    at Assertive.Test.ArgumentOutOfRangeExceptionPatternTests.<>c__DisplayClass3_0.<Substring_with_length_too_large>b__0() in ArgumentOutOfRangeExceptionPatternTests.cs:line 39
 [LOCALS]
 str: "hello"

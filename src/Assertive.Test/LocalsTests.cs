@@ -88,19 +88,6 @@ namespace Assertive.Test
       => ShouldEqual(AssertionHandle.Degraded(assertion, assertionExpression), assertionExpression, callerFilePath, callerLineNumber);
 
     internal void ShouldEqual(AssertionHandle assertion, string assertionExpression = "", string callerFilePath = "", int callerLineNumber = 0)
-    {
-      try
-      {
-        assertion.Assert();
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        Assert.Snapshot(StripAnsi(ex.Message),
-          options: $"L{callerLineNumber}",
-          expression: assertionExpression,
-          sourceFile: callerFilePath);
-      }
-    }
+      => ShouldFail(assertion, assertionExpression, callerFilePath, callerLineNumber);
   }
 }

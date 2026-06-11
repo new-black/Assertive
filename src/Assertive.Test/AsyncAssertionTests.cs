@@ -42,7 +42,7 @@ namespace Assertive.Test
       [CallerFilePath] string callerFilePath = "",
       [CallerLineNumber] int callerLineNumber = 0)
     {
-      var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(assertion);
+      var ex = await CaptureFailureAsync(assertion);
       Assert.Snapshot(StripAnsi(ex.Message),
         options: $"L{callerLineNumber}",
         expression: assertionExpression,

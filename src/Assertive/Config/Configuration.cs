@@ -239,9 +239,11 @@ namespace Assertive.Config
       /// <summary>
       /// A transform applied to each line of string snapshots before writing or comparing.
       /// Useful for stripping or normalizing machine-specific content (e.g. local file paths in stack traces).
-      /// The delegate receives a single line (without line terminator) and should return the transformed line.
+      /// The delegate receives a single line (without line terminator) and should return the transformed line,
+      /// or <c>null</c> to drop the line entirely (useful for removing non-deterministic lines such as
+      /// framework stack-trace frames that vary across operating systems or runtimes).
       /// </summary>
-      public Func<string, string>? StringTransform { get; set; }
+      public Func<string, string?>? StringTransform { get; set; }
 
       private static readonly ConcurrentDictionary<object, JsonSerializerOptions> _jsonSerializerOptionsCache = new();
 

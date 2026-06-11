@@ -9,9 +9,6 @@ list.Single()
 [EXCEPTION]
 Sequence contains more than one element
 [STACKTRACE]
-   at System.Linq.ThrowHelper.ThrowMoreThanOneElementException()
-   at System.Linq.Enumerable.TryGetSingle[TSource](IEnumerable`1 source, Boolean& found)
-   at System.Linq.Enumerable.Single[TSource](IEnumerable`1 source)
    at Assertive.Test.LinqElementCountPatternTests.<>c__DisplayClass10_0.<List_of_list_works>b__0() in LinqElementCountPatternTests.cs:line 114
 [LOCALS]
 list: [ { }, { } ]

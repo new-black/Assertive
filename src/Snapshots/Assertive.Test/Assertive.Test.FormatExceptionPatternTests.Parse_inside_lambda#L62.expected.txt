@@ -10,10 +10,7 @@ int.Parse(i.Value)
 [EXCEPTION]
 The input string 'abc' was not in a correct format.
 [STACKTRACE]
-   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
-   at System.Int32.Parse(String s)
    at Assertive.Test.FormatExceptionPatternTests.<>c.<Parse_inside_lambda>b__6_1(Item i) in FormatExceptionPatternTests.cs:line 62
-   at System.Linq.Enumerable.All[TSource](IEnumerable`1 source, Func`2 predicate)
    at Assertive.Test.FormatExceptionPatternTests.<>c__DisplayClass6_0.<Parse_inside_lambda>b__0() in FormatExceptionPatternTests.cs:line 62
 [LOCALS]
 items: [ { Value = "123" }, { Value = "abc" } ]

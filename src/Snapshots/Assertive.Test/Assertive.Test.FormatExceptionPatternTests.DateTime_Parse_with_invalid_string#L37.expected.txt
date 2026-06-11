@@ -7,8 +7,6 @@ DateTime.Parse(input)
 [EXCEPTION]
 The string 'not-a-date' was not recognized as a valid DateTime. There is an unknown word starting at index '0'.
 [STACKTRACE]
-   at System.DateTimeParse.Parse(ReadOnlySpan`1 s, DateTimeFormatInfo dtfi, DateTimeStyles styles)
-   at System.DateTime.Parse(String s)
    at Assertive.Test.FormatExceptionPatternTests.<>c__DisplayClass3_0.<DateTime_Parse_with_invalid_string>b__0() in FormatExceptionPatternTests.cs:line 37
 [LOCALS]
 input: "not-a-date"

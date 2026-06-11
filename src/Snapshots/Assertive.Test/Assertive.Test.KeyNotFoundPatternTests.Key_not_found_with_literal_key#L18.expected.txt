@@ -7,7 +7,6 @@ dict["baz"]
 [EXCEPTION]
 The given key 'baz' was not present in the dictionary.
 [STACKTRACE]
-   at System.Collections.Generic.Dictionary`2.get_Item(TKey key)
    at Assertive.Test.KeyNotFoundPatternTests.<>c__DisplayClass0_0.<Key_not_found_with_literal_key>b__0() in KeyNotFoundPatternTests.cs:line 18
 [LOCALS]
 dict: { ["foo"] = 1, ["bar"] = 2 }
