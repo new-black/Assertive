@@ -11,8 +11,7 @@ namespace Assertive.Test
     {
       var str = "hello";
 
-      ShouldFail(() => str.Substring(10) == "world",
-        "ArgumentOutOfRangeException caused by calling Substring(10) on str (length: 5).");
+      ShouldFail(() => str.Substring(10) == "world");
     }
 
     [Fact]
@@ -21,8 +20,7 @@ namespace Assertive.Test
       var str = "hello";
       var startIndex = 10;
 
-      ShouldFail(() => str.Substring(startIndex) == "world",
-        "ArgumentOutOfRangeException caused by calling Substring(startIndex (value: 10)) on str (length: 5).");
+      ShouldFail(() => str.Substring(startIndex) == "world");
     }
 
     [Fact]
@@ -30,8 +28,7 @@ namespace Assertive.Test
     {
       var str = "hello";
 
-      ShouldFail(() => str.Substring(-1) == "h",
-        "ArgumentOutOfRangeException caused by calling Substring(-1) on str (length: 5).");
+      ShouldFail(() => str.Substring(-1) == "h");
     }
 
     [Fact]
@@ -39,8 +36,7 @@ namespace Assertive.Test
     {
       var str = "hello";
 
-      ShouldFail(() => str.Substring(3, 10) == "lo",
-        "ArgumentOutOfRangeException caused by calling Substring(3, 10) on str (length: 5).");
+      ShouldFail(() => str.Substring(3, 10) == "lo");
     }
 
     private class Item
@@ -58,13 +54,7 @@ namespace Assertive.Test
         new Item { Text = "hi", StartIndex = 10 },  // Will throw
       };
 
-      ShouldFail(() => items.All(i => i.Text.Substring(i.StartIndex).Length > 0),
-        """
-        ArgumentOutOfRangeException caused by calling Substring(i.StartIndex (value: 10)) on i.Text (length: 2).
-
-        On item [1] of items:
-        { Text = "hi", StartIndex = 10 }
-        """);
+      ShouldFail(() => items.All(i => i.Text.Substring(i.StartIndex).Length > 0));
     }
 
     [Fact]
@@ -76,13 +66,7 @@ namespace Assertive.Test
         new Item { Text = "hello", StartIndex = 2 },
       };
 
-      ShouldFail(() => items.Any(i => i.Text.Substring(i.StartIndex) == "test"),
-        """
-        ArgumentOutOfRangeException caused by calling Substring(i.StartIndex (value: 5)) on i.Text (length: 1).
-
-        On item [0] of items:
-        { Text = "x", StartIndex = 5 }
-        """);
+      ShouldFail(() => items.Any(i => i.Text.Substring(i.StartIndex) == "test"));
     }
   }
 }

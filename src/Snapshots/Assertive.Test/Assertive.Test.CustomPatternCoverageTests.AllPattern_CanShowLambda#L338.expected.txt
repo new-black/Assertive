@@ -1,0 +1,11 @@
+
+list.All(x => x < 5)
+
+ ✓ EXPECTED                                                                     
+All items in list should match x => x < 5.
+ ✗ ACTUAL                                                                       
+Some items did not match.
+
+ ℹ LOCALS                                                                       
+list: [ 1, 2, 3, 10, 20 ]
+················································································

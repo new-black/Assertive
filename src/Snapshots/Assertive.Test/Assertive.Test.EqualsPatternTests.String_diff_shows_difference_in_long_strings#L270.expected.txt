@@ -1,0 +1,20 @@
+
+actual == expected
+
+[EXPECTED]
+actual: "The quick brown fox jumps over the lazy dog
+The quick brown cat jumps over the lazy god
+The quick brown fox jumps over the lazy dog"
+[ACTUAL]
+actual: "The quick brown fox jumps over the lazy dog
+The quick brown fox jumps over the lazy dog
+The quick brown fox jumps over the lazy dog"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+   1: The quick brown fox jumps over the lazy dog\n
+- [E2] The quick brown [-cat-] jumps over the lazy [-go-]d\n
++ [A2] The quick brown [+fox+] jumps over the lazy d[+og+]\n
+   3: The quick brown fox jumps over the lazy dog
+
+
+················································································

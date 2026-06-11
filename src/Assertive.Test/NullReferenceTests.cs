@@ -50,8 +50,8 @@ namespace Assertive.Test
     {
       Foo foo = null;
 
-      ShouldFail(() => foo.StringProperty.Length == 1, "NullReferenceException caused by accessing StringProperty on foo which was null.");
-      ShouldFail(() => foo.StringProperty == "A", "NullReferenceException caused by accessing StringProperty on foo which was null.");
+      ShouldFail(() => foo.StringProperty.Length == 1);
+      ShouldFail(() => foo.StringProperty == "A");
     }
 
     [Fact]
@@ -59,7 +59,7 @@ namespace Assertive.Test
     {
       int[] array = null;
 
-      ShouldFail(() => array[0] == 1, "NullReferenceException caused by accessing array index 0 on array which was null.");
+      ShouldFail(() => array[0] == 1);
     }
 
     [Fact]
@@ -67,7 +67,7 @@ namespace Assertive.Test
     {
       int[] array = null;
 
-      ShouldFail(() => array.Length == 1, "NullReferenceException caused by accessing array length on array which was null.");
+      ShouldFail(() => array.Length == 1);
     }
 
     [Fact]
@@ -75,8 +75,8 @@ namespace Assertive.Test
     {
       Foo foo = null;
 
-      ShouldFail(() => foo.ReturnsNotNull().Length == 1, "NullReferenceException caused by calling ReturnsNotNull on foo which was null.");
-      ShouldFail(() => foo.ReturnsNotNull() == "A", "NullReferenceException caused by calling ReturnsNotNull on foo which was null.");
+      ShouldFail(() => foo.ReturnsNotNull().Length == 1);
+      ShouldFail(() => foo.ReturnsNotNull() == "A");
     }
 
     [Fact]
@@ -84,8 +84,8 @@ namespace Assertive.Test
     {
       Foo foo = null;
 
-      ShouldFail(() => foo.StringField.Length == 1, "NullReferenceException caused by accessing StringField on foo which was null.");
-      ShouldFail(() => foo.StringField == "A", "NullReferenceException caused by accessing StringField on foo which was null.");
+      ShouldFail(() => foo.StringField.Length == 1);
+      ShouldFail(() => foo.StringField == "A");
     }
 
     [Fact]
@@ -93,9 +93,9 @@ namespace Assertive.Test
     {
       Foo foo = new Foo();
 
-      ShouldFail(() => foo.Bar.ReturnsNotNull().Length == 1, "NullReferenceException caused by calling ReturnsNotNull on foo.Bar which was null.");
-      ShouldFail(() => foo.Bar.ReturnsNotNull() == "A", "NullReferenceException caused by calling ReturnsNotNull on foo.Bar which was null.");
-      ShouldFail(() => foo.ReturnsNull().Length == 1, "NullReferenceException caused by accessing Length on foo.ReturnsNull() which was null.");
+      ShouldFail(() => foo.Bar.ReturnsNotNull().Length == 1);
+      ShouldFail(() => foo.Bar.ReturnsNotNull() == "A");
+      ShouldFail(() => foo.ReturnsNull().Length == 1);
     }
 
     [Fact]
@@ -103,8 +103,8 @@ namespace Assertive.Test
     {
       Foo foo = new Foo();
 
-      ShouldFail(() => foo.Bar.StringProperty.Length == 1, "NullReferenceException caused by accessing StringProperty on foo.Bar which was null.");
-      ShouldFail(() => foo.Bar.StringProperty == "A", "NullReferenceException caused by accessing StringProperty on foo.Bar which was null.");
+      ShouldFail(() => foo.Bar.StringProperty.Length == 1);
+      ShouldFail(() => foo.Bar.StringProperty == "A");
     }
 
     [Fact]
@@ -113,8 +113,7 @@ namespace Assertive.Test
       Foo foo = new Foo();
       foo.Bar = new Bar();
 
-      ShouldFail(() => foo.Bar.StringProperty.Length == 1,
-        "NullReferenceException caused by accessing Length on foo.Bar.StringProperty which was null.");
+      ShouldFail(() => foo.Bar.StringProperty.Length == 1);
     }
 
     [Fact]
@@ -123,8 +122,7 @@ namespace Assertive.Test
       Foo foo = new Foo();
       foo.Bar = new Bar();
 
-      ShouldFail(() => foo.Bar.StringProperty.Replace("a", "b").Length == 1,
-        "NullReferenceException caused by calling Replace on foo.Bar.StringProperty which was null.");
+      ShouldFail(() => foo.Bar.StringProperty.Replace("a", "b").Length == 1);
     }
 
     [Fact]
@@ -133,7 +131,7 @@ namespace Assertive.Test
       Foo foo = new Foo();
       foo.Bar = new Bar();
 
-      ShouldFail(() => foo.Bar.Throws.Length == 10, "NullReferenceException was thrown inside Throws on foo.Bar.Throws.");
+      ShouldFail(() => foo.Bar.Throws.Length == 10);
     }
 
     [Fact]
@@ -142,7 +140,7 @@ namespace Assertive.Test
       Foo foo = new Foo();
       foo.Bar = new Bar();
 
-      ShouldFail(() => foo.Bar.MethodThrows().Length == 10, "NullReferenceException was thrown inside MethodThrows on foo.Bar.MethodThrows().");
+      ShouldFail(() => foo.Bar.MethodThrows().Length == 10);
     }
 
     [Fact]
@@ -150,8 +148,7 @@ namespace Assertive.Test
     {
       var list = new List<Foo>();
 
-      ShouldFail(() => list.FirstOrDefault().Bar.StringField.Length == 1,
-        "NullReferenceException caused by accessing Bar on list.FirstOrDefault() which was null.");
+      ShouldFail(() => list.FirstOrDefault().Bar.StringField.Length == 1);
     }
 
     public class Survey
@@ -177,13 +174,7 @@ namespace Assertive.Test
         new Survey { Category = null }
       };
 
-      ShouldFail(() => surveys.Any(s => s.Category.ID == 1),
-        """
-        NullReferenceException caused by accessing ID on s.Category which was null.
-
-        On item [0] of surveys:
-        { Name = "foo" }
-        """);
+      ShouldFail(() => surveys.Any(s => s.Category.ID == 1));
     }
 
     [Fact]
@@ -196,13 +187,7 @@ namespace Assertive.Test
         new Survey { Category = new Survey.SurveyCategory { ID = 2 } }
       };
 
-      ShouldFail(() => surveys.Any(s => s.Category.ID == 99),
-        """
-        NullReferenceException caused by accessing ID on s.Category which was null.
-
-        On item [0] of surveys:
-        { Name = "foo" }
-        """);
+      ShouldFail(() => surveys.Any(s => s.Category.ID == 99));
     }
 
     [Fact]
@@ -215,13 +200,7 @@ namespace Assertive.Test
         new Survey { Category = null }
       };
 
-      ShouldFail(() => surveys.Any(s => s.Category.ID == 99),
-        """
-        NullReferenceException caused by accessing ID on s.Category which was null.
-
-        On item [2] of surveys:
-        { Name = "foo" }
-        """);
+      ShouldFail(() => surveys.Any(s => s.Category.ID == 99));
     }
 
     [Fact]
@@ -232,13 +211,7 @@ namespace Assertive.Test
         new Survey { Category = null }
       };
 
-      ShouldFail(() => surveys.Exists(s => s.Category.ID == 1),
-        """
-        NullReferenceException caused by accessing ID on s.Category which was null.
-
-        On item [0] of surveys:
-        { Name = "foo" }
-        """);
+      ShouldFail(() => surveys.Exists(s => s.Category.ID == 1));
     }
 
     [Fact]
@@ -251,13 +224,7 @@ namespace Assertive.Test
         new Survey { Category = new Survey.SurveyCategory { ID = 2 } }
       };
 
-      ShouldFail(() => surveys.Exists(s => s.Category.ID == 99),
-        """
-        NullReferenceException caused by accessing ID on s.Category which was null.
-
-        On item [0] of surveys:
-        { Name = "foo" }
-        """);
+      ShouldFail(() => surveys.Exists(s => s.Category.ID == 99));
     }
 
     [Fact]
@@ -270,13 +237,7 @@ namespace Assertive.Test
         new Survey { Category = null }
       };
 
-      ShouldFail(() => surveys.Exists(s => s.Category.ID == 99),
-        """
-        NullReferenceException caused by accessing ID on s.Category which was null.
-
-        On item [2] of surveys:
-        { Name = "foo" }
-        """);
+      ShouldFail(() => surveys.Exists(s => s.Category.ID == 99));
     }
 
     [Fact]
@@ -290,13 +251,7 @@ namespace Assertive.Test
       };
 
       // Using Select overload with (item, index) to force evaluation of all items
-      ShouldFail(() => surveys.Select((s, i) => s.Category.ID + i).Sum() > 0,
-        """
-        NullReferenceException caused by accessing ID on s.Category which was null.
-
-        On item [1] of surveys:
-        { Name = "foo" }
-        """);
+      ShouldFail(() => surveys.Select((s, i) => s.Category.ID + i).Sum() > 0);
     }
 
     [Fact]
@@ -310,13 +265,7 @@ namespace Assertive.Test
 
       // The third parameter (extra) is not used in the expression that fails (s.Category.ID),
       // so Assertive can still analyze and provide a helpful message
-      ShouldFail(() => surveys.CustomAnyWithThreeParams((s, i, extra) => s.Category.ID > 0),
-        """
-        NullReferenceException caused by accessing ID on s.Category which was null.
-
-        On item [0] of surveys:
-        { Name = "foo" }
-        """);
+      ShouldFail(() => surveys.CustomAnyWithThreeParams((s, i, extra) => s.Category.ID > 0));
     }
 
     [Fact]
@@ -330,12 +279,10 @@ namespace Assertive.Test
       // The third parameter (extra) is null and accessing .Length throws NullReferenceException.
       // Since Assertive can't bind the third parameter, it can't find the cause and falls back
       // to a generic exception message. This test verifies Assertive doesn't crash internally.
-      var exception = Xunit.Assert.Throws<XunitException>(() =>
+      var exception = Xunit.Assert.ThrowsAny<Exception>(() =>
         Assert.That(() => surveys.CustomAnyWithNullThirdParam((s, i, extra) => extra!.Length > 0)));
 
-      // Verify it's the generic fallback message (no specific cause identified)
-      Xunit.Assert.Contains("Assertion threw System.NullReferenceException", exception.Message);
-      Xunit.Assert.Contains("Object reference not set to an instance of an object", exception.Message);
+      SnapshotMessage(exception);
     }
   }
 

@@ -1,0 +1,11 @@
+
+list.Any(l => l > 3)
+
+ ✓ EXPECTED                                                                     
+Collection list should contain some items that match the filter l > 3.
+ ✗ ACTUAL                                                                       
+It contained no items matching the filter.
+
+ ℹ LOCALS                                                                       
+list: [ 1, 2, 3 ]
+················································································

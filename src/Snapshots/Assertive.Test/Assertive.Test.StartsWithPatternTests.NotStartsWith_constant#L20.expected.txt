@@ -1,0 +1,9 @@
+
+!myString.StartsWith("abc")
+
+ ✓ EXPECTED                                                                     
+myString: should not start with "abc".
+ ✗ ACTUAL                                                                       
+myString: "abcdefghijklmnop"
+
+················································································

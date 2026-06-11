@@ -1,0 +1,18 @@
+
+list.Single(l => l > 1) == 10
+
+InvalidOperationException caused by calling Single(l => l > 1) on list which contains more than one element that matches the filter. Actual element count: 2.
+
+Value of list: [ 2, 3 ]
+   CAUSE OF EXCEPTION                                                           
+list.Single(l => l > 1)
+ ⚠ EXCEPTION                                                                    
+Sequence contains more than one matching element
+   STACKTRACE                                                                   
+   at System.Linq.ThrowHelper.ThrowMoreThanOneMatchException()
+   at System.Linq.Enumerable.TryGetSingle[TSource](IEnumerable`1 source, Func`2 predicate, Boolean& found)
+   at System.Linq.Enumerable.Single[TSource](IEnumerable`1 source, Func`2 predicate)
+   at Assertive.Test.LinqElementCountPatternTests.<>c__DisplayClass2_0.<Single_on_collection_that_contains_multiple_items_that_match_filter_is_caught>b__0() in LinqElementCountPatternTests.cs:line 36
+ ℹ LOCALS                                                                       
+list: [ 1, 2, 3 ]
+················································································

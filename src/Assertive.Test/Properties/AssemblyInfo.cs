@@ -1,5 +1,6 @@
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using Assertive.Config;
 using Assertive.xUnit;
 using DiffEngine;
@@ -26,6 +27,10 @@ public static class GlobalSetup
     DirectoryInfo? baseDir = null;
 
     //Configuration.Snapshots.AssumeCorrectness = true;
+    Configuration.Snapshots.AcceptNewSnapshots = true;
+
+    Configuration.Snapshots.StringTransform = line =>
+      Regex.Replace(line, @" in .+[/\\]([^/\\]+\.cs):line (\d+)", " in $1:line $2");
 
     Configuration.Snapshots.ExpectedFileDirectoryResolver = (method, file) =>
     {

@@ -11,8 +11,7 @@ namespace Assertive.Test
     {
       var a = 10;
 
-      ShouldFail(() => a / 0 == 0,
-        "DivideByZeroException caused by dividing a by 0.");
+      ShouldFail(() => a / 0 == 0);
     }
 
     [Fact]
@@ -21,8 +20,7 @@ namespace Assertive.Test
       var a = 10;
       var b = 0;
 
-      ShouldFail(() => a / b == 0,
-        "DivideByZeroException caused by dividing a by b (value: 0).");
+      ShouldFail(() => a / b == 0);
     }
 
     [Fact]
@@ -30,8 +28,7 @@ namespace Assertive.Test
     {
       var a = 10;
 
-      ShouldFail(() => a % 0 == 0,
-        "DivideByZeroException caused by modulo a by 0.");
+      ShouldFail(() => a % 0 == 0);
     }
 
     [Fact]
@@ -40,8 +37,7 @@ namespace Assertive.Test
       var a = 10;
       var b = 0;
 
-      ShouldFail(() => a % b == 0,
-        "DivideByZeroException caused by modulo a by b (value: 0).");
+      ShouldFail(() => a % b == 0);
     }
 
     private class Item
@@ -59,13 +55,7 @@ namespace Assertive.Test
         new Item { Numerator = 20, Denominator = 0 },  // Will throw
       };
 
-      ShouldFail(() => items.All(i => i.Numerator / i.Denominator > 0),
-        """
-        DivideByZeroException caused by dividing i.Numerator by i.Denominator (value: 0).
-
-        On item [1] of items:
-        { Numerator = 20, Denominator = 0 }
-        """);
+      ShouldFail(() => items.All(i => i.Numerator / i.Denominator > 0));
     }
 
     [Fact]
@@ -77,13 +67,7 @@ namespace Assertive.Test
         new Item { Numerator = 20, Denominator = 5 },
       };
 
-      ShouldFail(() => items.Any(i => i.Numerator / i.Denominator == 999),
-        """
-        DivideByZeroException caused by dividing i.Numerator by i.Denominator (value: 0).
-
-        On item [0] of items:
-        { Numerator = 10, Denominator = 0 }
-        """);
+      ShouldFail(() => items.Any(i => i.Numerator / i.Denominator == 999));
     }
   }
 }

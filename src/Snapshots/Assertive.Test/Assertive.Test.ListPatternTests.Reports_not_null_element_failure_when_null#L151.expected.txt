@@ -1,0 +1,11 @@
+
+arr[0] is not null
+
+ ✓ EXPECTED                                                                     
+arr[0] should not be null.
+ ✗ ACTUAL                                                                       
+null
+
+ ℹ LOCALS                                                                       
+arr: [ null, "world" ]
+················································································

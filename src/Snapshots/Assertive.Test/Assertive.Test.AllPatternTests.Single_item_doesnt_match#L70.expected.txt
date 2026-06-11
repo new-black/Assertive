@@ -1,0 +1,19 @@
+
+ids.All(i => i >= 2)
+
+[EXPECTED]
+All items of ids should match the filter i >= 2
+[ACTUAL]
+This item did not: 
+1
+
+ids[0]
+[EXPECTED]
+item should be greater than or equal to 2.
+[ACTUAL]
+item: 1.
+
+
+[LOCALS]
+ids: [ 1, 2, 3 ]
+················································································

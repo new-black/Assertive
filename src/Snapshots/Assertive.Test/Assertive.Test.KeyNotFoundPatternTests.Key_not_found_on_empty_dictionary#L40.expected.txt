@@ -1,0 +1,14 @@
+
+dict["foo"] == 1
+
+KeyNotFoundException caused by accessing key "foo" on dict. Available keys: (empty).
+   CAUSE OF EXCEPTION                                                           
+dict["foo"]
+ ⚠ EXCEPTION                                                                    
+The given key 'foo' was not present in the dictionary.
+   STACKTRACE                                                                   
+   at System.Collections.Generic.Dictionary`2.get_Item(TKey key)
+   at Assertive.Test.KeyNotFoundPatternTests.<>c__DisplayClass2_0.<Key_not_found_on_empty_dictionary>b__0() in KeyNotFoundPatternTests.cs:line 40
+ ℹ LOCALS                                                                       
+dict: { }
+················································································

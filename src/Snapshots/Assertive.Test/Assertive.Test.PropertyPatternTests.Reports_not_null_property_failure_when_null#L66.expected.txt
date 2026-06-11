@@ -1,0 +1,9 @@
+
+obj.Email is not null
+
+ ✓ EXPECTED                                                                     
+obj.Email should not be null.
+ ✗ ACTUAL                                                                       
+null
+
+················································································

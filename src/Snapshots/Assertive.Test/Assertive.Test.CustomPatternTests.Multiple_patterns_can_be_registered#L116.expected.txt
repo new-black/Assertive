@@ -1,0 +1,11 @@
+
+list.None()
+
+ ✓ EXPECTED                                                                     
+Collection list should be empty.
+ ✗ ACTUAL                                                                       
+It had 1 items.
+
+ ℹ LOCALS                                                                       
+list: [ "a" ]
+················································································

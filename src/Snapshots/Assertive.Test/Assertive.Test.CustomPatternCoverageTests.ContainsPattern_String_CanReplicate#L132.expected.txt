@@ -1,0 +1,9 @@
+
+text.Contains("xyz")
+
+ ✓ EXPECTED                                                                     
+text should contain substring "xyz".
+ ✗ ACTUAL                                                                       
+Value: "hello world"
+
+················································································

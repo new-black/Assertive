@@ -496,6 +496,15 @@ namespace Assertive.Generators
         return BuildPropertyPatternSubTree(ctx, ppSubject, ppPat, call, compiler, ct, patternBindings);
       }
 
+      // Expand list patterns (arr is [1, _, > 0]) into a length check + element sub-leaves.
+      // Var/declaration bindings (arr is [var first, ..]) are registered in patternBindings so
+      // subsequent conjuncts can reference them; each also gets a capture leaf that assigns the
+      // element to a pre-declared outer variable via a `is var` pattern (which always matches).
+      if (expression is IsPatternExpressionSyntax { Expression: var lpSubject, Pattern: ListPatternSyntax lpPat })
+      {
+        return BuildListPatternSubTree(ctx, lpSubject, lpPat, call, compiler, ct, patternBindings);
+      }
+
       // Leaf: locals registered while compiling this leaf belong to its report.
       var localsBefore = call.CapturedLocals.Count;
 
@@ -894,6 +903,211 @@ namespace Assertive.Generators
 
     private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
 
+    /// <summary>
+    /// Builds a SplitPart sub-tree for a list pattern (arr is [1, _, > 0]).
+    /// Emits: one length check leaf, one capture leaf per var/declaration binding (via `is var`
+    /// which always matches), and one leaf per non-discard, non-slice, non-var element pattern.
+    /// </summary>
+    private static SplitPart? BuildListPatternSubTree(
+      GeneratorSyntaxContext ctx,
+      ExpressionSyntax subject,
+      ListPatternSyntax listPat,
+      InterceptedCall call,
+      OperandCompiler compiler,
+      CancellationToken ct,
+      Dictionary<string, LambdaBinding>? patternBindings)
+    {
+      var localsBefore = call.CapturedLocals.Count;
+
+      var compiledSubject = compiler.Compile(subject, patternBindings);
+      if (compiledSubject == null) return null;
+
+      var subjectLocalsEnd = call.CapturedLocals.Count;
+
+      var subjectType = ctx.SemanticModel.GetTypeInfo(subject, ct).Type;
+      if (subjectType == null) return null;
+
+      var lengthProp = GetCollectionLengthName(subjectType);
+      if (lengthProp == null) return null;
+
+      // ListPatternSyntax.Patterns is the direct SeparatedSyntaxList<PatternSyntax> of elements.
+      var subpatterns = listPat.Patterns;
+
+      var sliceIndex = -1;
+      for (var i = 0; i < subpatterns.Count; i++)
+      {
+        if (subpatterns[i] is SlicePatternSyntax)
+        {
+          sliceIndex = i;
+          break;
+        }
+      }
+
+      var hasSlice = sliceIndex >= 0;
+      var fixedCount = hasSlice ? subpatterns.Count - 1 : subpatterns.Count;
+      var subjectDisplay = subject.ToString();
+
+      SplitPart result = hasSlice
+        ? new SplitPart
+        {
+          LeafSource = $"{subjectDisplay}.{lengthProp} >= {fixedCount}",
+          ConditionSource = $"{compiledSubject}.{lengthProp} >= {fixedCount}",
+          SubCall = new InterceptedCall
+          {
+            Kind = InterceptionKind.Comparison,
+            ComparisonLabel = "greater than or equal to",
+            LeftSource = $"{compiledSubject}.{lengthProp}",
+            LeftDisplay = $"{subjectDisplay}.{lengthProp}",
+            RightSource = fixedCount.ToString(),
+            RightDisplay = fixedCount.ToString(),
+            RightIsConstant = true,
+          }
+        }
+        : new SplitPart
+        {
+          LeafSource = $"{subjectDisplay}.{lengthProp} == {fixedCount}",
+          ConditionSource = $"{compiledSubject}.{lengthProp} == {fixedCount}",
+          SubCall = new InterceptedCall
+          {
+            Kind = InterceptionKind.Equality,
+            LeftSource = $"{compiledSubject}.{lengthProp}",
+            LeftDisplay = $"{subjectDisplay}.{lengthProp}",
+            RightSource = fixedCount.ToString(),
+            RightDisplay = fixedCount.ToString(),
+            RightIsConstant = true,
+          }
+        };
+      result.Locals.AddRange(call.CapturedLocals.Skip(localsBefore));
+
+      // Var/declaration captures: register in patternBindings and emit a capture leaf that
+      // uses `arr[i] is var __pvtmpN_name` (always matches) to assign the element to a
+      // pre-declared outer variable, making the binding available in subsequent &&-conjuncts.
+      if (patternBindings != null)
+      {
+        for (var i = 0; i < subpatterns.Count; i++)
+        {
+          var pat = subpatterns[i];
+          if (pat is SlicePatternSyntax or DiscardPatternSyntax) continue;
+
+          // Extract the designation (var x or T x). var _ uses DiscardDesignationSyntax, not
+          // SingleVariableDesignationSyntax, so the patterns below already exclude it.
+          var designation = pat switch
+          {
+            VarPatternSyntax { Designation: SingleVariableDesignationSyntax vd } => vd,
+            DeclarationPatternSyntax { Designation: SingleVariableDesignationSyntax dd } => dd,
+            _ => null,
+          };
+          if (designation == null) continue;
+
+          var origName = designation.Identifier.ValueText;
+          if (ctx.SemanticModel.GetDeclaredSymbol(designation, ct) is not ILocalSymbol elemLocal) continue;
+          if (!IsUsableType(elemLocal.Type, ctx.SemanticModel.Compilation)) continue;
+
+          // Strip outer Nullable<T> so the emitter's appended ? doesn't produce T??.
+          var elemType = elemLocal.Type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullableT
+            ? nullableT.TypeArguments[0]
+            : elemLocal.Type;
+          var typeFqn = elemType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+          var pvIndex = patternBindings.Count;
+          var preDeclName = $"__pv{pvIndex}_{origName}";
+          var tmpName = $"__pvtmp{pvIndex}_{origName}";
+
+          patternBindings[origName] = new LambdaBinding($"(({typeFqn}){preDeclName}!)", preDeclName);
+
+          var indexStr = GetListElementIndexStr(i, sliceIndex, subpatterns.Count);
+          var captureLocalsBefore = call.CapturedLocals.Count;
+          var captureLeaf = new SplitPart
+          {
+            LeafSource = $"{subjectDisplay}[{indexStr}] captured as {origName}",
+            ConditionSource = $"{compiledSubject}[{indexStr}] is var {tmpName}",
+          };
+          captureLeaf.PatternVars.Add((typeFqn, preDeclName, tmpName));
+          captureLeaf.Locals.AddRange(call.CapturedLocals.GetRange(localsBefore, subjectLocalsEnd - localsBefore));
+          captureLeaf.Locals.AddRange(call.CapturedLocals.Skip(captureLocalsBefore));
+          result = new SplitPart { Kind = "AndAlso", Left = result, Right = captureLeaf };
+        }
+      }
+
+      // Element check leaves for non-discard, non-slice, non-var/declaration subpatterns.
+      for (var i = 0; i < subpatterns.Count; i++)
+      {
+        var pat = subpatterns[i];
+        if (pat is DiscardPatternSyntax or SlicePatternSyntax or VarPatternSyntax or DeclarationPatternSyntax) continue;
+
+        var indexStr = GetListElementIndexStr(i, sliceIndex, subpatterns.Count);
+        var elementSource = $"{compiledSubject}[{indexStr}]";
+        var displayIndex = hasSlice && i > sliceIndex ? $"^{subpatterns.Count - i}" : i.ToString();
+        var elementDisplay = $"{subjectDisplay}[{displayIndex}]";
+
+        var elemLocalsBefore = call.CapturedLocals.Count;
+        var elemLeaf = BuildPropertyLeaf(elementSource, elementDisplay, pat, compiler, patternBindings);
+        if (elemLeaf == null) return null;
+
+        elemLeaf.Locals.AddRange(call.CapturedLocals.GetRange(localsBefore, subjectLocalsEnd - localsBefore));
+        elemLeaf.Locals.AddRange(call.CapturedLocals.Skip(elemLocalsBefore));
+        result = new SplitPart { Kind = "AndAlso", Left = result, Right = elemLeaf };
+      }
+
+      return result;
+    }
+
+    /// <summary>
+    /// Returns the C# index expression for a list element at position i.
+    /// Before the slice (or no slice): 0-based index as string. After the slice: "^j" from-end.
+    /// </summary>
+    private static string GetListElementIndexStr(int i, int sliceIndex, int total)
+    {
+      if (sliceIndex < 0 || i < sliceIndex) return i.ToString();
+      return $"^{total - i}";
+    }
+
+    /// <summary>
+    /// Finds the property name for the collection's length or count ("Length" or "Count").
+    /// Checks the type itself, its base-type chain, then its interfaces.
+    /// Returns null if no suitable int-returning property is found.
+    /// </summary>
+    private static string? GetCollectionLengthName(ITypeSymbol type)
+    {
+      if (type is IArrayTypeSymbol) return "Length";
+
+      for (var t = type; t != null; t = t.BaseType)
+      {
+        foreach (var member in t.GetMembers())
+        {
+          if (member is IPropertySymbol
+              {
+                Parameters.IsEmpty: true,
+                IsStatic: false,
+                GetMethod: not null,
+                Type.SpecialType: SpecialType.System_Int32
+              } prop && prop.Name is "Length" or "Count")
+          {
+            return prop.Name;
+          }
+        }
+      }
+
+      foreach (var iface in type.AllInterfaces)
+      {
+        foreach (var member in iface.GetMembers())
+        {
+          if (member is IPropertySymbol
+              {
+                Parameters.IsEmpty: true,
+                IsStatic: false,
+                GetMethod: not null,
+                Type.SpecialType: SpecialType.System_Int32
+              } prop && prop.Name is "Length" or "Count")
+          {
+            return prop.Name;
+          }
+        }
+      }
+
+      return null;
+    }
+
     private static bool IsTaskOfBool(ITypeSymbol type)
     {
       return type is INamedTypeSymbol { Name: "Task", Arity: 1 } task
@@ -1112,6 +1326,16 @@ namespace Assertive.Generators
           if (!patternNegated && !leafContext && !outerNegated && bindings == null
               && innerPat is RecursivePatternSyntax { PropertyPatternClause: not null } topRecPat
               && topRecPat.Type != null)
+          {
+            call.Kind = InterceptionKind.Split;
+            var innerBindings = new Dictionary<string, LambdaBinding>();
+            call.SplitRoot = BuildSplitPart(ctx, isPattern, call, compiler, ct, innerBindings);
+            return call.SplitRoot != null;
+          }
+
+          // List pattern (arr is [1, _, > 0]): expand into length check + element sub-leaves.
+          if (!patternNegated && !leafContext && !outerNegated && bindings == null
+              && innerPat is ListPatternSyntax)
           {
             call.Kind = InterceptionKind.Split;
             var innerBindings = new Dictionary<string, LambdaBinding>();

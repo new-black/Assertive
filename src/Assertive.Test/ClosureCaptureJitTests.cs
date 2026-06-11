@@ -39,10 +39,7 @@ namespace Assertive.Test
 
       var ex = Xunit.Assert.ThrowsAny<Exception>(() => AssertOnce(3, 7));
 
-      var message = StripAnsi(ex.Message);
-
-      Xunit.Assert.Contains("value: 7", message);
-      Xunit.Assert.Contains("value: 3", message);
+      SnapshotMessage(ex);
     }
 
     [Fact]
@@ -73,12 +70,7 @@ namespace Assertive.Test
       var final = 5;
       var expected = 6;
 
-      var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert(() => final == expected));
-
-      var message = StripAnsi(ex.Message);
-
-      Xunit.Assert.Contains("final: 6", message);
-      Xunit.Assert.Contains("final: 5", message);
+      ShouldFail(() => final == expected);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

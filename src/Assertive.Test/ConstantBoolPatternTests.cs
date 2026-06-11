@@ -9,14 +9,14 @@ namespace Assertive.Test
     {
       var success = false;
 
-      ShouldFail(() => success, "success: true", "false");
+      ShouldFail(() => success);
     }
 
     [Fact]
     public void Test_false()
     {
       var success = true;
-      ShouldFail(() => !success, "success: false", "true");
+      ShouldFail(() => !success);
     }
 
     [Fact]
@@ -24,7 +24,7 @@ namespace Assertive.Test
     {
       var foo = new Foo();
 
-      ShouldFail(() => foo.Success, "foo.Success: true", "false");
+      ShouldFail(() => foo.Success);
     }
 
     [Fact]
@@ -35,7 +35,7 @@ namespace Assertive.Test
         Success = true
       };
 
-      ShouldFail(() => !foo.Success, "foo.Success: false", "true");
+      ShouldFail(() => !foo.Success);
     }
 
     private class Foo

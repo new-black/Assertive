@@ -32,10 +32,7 @@ namespace Assertive.Test
       };
 
       ShouldFail(
-        () => obj == null,
-        "obj should be null",
-        @"""name"": ""John"""
-      );
+        () => obj == null);
     }
 
     [Fact]
@@ -44,16 +41,7 @@ namespace Assertive.Test
       var arr = new JArray { 1, 2, 3 };
 
       ShouldFail(
-        () => arr == null,
-        "arr should be null",
-        """
-        [
-          1,
-          2,
-          3
-        ]
-        """
-      );
+        () => arr == null);
     }
 
     [Fact]
@@ -68,10 +56,7 @@ namespace Assertive.Test
       };
 
       ShouldFail(
-        () => obj == null,
-        "obj should be null",
-        @"""name"": ""Alice"""
-      );
+        () => obj == null);
     }
 
     #endregion
@@ -185,10 +170,7 @@ namespace Assertive.Test
       };
 
       ShouldFail(
-        () => obj == null,
-        "obj should be null",
-        @"""name"": ""John"""
-      );
+        () => obj == null);
     }
 
     [Fact]
@@ -197,10 +179,7 @@ namespace Assertive.Test
       var arr = new JsonArray { 1, 2, 3 };
 
       ShouldFail(
-        () => arr == null,
-        "arr should be null",
-        "1"
-      );
+        () => arr == null);
     }
 
     [Fact]
@@ -215,10 +194,7 @@ namespace Assertive.Test
       };
 
       ShouldFail(
-        () => obj == null,
-        "obj should be null",
-        @"""name"": ""Alice"""
-      );
+        () => obj == null);
     }
 
     #endregion
@@ -404,22 +380,7 @@ namespace Assertive.Test
         }
       };
 
-      try
-      {
-        Assert.That(() => x.A == 2);
-      }
-      catch (System.Exception ex)
-      {
-        Assert.That(() => StripAnsi(ex.Message).Contains("""
-                                                         x: { A = 1, B = {
-                                                           "name": "John",
-                                                           "age": 30
-                                                         }, C = {
-                                                           "name": "John",
-                                                           "age": 30
-                                                         } }
-                                                         """));
-      }
+      ShouldFail(() => x.A == 2);
     }
 
     #endregion

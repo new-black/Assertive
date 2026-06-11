@@ -1,0 +1,11 @@
+
+!list.Any()
+
+ ✓ EXPECTED                                                                     
+Collection list should not contain any items.
+ ✗ ACTUAL                                                                       
+It contained 1 item
+
+ ℹ LOCALS                                                                       
+list: [ "a" ]
+················································································

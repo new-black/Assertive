@@ -1,0 +1,12 @@
+
+list.HasExactly(expected)
+
+ ✓ EXPECTED                                                                     
+list should have exactly 5 items.
+ ✗ ACTUAL                                                                       
+It had 1.
+
+ ℹ LOCALS                                                                       
+list: [ "a" ]
+expected: 5
+················································································

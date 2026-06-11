@@ -1,0 +1,17 @@
+
+seq1.SequenceEqual(seq2)
+
+ ✓ EXPECTED                                                                     
+seq1 should equal seq2
+ ✗ ACTUAL                                                                       
+There were 4 differences:
+
+[0]: "foo" <> "bar",
+[1]: "bar" <> "foo",
+[2]: "value" <> null,
+[3]: (no value) <> "something"
+
+seq1: [ "foo", "bar", "value" ]
+seq2: [ "bar", "foo", null, "something" ]
+
+················································································

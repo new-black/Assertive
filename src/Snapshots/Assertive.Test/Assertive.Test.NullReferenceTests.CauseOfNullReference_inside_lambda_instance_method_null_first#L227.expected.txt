@@ -1,0 +1,19 @@
+
+surveys.Exists(s => s.Category.ID == 99)
+
+NullReferenceException caused by accessing ID on s.Category which was null.
+
+On item [0] of surveys:
+{ Name = "foo" }
+   CAUSE OF EXCEPTION                                                           
+s.Category.ID
+ ⚠ EXCEPTION                                                                    
+Object reference not set to an instance of an object.
+   STACKTRACE                                                                   
+   at Assertive.Test.NullReferenceTests.<>c.<CauseOfNullReference_inside_lambda_instance_method_null_first>b__20_1(Survey s) in NullReferenceTests.cs:line 227
+   at System.Collections.Generic.List`1.FindIndex(Int32 startIndex, Int32 count, Predicate`1 match)
+   at System.Collections.Generic.List`1.Exists(Predicate`1 match)
+   at Assertive.Test.NullReferenceTests.<>c__DisplayClass20_0.<CauseOfNullReference_inside_lambda_instance_method_null_first>b__0() in NullReferenceTests.cs:line 227
+ ℹ LOCALS                                                                       
+surveys: [ { Name = "foo" }, { Name = "foo", Category = { ID = 1 } }, { Name = "foo", Category = { ID = 2 } } ]
+················································································

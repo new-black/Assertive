@@ -1,0 +1,16 @@
+
+list2.First() != null && list.First() != 0
+
+InvalidOperationException caused by calling First() on list which contains no elements.
+   CAUSE OF EXCEPTION                                                           
+list.First()
+ ⚠ EXCEPTION                                                                    
+Sequence contains no elements
+   STACKTRACE                                                                   
+   at System.Linq.ThrowHelper.ThrowNoElementsException()
+   at System.Linq.Enumerable.First[TSource](IEnumerable`1 source)
+   at Assertive.Test.LinqElementCountPatternTests.<>c__DisplayClass7_0.<First_on_empty_collection_is_caught_when_there_is_also_a_non_empty_collection>b__0() in LinqElementCountPatternTests.cs:line 86
+ ℹ LOCALS                                                                       
+list2: [ "abc" ]
+list: [ ]
+················································································

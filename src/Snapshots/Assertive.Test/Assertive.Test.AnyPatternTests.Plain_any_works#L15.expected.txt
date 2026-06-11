@@ -1,0 +1,11 @@
+
+list.Any()
+
+ ✓ EXPECTED                                                                     
+Collection list should contain some items.
+ ✗ ACTUAL                                                                       
+It contained no items.
+
+ ℹ LOCALS                                                                       
+list: [ ]
+················································································

@@ -1,0 +1,17 @@
+
+list.Single(l => l > 3) == 10
+
+InvalidOperationException caused by calling Single(l => l > 3) on list which contains no elements that match the filter.
+
+Value of list: [ 1, 2, 3 ]
+   CAUSE OF EXCEPTION                                                           
+list.Single(l => l > 3)
+ ⚠ EXCEPTION                                                                    
+Sequence contains no matching element
+   STACKTRACE                                                                   
+   at System.Linq.ThrowHelper.ThrowNoMatchException()
+   at System.Linq.Enumerable.Single[TSource](IEnumerable`1 source, Func`2 predicate)
+   at Assertive.Test.LinqElementCountPatternTests.<>c__DisplayClass1_0.<Single_on_empty_collection_is_caught_when_a_filter_is_used>b__0() in LinqElementCountPatternTests.cs:line 25
+ ℹ LOCALS                                                                       
+list: [ 1, 2, 3 ]
+················································································

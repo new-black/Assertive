@@ -1,0 +1,9 @@
+
+list.Contains(myValue)
+
+ ✓ EXPECTED                                                                     
+list should contain myValue (value: "abc").
+ ✗ ACTUAL                                                                       
+list: [ "a", "b", "c" ]
+
+················································································

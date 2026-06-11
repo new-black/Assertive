@@ -1,0 +1,11 @@
+
+await fetcher.GetAsync(3) == 5
+
+ ✓ EXPECTED                                                                     
+await fetcher.GetAsync(3): 5
+ ✗ ACTUAL                                                                       
+await fetcher.GetAsync(3): 3
+
+ ℹ LOCALS                                                                       
+fetcher: Assertive.Test.AsyncAssertionTests+Fetcher
+················································································

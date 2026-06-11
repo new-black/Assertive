@@ -136,6 +136,12 @@ internal partial class AssertImpl
     if (isStringSnapshot)
     {
       var actualString = (string)projectedActual!;
+
+      if (options.Configuration.StringTransform != null)
+      {
+        actualString = ApplyStringTransform(actualString, options.Configuration.StringTransform);
+      }
+
       var expectedString = expectedFileInfo.Exists ? File.ReadAllText(expectedFileInfo.FullName) : "";
 
       if (TryAcceptSnapshot(expectedFileInfo, options, actualString))
@@ -392,6 +398,16 @@ internal partial class AssertImpl
   private static string NormalizeLineEndings(string value)
   {
     return value.Replace("\r\n", "\n").Replace("\r", "\n");
+  }
+
+  private static string ApplyStringTransform(string value, Func<string, string> transform)
+  {
+    var lines = value.Split('\n');
+    for (var i = 0; i < lines.Length; i++)
+    {
+      lines[i] = transform(lines[i]);
+    }
+    return string.Join('\n', lines);
   }
 
   private static Exception BuildStringSnapshotError(string actualString, string expectedString, FileInfo expectedFileInfo,

@@ -1,0 +1,13 @@
+
+array[0] == 1
+
+NullReferenceException caused by accessing array index 0 on array which was null.
+   CAUSE OF EXCEPTION                                                           
+array[0]
+ ⚠ EXCEPTION                                                                    
+Object reference not set to an instance of an object.
+   STACKTRACE                                                                   
+   at Assertive.Test.NullReferenceTests.<>c__DisplayClass3_0.<CauseOfNullReference_on_property_is_found_on_array_index>b__0() in NullReferenceTests.cs:line 62
+ ℹ LOCALS                                                                       
+array: null
+················································································

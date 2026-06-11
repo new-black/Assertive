@@ -21,9 +21,7 @@ namespace Assertive.Test
     {
       object obj = "not a user";
 
-      ShouldFail(() => obj is PatternUser u && u.Name == "Bob",
-        "should be of type",
-        "Type: string");
+      ShouldFail(() => obj is PatternUser u && u.Name == "Bob");
     }
 
     // Scenario: is-check passes but the subsequent property equality fails
@@ -32,9 +30,7 @@ namespace Assertive.Test
     {
       object obj = new PatternUser("Alice", 30);
 
-      ShouldFail(() => obj is PatternUser u && u.Name == "Bob",
-        "Bob",
-        "Alice");
+      ShouldFail(() => obj is PatternUser u && u.Name == "Bob");
     }
 
     // Comparison on the pattern variable
@@ -43,9 +39,7 @@ namespace Assertive.Test
     {
       object obj = new PatternUser("Bob", 5);
 
-      ShouldFail(() => obj is PatternUser u && u.Age > 18,
-        "18",
-        "5");
+      ShouldFail(() => obj is PatternUser u && u.Age > 18);
     }
 
     // Three conjuncts: is-check, property equality, then another comparison
@@ -54,9 +48,7 @@ namespace Assertive.Test
     {
       object obj = new PatternUser("Bob", 5);
 
-      ShouldFail(() => obj is PatternUser u && u.Name == "Bob" && u.Age > 18,
-        "18",
-        "5");
+      ShouldFail(() => obj is PatternUser u && u.Name == "Bob" && u.Age > 18);
     }
 
     // The is-check in the second conjunct (first is a plain bool check)
@@ -66,9 +58,7 @@ namespace Assertive.Test
       object obj = new PatternUser("Alice", 30);
       var enabled = true;
 
-      ShouldFail(() => enabled && obj is PatternUser u && u.Name == "Bob",
-        "Bob",
-        "Alice");
+      ShouldFail(() => enabled && obj is PatternUser u && u.Name == "Bob");
     }
 
     // Pattern variable of a value type
@@ -77,9 +67,7 @@ namespace Assertive.Test
     {
       object obj = 42;
 
-      ShouldFail(() => obj is int n && n > 100,
-        "100",
-        "42");
+      ShouldFail(() => obj is int n && n > 100);
     }
 
     // Whole body passes
@@ -96,9 +84,7 @@ namespace Assertive.Test
     {
       object obj = new PatternAdmin("Charlie", 1);
 
-      ShouldFail(() => obj is PatternUser u,
-        "should be of type",
-        "Type: PatternAdmin");
+      ShouldFail(() => obj is PatternUser u);
     }
 
     // Pattern variable used in null check via a subsequent conjunct
@@ -107,9 +93,7 @@ namespace Assertive.Test
     {
       object obj = new PatternUser(null!, 30);
 
-      ShouldFail(() => obj is PatternUser u && u.Name != null,
-        "Name",
-        "null");
+      ShouldFail(() => obj is PatternUser u && u.Name != null);
     }
 
     // Cross-check: body that uses pattern var only in the is-leaf itself doesn't break
@@ -120,9 +104,7 @@ namespace Assertive.Test
 
       // `obj is PatternUser _` has no variable; the is-leaf uses DiscardDesignation.
       // It should classify as Is kind (same as obj is PatternUser).
-      ShouldFail(() => (object)"foo" is PatternUser _,
-        "should be of type",
-        "Type: string");
+      ShouldFail(() => (object)"foo" is PatternUser _);
     }
   }
 }

@@ -1,0 +1,9 @@
+
+!ids.All(i => i > 0)
+
+[EXPECTED]
+Not all items of ids should match the filter i > 0.
+
+[LOCALS]
+ids: [ 1, 2, 3 ]
+················································································

@@ -1,0 +1,15 @@
+
+Convert.ToInt32(input) == 0
+
+FormatException caused by calling Convert.ToInt32("xyz"). "xyz" is not a valid int.
+   CAUSE OF EXCEPTION                                                           
+Convert.ToInt32(input)
+ ⚠ EXCEPTION                                                                    
+The input string 'xyz' was not in a correct format.
+   STACKTRACE                                                                   
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Convert.ToInt32(String value)
+   at Assertive.Test.FormatExceptionPatternTests.<>c__DisplayClass4_0.<Convert_ToInt32_with_invalid_string>b__0() in FormatExceptionPatternTests.cs:line 45
+ ℹ LOCALS                                                                       
+input: "xyz"
+················································································

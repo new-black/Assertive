@@ -1,0 +1,11 @@
+
+list.Any(x => x > 10)
+
+ ✓ EXPECTED                                                                     
+Collection list should contain items matching x => x > 10.
+ ✗ ACTUAL                                                                       
+No items matched.
+
+ ℹ LOCALS                                                                       
+list: [ 1, 2, 3 ]
+················································································

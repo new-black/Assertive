@@ -1,0 +1,10 @@
+
+value.Contains("hello world")
+
+ ✓ EXPECTED                                                                     
+value should contain the substring "hello world".
+ ✗ ACTUAL                                                                       
+value: "Hello World"
+The strings differ only in casing
+
+················································································

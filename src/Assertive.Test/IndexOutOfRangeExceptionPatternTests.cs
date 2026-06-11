@@ -16,7 +16,7 @@ namespace Assertive.Test
     {
       var array = new int[0];
 
-      ShouldFail(() => array[10] == 1, "IndexOutOfRangeException caused by accessing index 10 on array, actual length was 0.");
+      ShouldFail(() => array[10] == 1);
     }
 
     [Fact]
@@ -28,13 +28,7 @@ namespace Assertive.Test
         new Item { Values = new[] { 4 } },
       };
 
-      ShouldFail(() => items.Any(i => i.Values[5] == 99),
-        """
-        IndexOutOfRangeException caused by accessing index 5 on i.Values, actual length was 3.
-
-        On item [0] of items:
-        { Values = [ 1, 2, 3 ] }
-        """);
+      ShouldFail(() => items.Any(i => i.Values[5] == 99));
     }
     
     [Fact]
@@ -45,7 +39,7 @@ namespace Assertive.Test
         1, 2, 3
       };
       
-      ShouldFail(() => list[4] == 1, "ArgumentOutOfRangeException caused by accessing index 4 on list, actual count was 3.");
+      ShouldFail(() => list[4] == 1);
     }
     
     [Fact]
@@ -58,7 +52,7 @@ namespace Assertive.Test
 
       var myValue = 4;
       
-      ShouldFail(() => list[myValue] == 1, "ArgumentOutOfRangeException caused by accessing index myValue (value: 4) on list, actual count was 3.");
+      ShouldFail(() => list[myValue] == 1);
     }
     
     [Fact]
@@ -68,7 +62,7 @@ namespace Assertive.Test
       
       var myValue = 4;
       
-      ShouldFail(() => array[myValue] == 1, "IndexOutOfRangeException caused by accessing index myValue (value: 4) on array, actual length was 2.");
+      ShouldFail(() => array[myValue] == 1);
     }
   }
 }

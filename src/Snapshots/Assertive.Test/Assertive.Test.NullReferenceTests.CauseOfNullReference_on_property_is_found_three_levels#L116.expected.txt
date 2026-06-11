@@ -1,0 +1,13 @@
+
+foo.Bar.StringProperty.Length == 1
+
+NullReferenceException caused by accessing Length on foo.Bar.StringProperty which was null.
+   CAUSE OF EXCEPTION                                                           
+foo.Bar.StringProperty.Length
+ ⚠ EXCEPTION                                                                    
+Object reference not set to an instance of an object.
+   STACKTRACE                                                                   
+   at Assertive.Test.NullReferenceTests.<>c__DisplayClass9_0.<CauseOfNullReference_on_property_is_found_three_levels>b__0() in NullReferenceTests.cs:line 116
+ ℹ LOCALS                                                                       
+foo: { Bar = { Throws = <exception serializing = NullReferenceException> } }
+················································································

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Assertive.Config;
 using Assertive.Runtime;
 using Xunit;
@@ -20,19 +21,14 @@ namespace Assertive.Test
 
       var value = "4";
 
-      ShouldEqual(() => list.Any(l => l == value), @"list: [ ""1"", ""2"", ""3"" ]
-value: ""4""");
+      ShouldEqual(() => list.Any(l => l == value));
 
-      ShouldEqual(() => list.Any(l => l == "4"), @"list: [ ""1"", ""2"", ""3"" ]");
+      ShouldEqual(() => list.Any(l => l == "4"));
 
       var length = 2;
       var ending = "4";
 
-      ShouldEqual(() => list.Count(l => l.Length == length && l.EndsWith(ending)) == 1,
-        @"list: [ ""1"", ""2"", ""3"" ]
-length: 2
-ending: ""4""
-");
+      ShouldEqual(() => list.Count(l => l.Length == length && l.EndsWith(ending)) == 1);
     }
 
     private class Customer
@@ -53,16 +49,7 @@ ending: ""4""
 
       var expectedCustomers = 2;
 
-      try
-      {
-        Assert(() => customers.Count() == expectedCustomers);
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        Assert(() => StripAnsi(ex.Message)
-          .Contains("""customers: [ { ID = 1, FirstName = "John" }, { ID = 2, FirstName = "Bob" }, { ID = 3, FirstName = "Alice " } ]"""));
-      }
+      ShouldFail(() => customers.Count() == expectedCustomers);
     }
 
     [Fact]
@@ -71,39 +58,17 @@ ending: ""4""
       var a = "abc";
       var b = "def";
 
-      try
-      {
-        Assert(() => a == b);
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch(Exception ex)
-      {
-        Assert(() => !ex.Message.Contains("[LOCALS]"));
-      }
+      ShouldFail(() => a == b);
     }
-    
-    
+
+
     [Fact]
     public void Using_a_local_multiple_times_does_not_render_it_multiple_times()
     {
       var list = Enumerable.Range(0, 8).ToList();
       var expected = 25;
 
-      try
-      {
-        Assert(() => list[list.Count - 1] == expected * 2);
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        Assert(() => StripAnsi(ex.Message).Contains("list: [ 0, 1, 2, 3, 4, 5, 6, 7 ]"));
-        Assert(() => StripAnsi(ex.Message).EndsWith("""
-                                         list: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
-                                         expected: 25
-                                         ················································································
-                                         
-                                         """));
-      }
+      ShouldFail(() => list[list.Count - 1] == expected * 2);
     }
 
     [Fact]
@@ -112,24 +77,17 @@ ending: ""4""
       var list = Enumerable.Range(0, 8);
       var six = 6;
 
-      try
-      {
-        Assert(() => list.Count() == six);
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        Assert(() => StripAnsi(ex.Message).Contains("list: [ 0, 1, 2, 3, 4, 5, 6, 7 ]"));
-        Assert(() => !StripAnsi(ex.Message).Contains("six: 6"));
-      }
+      ShouldFail(() => list.Count() == six);
     }
 
     [AssertionWrapper]
-    internal void ShouldEqual(Func<bool> assertion, string expected,
-      [System.Runtime.CompilerServices.CallerArgumentExpression(nameof(assertion))] string assertionExpression = "")
-      => ShouldEqual(AssertionHandle.Degraded(assertion, assertionExpression), expected, assertionExpression);
+    internal void ShouldEqual(Func<bool> assertion,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
+      [CallerFilePath] string callerFilePath = "",
+      [CallerLineNumber] int callerLineNumber = 0)
+      => ShouldEqual(AssertionHandle.Degraded(assertion, assertionExpression), assertionExpression, callerFilePath, callerLineNumber);
 
-    internal void ShouldEqual(AssertionHandle assertion, string expected, string assertionExpression = "")
+    internal void ShouldEqual(AssertionHandle assertion, string assertionExpression = "", string callerFilePath = "", int callerLineNumber = 0)
     {
       try
       {
@@ -138,9 +96,11 @@ ending: ""4""
       }
       catch (Exception ex)
       {
-        Assert.That(() => StripAnsi(ex.Message).Trim().Contains(expected.Trim()));
+        Assert.Snapshot(StripAnsi(ex.Message),
+          options: $"L{callerLineNumber}",
+          expression: assertionExpression,
+          sourceFile: callerFilePath);
       }
-
     }
   }
 }

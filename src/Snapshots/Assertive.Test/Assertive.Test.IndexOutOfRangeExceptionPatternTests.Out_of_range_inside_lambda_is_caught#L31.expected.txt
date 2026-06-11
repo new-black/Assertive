@@ -1,0 +1,18 @@
+
+items.Any(i => i.Values[5] == 99)
+
+IndexOutOfRangeException caused by accessing index 5 on i.Values, actual length was 3.
+
+On item [0] of items:
+{ Values = [ 1, 2, 3 ] }
+   CAUSE OF EXCEPTION                                                           
+i.Values[5]
+ ⚠ EXCEPTION                                                                    
+Index was outside the bounds of the array.
+   STACKTRACE                                                                   
+   at Assertive.Test.IndexOutOfRangeExceptionPatternTests.<>c.<Out_of_range_inside_lambda_is_caught>b__2_1(Item i) in IndexOutOfRangeExceptionPatternTests.cs:line 31
+   at System.Linq.Enumerable.Any[TSource](IEnumerable`1 source, Func`2 predicate)
+   at Assertive.Test.IndexOutOfRangeExceptionPatternTests.<>c__DisplayClass2_0.<Out_of_range_inside_lambda_is_caught>b__0() in IndexOutOfRangeExceptionPatternTests.cs:line 31
+ ℹ LOCALS                                                                       
+items: [ { Values = [ 1, 2, 3 ] }, { Values = [ 4 ] } ]
+················································································

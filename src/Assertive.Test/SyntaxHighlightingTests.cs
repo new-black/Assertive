@@ -72,7 +72,7 @@ namespace Assertive.Test
       // Member name and receiver source are highlighted (identifier color varies; assert
       // that highlighting inserted ANSI codes into the cause message at all).
       Xunit.Assert.Contains("\u001b[", handled);
-      Xunit.Assert.Equal("NullReferenceException caused by accessing Count on list which was null.", StripAnsi(handled));
+      SnapshotMessage(new Exception(StripAnsi(handled)));
     }
 
     [Fact]

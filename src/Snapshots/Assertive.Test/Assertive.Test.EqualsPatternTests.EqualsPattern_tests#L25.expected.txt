@@ -1,0 +1,9 @@
+
+nullableInt == 1
+
+ ✓ EXPECTED                                                                     
+nullableInt: 1
+ ✗ ACTUAL                                                                       
+nullableInt: null
+
+················································································

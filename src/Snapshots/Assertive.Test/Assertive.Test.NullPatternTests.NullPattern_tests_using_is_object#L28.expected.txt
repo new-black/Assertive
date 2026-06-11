@@ -1,0 +1,9 @@
+
+!(notNullString is object)
+
+ ✓ EXPECTED                                                                     
+notNullString should be null.
+ ✗ ACTUAL                                                                       
+"a string"
+
+················································································

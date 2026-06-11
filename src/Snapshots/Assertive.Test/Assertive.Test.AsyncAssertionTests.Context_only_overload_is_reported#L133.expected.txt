@@ -1,0 +1,11 @@
+
+await ValueAsync(1) == 2
+
+ ✓ EXPECTED                                                                     
+await ValueAsync(1): 2
+ ✗ ACTUAL                                                                       
+await ValueAsync(1): 1
+
+   CONTEXT                                                                      
+orderID = 10
+················································································

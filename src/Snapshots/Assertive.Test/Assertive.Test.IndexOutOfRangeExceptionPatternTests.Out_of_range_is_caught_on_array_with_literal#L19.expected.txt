@@ -1,0 +1,13 @@
+
+array[10] == 1
+
+IndexOutOfRangeException caused by accessing index 10 on array, actual length was 0.
+   CAUSE OF EXCEPTION                                                           
+array[10]
+ ⚠ EXCEPTION                                                                    
+Index was outside the bounds of the array.
+   STACKTRACE                                                                   
+   at Assertive.Test.IndexOutOfRangeExceptionPatternTests.<>c__DisplayClass1_0.<Out_of_range_is_caught_on_array_with_literal>b__0() in IndexOutOfRangeExceptionPatternTests.cs:line 19
+ ℹ LOCALS                                                                       
+array: [ ]
+················································································

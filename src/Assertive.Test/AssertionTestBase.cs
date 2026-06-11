@@ -11,205 +11,187 @@ namespace Assertive.Test
     private static partial class AnsiHelper
     {
 
-      [GeneratedRegex(@"\u001b\[[0-9;]*[A-Za-z]")]
+      [GeneratedRegex(@"\[[0-9;]*[A-Za-z]")]
       public static partial Regex AnsiRegex();
 
     }
     protected static string StripAnsi(string input)
     {
-      // Strip ANSI codes and normalize line endings to \n for consistent test comparisons
       var stripped = AnsiHelper.AnsiRegex().Replace(input, "");
       return stripped.Replace("\r\n", "\n").Replace("\r", "\n");
     }
 
-    protected void ShouldThrow(Action action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "")
+    protected void ShouldThrow(Action action,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerFilePath] string callerFilePath = "",
+      [CallerLineNumber] int callerLineNumber = 0)
     {
-      bool throws = false;
-
       try
       {
         Assert.Throws(action, null, actionExpression);
-        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
-        throws = true;
-
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+        Assert.Snapshot(StripAnsi(ex.Message),
+          options: $"L{callerLineNumber}",
+          expression: actionExpression,
+          sourceFile: callerFilePath);
+        return;
       }
 
-      Xunit.Assert.True(throws);
+      Xunit.Assert.Fail($"Expected Assert.Throws({actionExpression}) to fail but it did not.");
     }
 
-    protected void ShouldThrow(Func<object?> func, string expectedMessage, [CallerArgumentExpression(nameof(func))] string funcExpression = "")
+    protected void ShouldThrow(Func<object?> func,
+      [CallerArgumentExpression(nameof(func))] string funcExpression = "",
+      [CallerFilePath] string callerFilePath = "",
+      [CallerLineNumber] int callerLineNumber = 0)
     {
-      bool throws = false;
-
       try
       {
         Assert.Throws(func, null, funcExpression);
-        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
-        throws = true;
-
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+        Assert.Snapshot(StripAnsi(ex.Message),
+          options: $"L{callerLineNumber}",
+          expression: funcExpression,
+          sourceFile: callerFilePath);
+        return;
       }
 
-      Xunit.Assert.True(throws);
+      Xunit.Assert.Fail($"Expected Assert.Throws({funcExpression}) to fail but it did not.");
     }
 
-    protected async Task ShouldThrow(Func<Task> action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "")
+    protected async Task ShouldThrow(Func<Task> action,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerFilePath] string callerFilePath = "",
+      [CallerLineNumber] int callerLineNumber = 0)
     {
-      bool throws = false;
-
       try
       {
         await Assert.Throws(action, null, actionExpression);
-        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
-        throws = true;
-
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+        Assert.Snapshot(StripAnsi(ex.Message),
+          options: $"L{callerLineNumber}",
+          expression: actionExpression,
+          sourceFile: callerFilePath);
+        return;
       }
 
-      Xunit.Assert.True(throws);
+      Xunit.Assert.Fail($"Expected Assert.Throws({actionExpression}) to fail but it did not.");
     }
 
-    protected async Task ShouldThrow<T>(Func<Task> action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "") where T : Exception
+    protected async Task ShouldThrow<T>(Func<Task> action,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerFilePath] string callerFilePath = "",
+      [CallerLineNumber] int callerLineNumber = 0) where T : Exception
     {
-      bool throws = false;
-
       try
       {
         await Assert.Throws<T>(action, null, actionExpression);
-        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
-        throws = true;
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+        Assert.Snapshot(StripAnsi(ex.Message),
+          options: $"L{callerLineNumber}",
+          expression: actionExpression,
+          sourceFile: callerFilePath);
+        return;
       }
 
-      Xunit.Assert.True(throws);
+      Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({actionExpression}) to fail but it did not.");
     }
 
-    protected void ShouldThrow<T>(Action action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "") where T : Exception
+    protected void ShouldThrow<T>(Action action,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerFilePath] string callerFilePath = "",
+      [CallerLineNumber] int callerLineNumber = 0) where T : Exception
     {
-      bool throws = false;
-
       try
       {
         Assert.Throws<T>(action, null, actionExpression);
-        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
-        throws = true;
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+        Assert.Snapshot(StripAnsi(ex.Message),
+          options: $"L{callerLineNumber}",
+          expression: actionExpression,
+          sourceFile: callerFilePath);
+        return;
       }
 
-      Xunit.Assert.True(throws);
+      Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({actionExpression}) to fail but it did not.");
     }
 
-    protected void ShouldThrow<T>(Func<object?> func, string expectedMessage, [CallerArgumentExpression(nameof(func))] string funcExpression = "") where T : Exception
+    protected void ShouldThrow<T>(Func<object?> func,
+      [CallerArgumentExpression(nameof(func))] string funcExpression = "",
+      [CallerFilePath] string callerFilePath = "",
+      [CallerLineNumber] int callerLineNumber = 0) where T : Exception
     {
-      bool throws = false;
-
       try
       {
         Assert.Throws<T>(func, null, funcExpression);
-        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
-        throws = true;
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+        Assert.Snapshot(StripAnsi(ex.Message),
+          options: $"L{callerLineNumber}",
+          expression: funcExpression,
+          sourceFile: callerFilePath);
+        return;
       }
 
-      Xunit.Assert.True(throws);
+      Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({funcExpression}) to fail but it did not.");
     }
 
     [AssertionWrapper]
-    protected void ShouldFail(Func<bool> assertion, string expectedMessage, string actualMessage = null, bool exactMatch = false,
-      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "")
-      => ShouldFail(AssertionHandle.Degraded(assertion, assertionExpression), expectedMessage, actualMessage, exactMatch, assertionExpression);
+    protected void ShouldFail(Func<bool> assertion,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
+      [CallerFilePath] string callerFilePath = "",
+      [CallerLineNumber] int callerLineNumber = 0)
+      => ShouldFail(AssertionHandle.Degraded(assertion, assertionExpression), assertionExpression, callerFilePath, callerLineNumber);
 
-    internal void ShouldFail(AssertionHandle assertion, string expectedMessage, string actualMessage = null, bool exactMatch = false, string assertionExpression = "")
+    internal void ShouldFail(AssertionHandle assertion, string assertionExpression = "", string callerFilePath = "", int callerLineNumber = 0)
     {
-      bool throws = false;
-
       try
       {
         assertion.Assert();
-        Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)
       {
-        var expected = StripAnsi(string.Join(Environment.NewLine, ex.Data["Assertive.Expected"] as string[]));
-        var actual = StripAnsi(string.Join(Environment.NewLine, ex.Data["Assertive.Actual"] as string[]));
-        var handledExceptions = StripAnsi(string.Join(Environment.NewLine, ex.Data["Assertive.HandledExceptions"] as string[]));
-
-        if (handledExceptions != "")
-        {
-          Assert.That(() => handledExceptions.Trim() == expectedMessage.Trim());
-          return;
-        }
-        else if (actualMessage == null)
-        {
-          var expectedPrefix = "";
-          var actualPrefix = "";
-
-          if (expected.Contains("\"") || expected.Contains("\n"))
-          {
-            expectedPrefix = "@";
-            expected = expected.Replace("\"", "\"\"");
-          }
-
-          if (actual.Contains("\"") || actual.Contains("\n"))
-          {
-            actualPrefix = "@";
-            actual = actual.Replace("\"", "\"\"");
-          }
-
-          var message = $"""
-                         {expectedPrefix}"{expected}", {actualPrefix}"{actual}"
-                         """;
-
-
-          throw new Exception(message);
-        }
-
-        //throw;
-        throws = true;
-
-        if (exactMatch)
-        {
-          Assert.That(() => expected == expectedMessage);
-          Assert.That(() => actual == actualMessage);
-        }
-        else
-        {
-          Assert.That(() => expected.Contains(expectedMessage));
-          Assert.That(() => actual.Contains(actualMessage));
-        }
+        Assert.Snapshot(StripAnsi(ex.Message),
+          options: $"L{callerLineNumber}",
+          expression: assertionExpression,
+          sourceFile: callerFilePath);
+        return;
       }
 
-      Xunit.Assert.True(throws);
+      Xunit.Assert.Fail($"Expected assertion to fail but it passed: {assertionExpression}");
     }
 
-    /// <summary>
-    /// Runs an assertion statement expected to fail — written inline at the test so its
-    /// Assert call site is intercepted — and checks the failure message.
-    /// </summary>
-    protected void ShouldFailWith(Action assertion, string expectedMessage)
+    protected void ShouldFailWith(Action assertion,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
+      [CallerFilePath] string callerFilePath = "",
+      [CallerLineNumber] int callerLineNumber = 0)
     {
       var ex = Xunit.Assert.ThrowsAny<Exception>(assertion);
+      Assert.Snapshot(StripAnsi(ex.Message),
+        options: $"L{callerLineNumber}",
+        expression: assertionExpression,
+        sourceFile: callerFilePath);
+    }
 
-      Assert.That(() => StripAnsi(ex.Message).Contains(expectedMessage));
+    protected void SnapshotMessage(Exception ex,
+      [CallerFilePath] string callerFilePath = "",
+      [CallerLineNumber] int callerLineNumber = 0)
+    {
+      Assert.Snapshot(StripAnsi(ex.Message),
+        options: $"L{callerLineNumber}",
+        expression: "",
+        sourceFile: callerFilePath);
     }
   }
 }

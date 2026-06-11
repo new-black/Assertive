@@ -1,0 +1,15 @@
+
+items.Where(i => i.StartsWith("abc")).Count(x => x.EndsWith("123")) == 0
+
+ArgumentNullException caused by calling Where(i => i.StartsWith("abc")) on items which was null.
+   CAUSE OF EXCEPTION                                                           
+items.Where(i => i.StartsWith("abc"))
+ ⚠ EXCEPTION                                                                    
+Value cannot be null. (Parameter 'source')
+   STACKTRACE                                                                   
+   at System.Linq.ThrowHelper.ThrowArgumentNullException(ExceptionArgument argument)
+   at System.Linq.Enumerable.Where[TSource](IEnumerable`1 source, Func`2 predicate)
+   at Assertive.Test.ArgumentNullPatternTests.<>c__DisplayClass2_0.<Cause_of_ArgumentNull_is_found_two_levels>b__0() in ArgumentNullPatternTests.cs:line 27
+ ℹ LOCALS                                                                       
+items: null
+················································································

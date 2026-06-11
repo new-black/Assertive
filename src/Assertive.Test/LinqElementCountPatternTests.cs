@@ -11,8 +11,7 @@ namespace Assertive.Test
     {
       var list = new List<int>();
       
-      ShouldFail(() => list.Single() == 10, 
-        @"InvalidOperationException caused by calling Single() on list which contains no elements.");
+      ShouldFail(() => list.Single() == 10);
     }
     
     [Fact]
@@ -23,10 +22,7 @@ namespace Assertive.Test
         1, 2, 3
       };
       
-      ShouldFail(() => list.Single(l => l > 3) == 10, 
-        @"InvalidOperationException caused by calling Single(l => l > 3) on list which contains no elements that match the filter.
-
-Value of list: [ 1, 2, 3 ]");
+      ShouldFail(() => list.Single(l => l > 3) == 10);
     }
     
     [Fact]
@@ -37,11 +33,7 @@ Value of list: [ 1, 2, 3 ]");
         1, 2, 3
       };
       
-      ShouldFail(() => list.Single(l => l > 1) == 10, 
-        @"InvalidOperationException caused by calling Single(l => l > 1) on list which contains more than one element that matches the filter. Actual element count: 2.
-
-Value of list: [ 2, 3 ]
-");
+      ShouldFail(() => list.Single(l => l > 1) == 10);
     }
     
     [Fact]
@@ -49,11 +41,7 @@ Value of list: [ 2, 3 ]
     {
       var list = Enumerable.Range(0, 1000);
       
-      ShouldFail(() => list.Single() == 10, 
-        @"InvalidOperationException caused by calling Single() on list which contains more than one element. Actual element count: 1000.
-
-Value of list: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... ]
-");
+      ShouldFail(() => list.Single() == 10);
     }
     
     [Fact]
@@ -61,11 +49,7 @@ Value of list: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... ]
     {
       var list = Enumerable.Range(0, 1000).ToList();
       
-      ShouldFail(() => list.Single() == 10, 
-        @"InvalidOperationException caused by calling Single() on list which contains more than one element. Actual element count: 1000.
-
-Value of list: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... (990 more items) ]
-");
+      ShouldFail(() => list.Single() == 10);
     }
     
     [Fact]
@@ -73,8 +57,7 @@ Value of list: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... (990 more items) ]
     {
       var list = new List<int>();
       
-      ShouldFail(() => list.First() == 10, 
-        "InvalidOperationException caused by calling First() on list which contains no elements.");
+      ShouldFail(() => list.First() == 10);
     }
     
     [Fact]
@@ -87,8 +70,7 @@ Value of list: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... (990 more items) ]
         "abc"
       };
       
-      ShouldFail(() => list2.Single() != null && list.Single() != 0, 
-        "InvalidOperationException caused by calling Single() on list which contains no elements.");
+      ShouldFail(() => list2.Single() != null && list.Single() != 0);
     }
     
     [Fact]
@@ -101,8 +83,7 @@ Value of list: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... (990 more items) ]
         "abc"
       };
       
-      ShouldFail(() => list2.First() != null && list.First() != 0, 
-        "InvalidOperationException caused by calling First() on list which contains no elements.");
+      ShouldFail(() => list2.First() != null && list.First() != 0);
     }
     
     [Fact]
@@ -113,10 +94,7 @@ Value of list: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... (990 more items) ]
         1, 2, 3
       };
       
-      ShouldFail(() => list.Single() == 10, 
-        @"InvalidOperationException caused by calling Single() on list which contains more than one element. Actual element count: 3.
-
-Value of list: [ 1, 2, 3 ]");
+      ShouldFail(() => list.Single() == 10);
     }
 
     class Something
@@ -133,10 +111,7 @@ Value of list: [ 1, 2, 3 ]");
         new Something()
       };
 
-      ShouldFail(() => list.Single().Items.Single() != null,
-        @"InvalidOperationException caused by calling Single() on list which contains more than one element. Actual element count: 2.
-
-Value of list: [ { }, { } ]");
+      ShouldFail(() => list.Single().Items.Single() != null);
     }
 
     [Fact]
@@ -148,13 +123,7 @@ Value of list: [ { }, { } ]");
         new Something { Items = new List<string>() },  // Empty - will throw
       };
 
-      ShouldFail(() => containers.Any(c => c.Items.Single() == "x"),
-        """
-        InvalidOperationException caused by calling Single() on c.Items which contains no elements.
-
-        On item [1] of containers:
-        { Items = [ ] }
-        """);
+      ShouldFail(() => containers.Any(c => c.Items.Single() == "x"));
     }
 
     [Fact]
@@ -166,15 +135,7 @@ Value of list: [ { }, { } ]");
         new Something { Items = new List<string> { "a", "b", "c" } },  // Multiple - will throw
       };
 
-      ShouldFail(() => containers.Any(c => c.Items.Single() == "x"),
-        """
-        InvalidOperationException caused by calling Single() on c.Items which contains more than one element. Actual element count: 3.
-
-        Value of c.Items: [ "a", "b", "c" ]
-
-        On item [1] of containers:
-        { Items = [ "a", "b", "c" ] }
-        """);
+      ShouldFail(() => containers.Any(c => c.Items.Single() == "x"));
     }
   }
 }

@@ -1,0 +1,16 @@
+
+value.Contains("this is a tast of the")
+
+ ✓ EXPECTED                                                                     
+value should contain the substring "this is a tast of the".
+ ✗ ACTUAL                                                                       
+value: "Hello world, this is a test of the system"
+Closest match at position 13 (1 character difference)
+
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] this is a test of the
++ [A1] this is a tast of the
+
+
+················································································

@@ -15,9 +15,7 @@ namespace Assertive.Test
     public void Reports_type_failure_when_object_is_wrong_type()
     {
       object obj = "not a user";
-      ShouldFail(() => obj is PropPatUser { Name: "Bob" },
-        "should be of type",
-        "Type: string");
+      ShouldFail(() => obj is PropPatUser { Name: "Bob" });
     }
 
     // Type check passes, property equality fails
@@ -25,9 +23,7 @@ namespace Assertive.Test
     public void Reports_property_equality_failure()
     {
       object obj = new PropPatUser("Alice", 30, null);
-      ShouldFail(() => obj is PropPatUser { Name: "Bob" },
-        "Bob",
-        "Alice");
+      ShouldFail(() => obj is PropPatUser { Name: "Bob" });
     }
 
     // Type check passes, property relational fails
@@ -35,7 +31,7 @@ namespace Assertive.Test
     public void Reports_property_relational_failure()
     {
       object obj = new PropPatUser("Bob", 15, null);
-      ShouldFail(() => obj is PropPatUser { Age: > 18 }, "18", "15");
+      ShouldFail(() => obj is PropPatUser { Age: > 18 });
     }
 
     // Multiple properties, first fails
@@ -43,9 +39,7 @@ namespace Assertive.Test
     public void Reports_first_property_failure_in_multi_property_pattern()
     {
       object obj = new PropPatUser("Alice", 30, null);
-      ShouldFail(() => obj is PropPatUser { Name: "Bob", Age: > 18 },
-        "Bob",
-        "Alice");
+      ShouldFail(() => obj is PropPatUser { Name: "Bob", Age: > 18 });
     }
 
     // Multiple properties, second fails
@@ -53,7 +47,7 @@ namespace Assertive.Test
     public void Reports_second_property_failure_in_multi_property_pattern()
     {
       object obj = new PropPatUser("Bob", 15, null);
-      ShouldFail(() => obj is PropPatUser { Name: "Bob", Age: > 18 }, "18", "15");
+      ShouldFail(() => obj is PropPatUser { Name: "Bob", Age: > 18 });
     }
 
     // Property is-null check
@@ -61,7 +55,7 @@ namespace Assertive.Test
     public void Reports_null_property_failure_when_not_null()
     {
       object obj = new PropPatUser("Bob", 30, "bob@example.com");
-      ShouldFail(() => obj is PropPatUser { Email: null }, "should be null", "bob@example.com");
+      ShouldFail(() => obj is PropPatUser { Email: null });
     }
 
     // Property is-not-null check
@@ -69,7 +63,7 @@ namespace Assertive.Test
     public void Reports_not_null_property_failure_when_null()
     {
       object obj = new PropPatUser("Bob", 30, null);
-      ShouldFail(() => obj is PropPatUser { Email: not null }, "should not be null", "null");
+      ShouldFail(() => obj is PropPatUser { Email: not null });
     }
 
     // Passing cases
@@ -88,9 +82,7 @@ namespace Assertive.Test
     {
       object obj = new PropPatUser("Alice", 30, null);
       var enabled = true;
-      ShouldFail(() => enabled && obj is PropPatUser { Name: "Bob" },
-        "Bob",
-        "Alice");
+      ShouldFail(() => enabled && obj is PropPatUser { Name: "Bob" });
     }
   }
 }

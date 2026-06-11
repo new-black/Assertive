@@ -1,0 +1,14 @@
+
+seq1.SequenceEqual(seq2)
+
+ ✓ EXPECTED                                                                     
+seq1 should equal seq2
+ ✗ ACTUAL                                                                       
+There was 1 difference:
+
+[1]: 2 <> 3
+
+seq1: [ 1, 2, 3 ]
+seq2: [ 1, 3, 3 ]
+
+················································································

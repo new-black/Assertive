@@ -1,0 +1,16 @@
+
+list2.Single() != null && list.Single() != 0
+
+InvalidOperationException caused by calling Single() on list which contains no elements.
+   CAUSE OF EXCEPTION                                                           
+list.Single()
+ ⚠ EXCEPTION                                                                    
+Sequence contains no elements
+   STACKTRACE                                                                   
+   at System.Linq.ThrowHelper.ThrowNoElementsException()
+   at System.Linq.Enumerable.Single[TSource](IEnumerable`1 source)
+   at Assertive.Test.LinqElementCountPatternTests.<>c__DisplayClass6_0.<Single_on_empty_collection_is_caught_when_there_is_also_a_non_empty_collection>b__0() in LinqElementCountPatternTests.cs:line 73
+ ℹ LOCALS                                                                       
+list2: [ "abc" ]
+list: [ ]
+················································································

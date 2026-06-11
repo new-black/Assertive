@@ -9,7 +9,7 @@ namespace Assertive.Test
     {
       var myString = "abcdefghijklmnop";
       
-      ShouldFail(() => myString.StartsWith("cba"), @"myString: should start with ""cba"".", @"myString: ""abcdefghijklmnop""");
+      ShouldFail(() => myString.StartsWith("cba"));
     }
     
     [Fact]
@@ -17,7 +17,7 @@ namespace Assertive.Test
     {
       var myString = "abcdefghijklmnop";
       
-      ShouldFail(() => !myString.StartsWith("abc"), @"myString: should not start with ""abc"".", @"myString: ""abcdefghijklmnop""");
+      ShouldFail(() => !myString.StartsWith("abc"));
     }
     
     [Fact]
@@ -26,9 +26,7 @@ namespace Assertive.Test
       var myString = "abcdefghijklmnop";
       var prefix = "cba";
       
-      ShouldFail(() => myString.StartsWith(prefix), @"myString: should start with prefix.
-
-prefix: ""cba""", @"myString: ""abcdefghijklmnop""");
+      ShouldFail(() => myString.StartsWith(prefix));
     }
     
     [Fact]
@@ -37,9 +35,7 @@ prefix: ""cba""", @"myString: ""abcdefghijklmnop""");
       var myString = "abcdefghijklmnop";
       var prefix = "abc";
       
-      ShouldFail(() => !myString.StartsWith(prefix), @"myString: should not start with prefix.
-
-prefix: ""abc""", @"myString: ""abcdefghijklmnop""");
+      ShouldFail(() => !myString.StartsWith(prefix));
     }
     
     [Fact]
@@ -47,7 +43,7 @@ prefix: ""abc""", @"myString: ""abcdefghijklmnop""");
     {
       var myString = "abcdefghijklmnopabc";
       
-      ShouldFail(() => !myString.EndsWith("abc"), @"myString: should not end with ""abc"".", @"myString: ""abcdefghijklmnopabc""");
+      ShouldFail(() => !myString.EndsWith("abc"));
     }
 
   }

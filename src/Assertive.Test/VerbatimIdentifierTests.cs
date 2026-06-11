@@ -1,5 +1,4 @@
 using System;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Xunit;
 using static Assertive.DSL;
@@ -11,10 +10,8 @@ namespace Assertive.Test
   /// @ ("lock"), while pasted operand source keeps the @ as written. The generated capture
   /// declarations must escape the name, or the generated file fails to compile.
   /// </summary>
-  public class VerbatimIdentifierTests
+  public class VerbatimIdentifierTests : AssertionTestBase
   {
-    private static string StripAnsi(string input) => Regex.Replace(input, @"\u001b\[[0-9;]*[A-Za-z]", "");
-
     private class Latch
     {
       public bool LockAcquired => false;
@@ -37,15 +34,7 @@ namespace Assertive.Test
     {
       var @lock = new Latch();
 
-      try
-      {
-        Assert(() => @lock.LockAcquired);
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        Xunit.Assert.Contains("@lock.LockAcquired", StripAnsi(ex.Message));
-      }
+      ShouldFail(() => @lock.LockAcquired);
     }
 
     [Fact]
@@ -53,16 +42,7 @@ namespace Assertive.Test
     {
       var @event = "raised";
 
-      try
-      {
-        Assert(() => @event == "handled");
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        var expected = StripAnsi(string.Join("\n", (string[])ex.Data["Assertive.Expected"]!));
-        Xunit.Assert.Equal("@event: \"handled\"", expected);
-      }
+      ShouldFail(() => @event == "handled");
     }
 
     [Fact]
@@ -71,19 +51,7 @@ namespace Assertive.Test
       var @lock = new Latch();
       Latch? other = null;
 
-      try
-      {
-        Assert(() => @lock == other);
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        // @lock is the whole left operand: its value is already displayed, so it must not
-        // also be listed under LOCALS (name-vs-display comparison has to ignore the @).
-        Xunit.Assert.DoesNotContain("lock: ", StripAnsi(ex.Message).Split("LOCALS").Length > 1
-          ? StripAnsi(ex.Message).Split("LOCALS")[1]
-          : "");
-      }
+      ShouldFail(() => @lock == other);
     }
   }
 }

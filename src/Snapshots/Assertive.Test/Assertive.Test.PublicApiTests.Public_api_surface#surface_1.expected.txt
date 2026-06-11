@@ -64,6 +64,7 @@ class CompareSnapshotsConfiguration
   LaunchDiffTool LaunchDiffTool { get; set; }
   NormalizationConfiguration Normalization { get; set; }
   ShouldIgnore ShouldIgnore { get; set; }
+  Func<string, string> StringTransform { get; set; }
   bool TreatAllSnapshotsAsCorrect { get; set; }
   CompareSnapshotsConfiguration <Clone>$()
   bool Equals(object obj)

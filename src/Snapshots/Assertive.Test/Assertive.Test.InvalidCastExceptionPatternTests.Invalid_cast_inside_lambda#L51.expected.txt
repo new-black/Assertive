@@ -1,0 +1,18 @@
+
+containers.All(c => (string)c.Value != null)
+
+InvalidCastException caused by casting c.Value to string. Actual type was int.
+
+On item [1] of containers:
+{ Value = 123 }
+   CAUSE OF EXCEPTION                                                           
+(string)c.Value
+ ⚠ EXCEPTION                                                                    
+Unable to cast object of type 'System.Int32' to type 'System.String'.
+   STACKTRACE                                                                   
+   at Assertive.Test.InvalidCastExceptionPatternTests.<>c.<Invalid_cast_inside_lambda>b__7_1(Container c) in InvalidCastExceptionPatternTests.cs:line 51
+   at System.Linq.Enumerable.All[TSource](IEnumerable`1 source, Func`2 predicate)
+   at Assertive.Test.InvalidCastExceptionPatternTests.<>c__DisplayClass7_0.<Invalid_cast_inside_lambda>b__0() in InvalidCastExceptionPatternTests.cs:line 51
+ ℹ LOCALS                                                                       
+containers: [ { Value = "text" }, { Value = 123 } ]
+················································································

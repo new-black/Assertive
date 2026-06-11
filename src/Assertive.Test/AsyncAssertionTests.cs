@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Xunit;
 using static Assertive.DSL;
@@ -36,14 +37,16 @@ namespace Assertive.Test
       throw new InvalidOperationException("boom");
     }
 
-    private async Task ShouldFailAsync(Func<Task> assertion, string expectedMessage, string actualMessage)
+    private async Task ShouldFailAsync(Func<Task> assertion,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
+      [CallerFilePath] string callerFilePath = "",
+      [CallerLineNumber] int callerLineNumber = 0)
     {
       var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(assertion);
-
-      var expected = StripAnsi(string.Join(Environment.NewLine, ex.Data["Assertive.Expected"] as string[] ?? []));
-      var actual = StripAnsi(string.Join(Environment.NewLine, ex.Data["Assertive.Actual"] as string[] ?? []));
-
-      Assert(() => expected == expectedMessage && actual == actualMessage);
+      Assert.Snapshot(StripAnsi(ex.Message),
+        options: $"L{callerLineNumber}",
+        expression: assertionExpression,
+        sourceFile: callerFilePath);
     }
 
     [Fact]
@@ -58,8 +61,7 @@ namespace Assertive.Test
     {
       var expected = 5;
 
-      await ShouldFailAsync(() => Assert(async () => await ValueAsync(10) == expected),
-        "await ValueAsync(10): 5", "await ValueAsync(10): 10");
+      await ShouldFailAsync(() => Assert(async () => await ValueAsync(10) == expected));
     }
 
     [Fact]
@@ -67,8 +69,7 @@ namespace Assertive.Test
     {
       var expected = 5;
 
-      await ShouldFailAsync(() => Assertive.Assert.That(async () => await ValueAsync(10) == expected),
-        "await ValueAsync(10): 5", "await ValueAsync(10): 10");
+      await ShouldFailAsync(() => Assertive.Assert.That(async () => await ValueAsync(10) == expected));
     }
 
     [Fact]
@@ -76,15 +77,13 @@ namespace Assertive.Test
     {
       var fetcher = new Fetcher();
 
-      await ShouldFailAsync(() => Assert(async () => await fetcher.GetAsync(3) == 5),
-        "await fetcher.GetAsync(3): 5", "await fetcher.GetAsync(3): 3");
+      await ShouldFailAsync(() => Assert(async () => await fetcher.GetAsync(3) == 5));
     }
 
     [Fact]
     public async Task Null_check_on_awaited_operand()
     {
-      await ShouldFailAsync(() => Assert(async () => await NullStringAsync() != null),
-        "await NullStringAsync() should not be null.", "null");
+      await ShouldFailAsync(() => Assert(async () => await NullStringAsync() != null));
     }
 
     [Fact]
@@ -92,15 +91,13 @@ namespace Assertive.Test
     {
       var a = 1;
 
-      await ShouldFailAsync(() => Assert(async () => a == 1 && await ValueAsync(7) == 2),
-        "await ValueAsync(7): 2", "await ValueAsync(7): 7");
+      await ShouldFailAsync(() => Assert(async () => a == 1 && await ValueAsync(7) == 2));
     }
 
     [Fact]
     public async Task Count_comparison_on_awaited_collection()
     {
-      await ShouldFailAsync(() => Assert(async () => (await ListAsync()).Count == 2),
-        "(await ListAsync()) should have a Count equal to 2.", "Count: 3.");
+      await ShouldFailAsync(() => Assert(async () => (await ListAsync()).Count == 2));
     }
 
     [Fact]
@@ -108,12 +105,10 @@ namespace Assertive.Test
     {
       var threshold = 5;
 
-      // `threshold + 2` rather than a whole-operand local: those display as the operand
-      // value instead of under LOCALS (same rule as synchronous assertions).
       var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
         () => Assert(async () => await ValueAsync(1) > threshold + 2));
 
-      Xunit.Assert.Contains("threshold: 5", StripAnsi(ex.Message));
+      SnapshotMessage(ex);
     }
 
     [Fact]
@@ -124,10 +119,7 @@ namespace Assertive.Test
       var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
         () => Assert(async () => await ValueAsync(1) == 2, "order mismatch", () => orderID));
 
-      var message = StripAnsi(ex.Message);
-
-      Xunit.Assert.Contains("order mismatch", message);
-      Xunit.Assert.Contains("orderID = 10", message);
+      SnapshotMessage(ex);
     }
 
     [Fact]
@@ -138,7 +130,7 @@ namespace Assertive.Test
       var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
         () => Assert(async () => await ValueAsync(1) == 2, () => orderID));
 
-      Xunit.Assert.Contains("orderID = 10", StripAnsi(ex.Message));
+      SnapshotMessage(ex);
     }
 
     [Fact]
@@ -147,10 +139,7 @@ namespace Assertive.Test
       var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
         () => Assert(async () => await ThrowingAsync() == 1));
 
-      var message = StripAnsi(ex.Message);
-
-      Xunit.Assert.Contains("await ThrowingAsync() == 1", message);
-      Xunit.Assert.Contains("boom", message);
+      SnapshotMessage(ex);
     }
 
     [Fact]
@@ -158,35 +147,26 @@ namespace Assertive.Test
     {
       var values = new List<int>();
 
-      // The throwing fragment (values.First()) contains no await, so its exception step
-      // is recorded and the cause is attributed even inside an async body.
       var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
         () => Assert(async () => await ValueAsync(values.First()) == 1));
 
-      Xunit.Assert.Contains("values.First()", StripAnsi(ex.Message));
+      SnapshotMessage(ex);
     }
 
     [Fact]
     public async Task Unnameable_awaitable_type_is_awaited_reflectively()
     {
-      // Task of an anonymous type cannot be named in generated code, so re-evaluation
-      // goes through GeneratedAssert.AwaitResult (await as object + reflective Result read).
       var task = Task.FromResult(new { Name = "actual" });
 
-      await ShouldFailAsync(() => Assert(async () => (await task).Name == "expected"),
-        "(await task).Name: \"expected\"", "(await task).Name: \"actual\"");
+      await ShouldFailAsync(() => Assert(async () => (await task).Name == "expected"));
     }
 
     [Fact]
     public async Task Local_function_operands_are_lifted_into_the_generated_code()
     {
-      // Local functions are not members of their containing type, so generated code
-      // cannot call them where they live — instead the declaration itself is lifted
-      // (pasted) into the reporting scope, where the operand source binds to the copy.
       static Task<int> LocalValueAsync(int value) => Task.FromResult(value);
 
-      await ShouldFailAsync(() => Assert(async () => await LocalValueAsync(1) == 2),
-        "await LocalValueAsync(1): 2", "await LocalValueAsync(1): 1");
+      await ShouldFailAsync(() => Assert(async () => await LocalValueAsync(1) == 2));
     }
 
     [Fact]
@@ -195,10 +175,7 @@ namespace Assertive.Test
       var factor = 10;
       Task<int> ScaledAsync(int value) => Task.FromResult(value * factor);
 
-      // The lifted body references `factor`, which binds to the capture declaration the
-      // reporting scope reads from the assertion delegate's closure.
-      await ShouldFailAsync(() => Assert(async () => await ScaledAsync(2) == 5),
-        "await ScaledAsync(2): 5", "await ScaledAsync(2): 20");
+      await ShouldFailAsync(() => Assert(async () => await ScaledAsync(2) == 5));
     }
 
     [Fact]
@@ -207,17 +184,13 @@ namespace Assertive.Test
       static int Twice(int value) => value * 2;
       static Task<int> TwiceAsync(int value) => Task.FromResult(Twice(value));
 
-      await ShouldFailAsync(() => Assert(async () => await TwiceAsync(3) == 5),
-        "await TwiceAsync(3): 5", "await TwiceAsync(3): 6");
+      await ShouldFailAsync(() => Assert(async () => await TwiceAsync(3) == 5));
     }
 
     [Fact]
     public async Task Tuple_literal_with_awaited_element_is_decomposed()
     {
-      // ValueAsync is private, so the tuple is reconstructed reflectively: the awaited
-      // element goes through InvokeStatic + a typed await cast inside the tuple literal.
-      await ShouldFailAsync(() => Assert(async () => (await ValueAsync(1), 2) == (9, 2)),
-        "(await ValueAsync(1), 2): (9, 2)", "(await ValueAsync(1), 2): (1, 2)");
+      await ShouldFailAsync(() => Assert(async () => (await ValueAsync(1), 2) == (9, 2)));
     }
 
     [Fact]
@@ -227,7 +200,7 @@ namespace Assertive.Test
 
       var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(() => Assert(stored));
 
-      Xunit.Assert.Contains("was not intercepted", StripAnsi(ex.Message));
+      SnapshotMessage(ex);
     }
 
     [Fact]

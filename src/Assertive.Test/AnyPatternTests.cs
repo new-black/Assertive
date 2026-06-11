@@ -12,7 +12,7 @@ namespace Assertive.Test
     {
       var list = new List<string>();
       
-      ShouldFail(() => list.Any(), "Collection list should contain some items.", "It contained no items.");
+      ShouldFail(() => list.Any());
     }
     
     [Fact]
@@ -23,7 +23,7 @@ namespace Assertive.Test
         1,2,3
       };
       
-      ShouldFail(() => list.Any(l => l > 3), "Collection list should contain some items that match the filter l > 3.", "It contained no items matching the filter.");
+      ShouldFail(() => list.Any(l => l > 3));
     }
     
     [Fact]
@@ -34,7 +34,7 @@ namespace Assertive.Test
         "a"
       };
       
-      ShouldFail(() => !list.Any(), "Collection list should not contain any items.", "It contained 1 item");
+      ShouldFail(() => !list.Any());
     }
 
     private class Foo
@@ -52,7 +52,7 @@ namespace Assertive.Test
         new Foo() { Name = "c" }
       };
       
-      ShouldFail(() => list.Any(l => l.Name == "d"), """Collection list should contain some items that match the filter l.Name == "d".""", "It contained no items matching the filter.");
+      ShouldFail(() => list.Any(l => l.Name == "d"));
     }
   }
 }

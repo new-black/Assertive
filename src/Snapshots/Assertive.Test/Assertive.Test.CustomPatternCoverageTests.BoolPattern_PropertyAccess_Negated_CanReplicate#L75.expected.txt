@@ -1,0 +1,11 @@
+
+!user.IsActive
+
+ ✓ EXPECTED                                                                     
+user.IsActive should be false.
+ ✗ ACTUAL                                                                       
+It was true.
+
+ ℹ LOCALS                                                                       
+user: { IsActive = True, Name = "" }
+················································································

@@ -1,0 +1,11 @@
+
+@lock.LockAcquired
+
+ ✓ EXPECTED                                                                     
+@lock.LockAcquired: true
+ ✗ ACTUAL                                                                       
+false
+
+ ℹ LOCALS                                                                       
+lock: { LockAcquired = False }
+················································································

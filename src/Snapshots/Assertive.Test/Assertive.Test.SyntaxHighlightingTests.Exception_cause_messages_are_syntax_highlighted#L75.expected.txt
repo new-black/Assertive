@@ -1,0 +1,1 @@
+NullReferenceException caused by accessing Count on list which was null.

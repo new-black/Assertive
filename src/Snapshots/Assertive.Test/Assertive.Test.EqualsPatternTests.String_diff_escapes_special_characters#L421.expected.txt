@@ -1,0 +1,20 @@
+
+actual == expected
+
+[EXPECTED]
+actual: "Line 1
+Line 2
+Line 3"
+[ACTUAL]
+actual: "Line 1
+Line 2
+Line 3"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+   1: Line 1\n
+- [E2] Line 2[-\r-]
++ [A2] Line 2[+\n+]
+   3: Line 3
+
+
+················································································

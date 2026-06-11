@@ -1,0 +1,12 @@
+
+list[list.Count - 1] == expected * 2
+
+ ✓ EXPECTED                                                                     
+list[list.Count - 1]: 50
+ ✗ ACTUAL                                                                       
+list[list.Count - 1]: 7
+
+ ℹ LOCALS                                                                       
+list: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+expected: 25
+················································································

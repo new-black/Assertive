@@ -1,0 +1,14 @@
+
+e => e.Message == "wrong"
+
+[EXPECTED]
+e.Message: "wrong"
+[ACTUAL]
+e.Message: "an exception"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] [-wr-]on[-g-]
++ [A1] [+an excepti+]on
+
+
+················································································

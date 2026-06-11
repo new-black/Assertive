@@ -1,0 +1,11 @@
+
+list.None()
+
+ ✓ EXPECTED                                                                     
+Different message after reset.
+ ✗ ACTUAL                                                                       
+Different actual.
+
+ ℹ LOCALS                                                                       
+list: [ "a" ]
+················································································

@@ -1,0 +1,15 @@
+
+list.Single() == 10
+
+InvalidOperationException caused by calling Single() on list which contains no elements.
+   CAUSE OF EXCEPTION                                                           
+list.Single()
+ ⚠ EXCEPTION                                                                    
+Sequence contains no elements
+   STACKTRACE                                                                   
+   at System.Linq.ThrowHelper.ThrowNoElementsException()
+   at System.Linq.Enumerable.Single[TSource](IEnumerable`1 source)
+   at Assertive.Test.LinqElementCountPatternTests.<>c__DisplayClass0_0.<Single_on_empty_collection_is_caught>b__0() in LinqElementCountPatternTests.cs:line 14
+ ℹ LOCALS                                                                       
+list: [ ]
+················································································

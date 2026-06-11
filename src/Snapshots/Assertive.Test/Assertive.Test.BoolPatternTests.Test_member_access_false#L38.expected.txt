@@ -1,0 +1,11 @@
+
+!foo.Success
+
+ ✓ EXPECTED                                                                     
+foo.Success: false
+ ✗ ACTUAL                                                                       
+true
+
+ ℹ LOCALS                                                                       
+foo: { Success = True }
+················································································

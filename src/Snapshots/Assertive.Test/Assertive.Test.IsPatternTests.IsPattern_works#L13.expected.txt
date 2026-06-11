@@ -1,0 +1,9 @@
+
+!(o is string)
+
+ ✓ EXPECTED                                                                     
+o should not be of type string.
+ ✗ ACTUAL                                                                       
+Type: string.
+
+················································································

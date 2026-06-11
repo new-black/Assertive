@@ -1,0 +1,18 @@
+
+list.Single() == 10
+
+InvalidOperationException caused by calling Single() on list which contains more than one element. Actual element count: 3.
+
+Value of list: [ 1, 2, 3 ]
+   CAUSE OF EXCEPTION                                                           
+list.Single()
+ ⚠ EXCEPTION                                                                    
+Sequence contains more than one element
+   STACKTRACE                                                                   
+   at System.Linq.ThrowHelper.ThrowMoreThanOneElementException()
+   at System.Linq.Enumerable.TryGetSingle[TSource](IEnumerable`1 source, Boolean& found)
+   at System.Linq.Enumerable.Single[TSource](IEnumerable`1 source)
+   at Assertive.Test.LinqElementCountPatternTests.<>c__DisplayClass8_0.<Single_on_collection_containing_multiple_items_is_caught>b__0() in LinqElementCountPatternTests.cs:line 97
+ ℹ LOCALS                                                                       
+list: [ 1, 2, 3 ]
+················································································

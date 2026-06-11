@@ -23,7 +23,7 @@ namespace Assertive.Test
       var a = 5;
       var b = 2;
 
-      ShouldFail(() => a == 1 && b == 2, "a: 1", "a: 5", true);
+      ShouldFail(() => a == 1 && b == 2);
     }
 
     [Fact]
@@ -32,7 +32,7 @@ namespace Assertive.Test
       var a = 1;
       var b = 7;
 
-      ShouldFail(() => a == 1 && b == 2, "b: 2", "b: 7", true);
+      ShouldFail(() => a == 1 && b == 2);
     }
 
     [Fact]
@@ -42,7 +42,7 @@ namespace Assertive.Test
       var b = 7;
 
       // && short-circuits: only the first failing conjunct is evaluated and reported.
-      ShouldFail(() => a == 1 && b == 2, "a: 1", "a: 5", true);
+      ShouldFail(() => a == 1 && b == 2);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ namespace Assertive.Test
       var a = 5;
       var b = 7;
 
-      ShouldFail(() => (a == 1) & (b == 2), "a: 1\nb: 2", "a: 5\nb: 7", true);
+      ShouldFail(() => (a == 1) & (b == 2));
     }
 
     [Fact]
@@ -60,7 +60,7 @@ namespace Assertive.Test
       var a = 1;
       var b = 7;
 
-      ShouldFail(() => (a == 1) & (b == 2), "b: 2", "b: 7", true);
+      ShouldFail(() => (a == 1) & (b == 2));
     }
 
     [Fact]
@@ -70,7 +70,7 @@ namespace Assertive.Test
       var b = 7;
 
       // If `a == 1 || b == 2` failed, both sides failed.
-      ShouldFail(() => a == 1 || b == 2, "a: 1\nb: 2", "a: 5\nb: 7", true);
+      ShouldFail(() => a == 1 || b == 2);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ namespace Assertive.Test
       var a = 5;
       var b = 7;
 
-      ShouldFail(() => (a == 1) | (b == 2), "a: 1\nb: 2", "a: 5\nb: 7", true);
+      ShouldFail(() => (a == 1) | (b == 2));
     }
 
     [Fact]
@@ -89,7 +89,7 @@ namespace Assertive.Test
       var b = 7;
       var c = 9;
 
-      ShouldFail(() => a == 1 && b == 2 && c == 3, "b: 2", "b: 7", true);
+      ShouldFail(() => a == 1 && b == 2 && c == 3);
     }
 
     [Fact]
@@ -101,7 +101,7 @@ namespace Assertive.Test
 
       // Bodies that mix in || (or &, |) evaluate every leaf and report all failing ones;
       // the operator structure itself is not replayed.
-      ShouldFail(() => (a == 1 && b == 2) || c == 3, "a: 1\nb: 2\nc: 3", "a: 5\nb: 7\nc: 9", true);
+      ShouldFail(() => (a == 1 && b == 2) || c == 3);
     }
 
     [Fact]
@@ -110,9 +110,7 @@ namespace Assertive.Test
       var s = "hello";
       var n = 3;
 
-      ShouldFail(() => s.StartsWith("x") & n > 5,
-        "s: should start with \"x\".\nn should be greater than 5.",
-        "n: 3.");
+      ShouldFail(() => s.StartsWith("x") & n > 5);
     }
 
     [Fact]
@@ -121,8 +119,7 @@ namespace Assertive.Test
       var list = new List<int> { 1, 2, 3 };
       var count = 3;
 
-      ShouldFail(() => !list.Contains(2) && list.Count == count,
-        "list should not contain 2.", "list: [ 1, 2, 3 ]", true);
+      ShouldFail(() => !list.Contains(2) && list.Count == count);
     }
 
     [Fact]
@@ -132,34 +129,21 @@ namespace Assertive.Test
       var flag = false;
 
       // Null pattern leaf passes, bool leaf fails.
-      ShouldFail(() => name != null && flag, "flag: true", "false", true);
+      ShouldFail(() => name != null && flag);
     }
 
     [Fact]
     public void Combined_message_contains_a_block_per_failing_conjunct()
     {
       var originalColors = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
 
       try
       {
-        Configuration.Colors.Enabled = false;
-
         var a = 5;
         var b = 7;
 
-        try
-        {
-          Assert(() => (a == 1) & (b == 2));
-          Xunit.Assert.Fail("Expected assertion to fail.");
-        }
-        catch (Exception ex)
-        {
-          var message = StripAnsi(ex.Message);
-
-          // Each failing conjunct gets its own full block, headed by its own source text.
-          Xunit.Assert.Contains("a == 1\n\n[EXPECTED]\na: 1\n[ACTUAL]\na: 5", message);
-          Xunit.Assert.Contains("b == 2\n\n[EXPECTED]\nb: 2\n[ACTUAL]\nb: 7", message);
-        }
+        ShouldFail(() => (a == 1) & (b == 2));
       }
       finally
       {
@@ -173,19 +157,7 @@ namespace Assertive.Test
       var a = 5;
       var b = 2;
 
-      try
-      {
-        Assert(() => a == 1 && b == 2);
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        var message = StripAnsi(ex.Message);
-
-        // The report is about the failing conjunct, like a standalone assert.
-        Xunit.Assert.Contains("a == 1", message);
-        Xunit.Assert.DoesNotContain("&&", message);
-      }
+      ShouldFail(() => a == 1 && b == 2);
     }
 
     [Fact]
@@ -194,15 +166,7 @@ namespace Assertive.Test
       var items = new[] { 1, 2 };
       var flag = true;
 
-      try
-      {
-        Assert(() => items.Length == 5 && flag);
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        Xunit.Assert.Contains("items: [ 1, 2 ]", StripAnsi(ex.Message));
-      }
+      ShouldFail(() => items.Length == 5 && flag);
     }
 
     [Fact]
@@ -211,8 +175,7 @@ namespace Assertive.Test
       List<int>? list = null;
       var x = 1;
 
-      ShouldFail(() => list!.Count == 0 && x == 1,
-        "NullReferenceException caused by accessing Count on list which was null.");
+      ShouldFail(() => list!.Count == 0 && x == 1);
     }
 
     [Fact]
@@ -222,8 +185,7 @@ namespace Assertive.Test
       var a = 5;
 
       // Both leaves report: the opaque call leaf by source text, the equality decomposed.
-      ShouldFail(() => counter.Run("one", false) & a == 1,
-        "a: 1", "a: 5", true);
+      ShouldFail(() => counter.Run("one", false) & a == 1);
 
       Xunit.Assert.Equal(2, counter.ExecutionCount("one"));
     }
@@ -268,21 +230,13 @@ namespace Assertive.Test
     {
       var counter = new Counter();
 
-      try
-      {
-        Assert(() => counter.Run("one", false) & counter.Run("two", false));
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        Xunit.Assert.Equal(2, counter.ExecutionCount("one"));
-        Xunit.Assert.Equal(2, counter.ExecutionCount("two"));
+      var ex = Xunit.Assert.ThrowsAny<Exception>(() =>
+        Assert(() => counter.Run("one", false) & counter.Run("two", false)));
 
-        // Both conjuncts are reported (by source text: bare bool calls have no decomposition).
-        var message = StripAnsi(ex.Message);
-        Xunit.Assert.Contains("counter.Run(\"one\", false)", message);
-        Xunit.Assert.Contains("counter.Run(\"two\", false)", message);
-      }
+      Xunit.Assert.Equal(2, counter.ExecutionCount("one"));
+      Xunit.Assert.Equal(2, counter.ExecutionCount("two"));
+
+      SnapshotMessage(ex);
     }
 
     [Fact]
@@ -350,8 +304,7 @@ namespace Assertive.Test
       var list = new List<string> { "a", "b", "c" };
       var x = 1;
 
-      ShouldFail(() => list.None() && x == 1,
-        "Collection list should not contain any items.", "It contained 3 items.", true);
+      ShouldFail(() => list.None() && x == 1);
     }
   }
 }

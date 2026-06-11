@@ -1,0 +1,11 @@
+
+list.None()
+
+ ✓ EXPECTED                                                                     
+First message.
+ ✗ ACTUAL                                                                       
+First actual.
+
+ ℹ LOCALS                                                                       
+list: [ "a" ]
+················································································

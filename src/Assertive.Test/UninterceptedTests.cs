@@ -18,9 +18,7 @@ namespace Assertive.Test
       var x = 1;
       Func<bool> stored = () => x == 2;
 
-      var ex = Xunit.Assert.ThrowsAny<Exception>(() => Assert(stored));
-
-      Xunit.Assert.Contains("was not intercepted", StripAnsi(ex.Message));
+      ShouldFail(stored);
     }
 
     [Fact]

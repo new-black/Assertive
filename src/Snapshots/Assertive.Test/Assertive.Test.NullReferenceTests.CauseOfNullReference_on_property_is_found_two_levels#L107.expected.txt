@@ -1,0 +1,13 @@
+
+foo.Bar.StringProperty == "A"
+
+NullReferenceException caused by accessing StringProperty on foo.Bar which was null.
+   CAUSE OF EXCEPTION                                                           
+foo.Bar.StringProperty
+ ⚠ EXCEPTION                                                                    
+Object reference not set to an instance of an object.
+   STACKTRACE                                                                   
+   at Assertive.Test.NullReferenceTests.<>c__DisplayClass8_0.<CauseOfNullReference_on_property_is_found_two_levels>b__1() in NullReferenceTests.cs:line 107
+ ℹ LOCALS                                                                       
+foo: { }
+················································································

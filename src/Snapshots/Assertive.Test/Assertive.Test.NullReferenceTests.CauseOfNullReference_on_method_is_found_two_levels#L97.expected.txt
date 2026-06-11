@@ -1,0 +1,13 @@
+
+foo.Bar.ReturnsNotNull() == "A"
+
+NullReferenceException caused by calling ReturnsNotNull on foo.Bar which was null.
+   CAUSE OF EXCEPTION                                                           
+foo.Bar.ReturnsNotNull()
+ ⚠ EXCEPTION                                                                    
+Object reference not set to an instance of an object.
+   STACKTRACE                                                                   
+   at Assertive.Test.NullReferenceTests.<>c__DisplayClass7_0.<CauseOfNullReference_on_method_is_found_two_levels>b__1() in NullReferenceTests.cs:line 97
+ ℹ LOCALS                                                                       
+foo: { }
+················································································

@@ -1,0 +1,15 @@
+
+seq1.SequenceEqual(seq2)
+
+ ✓ EXPECTED                                                                     
+seq1 should equal seq2
+ ✗ ACTUAL                                                                       
+There were 2 differences:
+
+[1]: { ID = 2 } <> { ID = 3 },
+[2]: { ID = 3 } <> { ID = 2 }
+
+seq1: [ { ID = 1 }, { ID = 2 }, { ID = 3 } ]
+seq2: [ { ID = 1 }, { ID = 3 }, { ID = 2 } ]
+
+················································································

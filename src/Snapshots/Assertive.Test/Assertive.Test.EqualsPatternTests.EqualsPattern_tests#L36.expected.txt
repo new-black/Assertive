@@ -1,0 +1,12 @@
+
+foo + bar == "barfoo"
+
+ ✓ EXPECTED                                                                     
+foo + bar: "barfoo"
+ ✗ ACTUAL                                                                       
+foo + bar: "foobar"
+
+ ℹ LOCALS                                                                       
+foo: "foo"
+bar: "bar"
+················································································
