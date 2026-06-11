@@ -1,6 +1,6 @@
 # About Assertive
 
-Assertive is a free, open source library available on [NuGet](https://www.nuget.org/packages/Assertive/) for easily writing test assertions using the power of the C# language and aims to be the easiest possible way to write assertions while still providing useful and contextual error information. It's not a test framework of itself, it's meant to be used in conjunction with a test framework like xUnit, NUnit, TUnit or MSTest.
+Assertive is a free, open source library available on [NuGet](https://www.nuget.org/packages/Assertive/) for easily writing test assertions using the full power of the C# language and aims to be the easiest possible way to write assertions while still providing the most useful and contextual error information. It's not a test framework of itself, it's meant to be used in conjunction with a test framework like xUnit, NUnit, TUnit or MSTest.
 
 ```csharp
 Assert(() => order.Status == OrderStatus.Paid && order.Items.All(i => i.Quantity > 0));
@@ -122,9 +122,9 @@ The `using static Assertive.DSL` import allows you to write `Assert()` instead o
 
 ## How it works
 
-Assertive uses a **source generator** that inspects each `Assert(() => ...)` call at compile time and generates code tailored to that specific assertion. When an assertion passes, the lambda runs once and that's it. When it fails, the generated code breaks the expression down to produce a precise, contextual error message.
+Assertive uses a **source generator** that inspects each `Assert(() => ...)` call at compile time and generates code tailored to that specific assertion. For a passing assertion, the delegate is simply called once and that's it. When the assertion fails, the generated code breaks the expression down to produce a precise, contextual error message that should give you all the information you need what went wrong without having to attach a debugger or add more output logging.
 
-This means you can write assertions using the **full C# language** — `await`, pattern matching, null-conditional `?.`, tuple literals, `out var`, and so on all work and are understood by the failure analysis. Any valid C# you can put in a lambda is fair game.
+This means you can write assertions using the **full C# language** — `await`, pattern matching, null-conditional `?.`, tuple literals, `out var`, and so on all work and are understood by the failure analysis. Any valid C# you can put in a lambda expression is fair game. Not every single expression will have a pattern dedicated to it, but many do (see below). Even if it's a pattern Assertive does not recognize, it will still give you useful output such as the values of used locals. 
 
 No configuration is required: referencing the `Assertive` package automatically opts your test project into the interceptors the generator emits.
 
@@ -135,6 +135,8 @@ While `Assert.IsTrue(a == b)` would have the same result for a passing test, it 
 Because Assertive analyzes the assertion at compile time it can break it down and output an error message like this:
 
 <img width="642" height="181" alt="image" src="https://github.com/user-attachments/assets/324a8471-d4c5-4c71-b70b-b1b493c7832a" />
+
+## Patterns
 
 Assertive has a number of built-in patterns that it recognizes, which currently consists of:
 
@@ -185,6 +187,8 @@ This assertion would fail with the message:
 When you chain conditions with `&&`, short-circuiting works as you would expect: the assertion stops at the first condition that fails, and that condition is the one reported.
 
 With any other combination — `||`, the bitwise `&` or `|`, or a mix of operators — Assertive reports *every* condition that failed rather than just the first. For `||` this is exactly what you want: the assertion only fails when all of its alternatives are false, so all of them are worth showing.
+
+The same per-condition reporting applies to `and` patterns. An assertion like `Assert(() => age is >= 18 and <= 65)` is broken into its individual checks, so a failure tells you exactly which bound was violated — a concise way to assert that a single value satisfies several constraints at once.
 
 ### Async assertions
 
@@ -299,7 +303,9 @@ Assert(fetchedCustomer, "myAssertion");
 
 And the file created will be:
 
-`CustomerTests.GetCustomer_works#myAssertion.expected.json`
+`CustomerTests.GetCustomer_works#myAssertion_1.expected.json`
+
+(The counter can be disabled with the `IncludeCounterForExplicitSnapshotIdentifiers` option)
 
 #### Normalization
 
