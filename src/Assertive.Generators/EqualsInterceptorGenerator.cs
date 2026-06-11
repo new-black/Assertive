@@ -52,7 +52,7 @@ namespace Assertive.Generators
         sb.AppendLine();
         // Short aliases keep the emitted bodies compact. The double-underscore prefix
         // avoids colliding with user identifiers pasted into operand source, matching
-        // the convention of the generated locals (__assertion, __left, ...). Operand
+        // the convention of the generated locals (__f, __v1, ...). Operand
         // compilation in CallSiteAnalyzer/ExceptionStepCollector emits these same names.
         sb.AppendLine("using __A = global::Assertive.Runtime.GeneratedAssert;");
         sb.AppendLine("using __AP = global::Assertive.Runtime.AssertionPart;");
@@ -103,17 +103,17 @@ namespace Assertive.Generators
           if (call!.Wrapper != null)
           {
             body = BuildWrapperInterceptor(call);
-            prefix = "Wrapper";
+            prefix = "W";
           }
           else if (call.Kind == InterceptionKind.ThrowsPredicate)
           {
             body = BuildThrowsInterceptor(call);
-            prefix = "Throws";
+            prefix = "X";
           }
           else
           {
             body = BuildThatInterceptor(call);
-            prefix = "That";
+            prefix = "T";
           }
 
           if (byBody.TryGetValue(body, out var existing))
@@ -153,20 +153,20 @@ namespace Assertive.Generators
     {
       var parameters = call.Overload switch
       {
-        ThatOverload.Context => "__FB __assertion, __FC __context, string __expr, string __contextExpr",
-        _ => "__FB __assertion, object __message, __FC __context, string __expr, string __contextExpr",
+        ThatOverload.Context => "__FB __f, __FC __c, string __s, string __cs",
+        _ => "__FB __f, object __m, __FC __c, string __s, string __cs",
       };
 
-      var messageArg = call.Overload is ThatOverload.MessageContext ? "__message" : "null";
-      var tailArgs = $"{messageArg}, __context, __contextExpr";
+      var messageArg = call.Overload is ThatOverload.MessageContext ? "__m" : "null";
+      var tailArgs = $"{messageArg}, __c, __cs";
 
       var sb = new StringBuilder();
 
       sb.AppendLine($"    public static void {NamePlaceholder}({parameters})");
       sb.AppendLine("    {");
-      sb.AppendLine($"      __A.Execute(__assertion, __expr, {tailArgs}, __ex =>");
+      sb.AppendLine($"      __A.Execute(__f, __s, {tailArgs}, __e =>");
       sb.AppendLine("      {");
-      BuildRender(sb, call, "__expr", tailArgs, "        ");
+      BuildRender(sb, call, "__s", tailArgs, "        ");
       sb.AppendLine("      });");
       sb.AppendLine("    }");
 
@@ -186,10 +186,10 @@ namespace Assertive.Generators
 
       if (!wrapper.IsStatic)
       {
-        parameters.Add($"this {wrapper.ContainingTypeFqn} __receiver");
+        parameters.Add($"this {wrapper.ContainingTypeFqn} __r");
       }
 
-      parameters.Add("__FB __assertion");
+      parameters.Add("__FB __f");
 
       for (var i = 0; i < wrapper.ExtraParameterTypes.Count; i++)
       {
@@ -197,7 +197,7 @@ namespace Assertive.Generators
       }
 
       var forwardedArgs = string.Concat(Enumerable.Range(0, wrapper.ExtraParameterTypes.Count).Select(i => $", __p{i}"));
-      var target = wrapper.IsStatic ? wrapper.ContainingTypeFqn : "__receiver";
+      var target = wrapper.IsStatic ? wrapper.ContainingTypeFqn : "__r";
       var returnKeyword = wrapper.ReturnTypeFqn == "void" ? "" : "return ";
 
       var sb = new StringBuilder();
@@ -205,11 +205,11 @@ namespace Assertive.Generators
       sb.AppendLine($"    public static {wrapper.ReturnTypeFqn} {NamePlaceholder}({string.Join(", ", parameters)})");
       sb.AppendLine("    {");
       // A local const: referenced from both lambdas without forcing a capture.
-      sb.AppendLine($"      const string __src = {Quote(call.BodySource)};");
+      sb.AppendLine($"      const string __s = {Quote(call.BodySource)};");
       sb.AppendLine($"      {returnKeyword}{target}.{wrapper.MethodName}(global::Assertive.AssertionHandle.Generated([__STH] () =>");
-      sb.AppendLine("        __A.Execute(__assertion, __src, null, null, null, __ex =>");
+      sb.AppendLine("        __A.Execute(__f, __s, null, null, null, __e =>");
       sb.AppendLine("        {");
-      BuildRender(sb, call, "__src", "null, null, null", "          ");
+      BuildRender(sb, call, "__s", "null, null, null", "          ");
       sb.AppendLine($"        }})){forwardedArgs});");
       sb.AppendLine("    }");
 
@@ -221,7 +221,7 @@ namespace Assertive.Generators
     /// Behavior is delegated to the runtime (GeneratedAssert.ThrowsIntercepted); the
     /// interceptor contributes a factory that decomposes the classified predicate body
     /// with the thrown exception bound to its parameter. The predicate parameter is named
-    /// __assertion because compiled operands read captured locals from that delegate.
+    /// __f because compiled operands read captured locals from that delegate.
     /// </summary>
     private static string BuildThrowsInterceptor(InterceptedCall call)
     {
@@ -238,8 +238,8 @@ namespace Assertive.Generators
       var returnType = isAsync ? $"global::System.Threading.Tasks.Task<{exceptionType}>" : exceptionType;
 
       var actionArg = call.ThrowsActionKind == ThrowsActionKind.FuncObject
-        ? "new global::System.Action(() => { _ = __action(); })"
-        : "__action";
+        ? "new global::System.Action(() => { _ = __d(); })"
+        : "__d";
 
       var expectedTypeArg = call.ThrowsExceptionTypeFqn != null ? $"typeof({call.ThrowsExceptionTypeFqn})" : "null";
       var runtimeEntry = isAsync ? "ThrowsInterceptedAsync" : "ThrowsIntercepted";
@@ -247,13 +247,13 @@ namespace Assertive.Generators
 
       var sb = new StringBuilder();
 
-      sb.AppendLine($"    public static {(isAsync ? "async " : "")}{returnType} {NamePlaceholder}({actionType} __action, global::System.Func<{exceptionType}, bool> __assertion, string __actionExpr, string __exceptionExpr)");
+      sb.AppendLine($"    public static {(isAsync ? "async " : "")}{returnType} {NamePlaceholder}({actionType} __d, global::System.Func<{exceptionType}, bool> __f, string __ds, string __xs)");
       sb.AppendLine("    {");
       sb.AppendLine($"      return ({exceptionType}){awaitKeyword}__A.{runtimeEntry}(");
       sb.AppendLine($"        {actionArg},");
       sb.AppendLine($"        {expectedTypeArg},");
-      sb.AppendLine($"        __assertion == null ? null : new __FE(__e => __assertion(({exceptionType})__e)),");
-      sb.AppendLine("        __actionExpr, __exceptionExpr,");
+      sb.AppendLine($"        __f == null ? null : new __FE(__e => __f(({exceptionType})__e)),");
+      sb.AppendLine("        __ds, __xs,");
       sb.AppendLine($"        {BuildSubRenderer(call.AllSubCall, Quote(call.BodySource), "        ", call)});");
       sb.AppendLine("    }");
 
@@ -303,30 +303,30 @@ namespace Assertive.Generators
     /// </summary>
     private static void BuildRender(StringBuilder sb, InterceptedCall call, string assertionTextArg, string tailArgs, string indent)
     {
-      EmitCaptureDecls(sb, call, "__assertion", indent);
+      EmitCaptureDecls(sb, call, "__f", indent);
 
-      sb.AppendLine($"{indent}var __locals = {BuildLocalsArray(call)};");
+      sb.AppendLine($"{indent}var __l = {BuildLocalsArray(call)};");
 
       var steps = call.ExceptionStepsSource ?? "null";
 
-      sb.AppendLine($"{indent}if (__ex != null)");
+      sb.AppendLine($"{indent}if (__e != null)");
       sb.AppendLine($"{indent}{{");
-      sb.AppendLine($"{indent}  return __A.EvaluationFailure({assertionTextArg}, __ex, {steps}, __locals, {tailArgs});");
+      sb.AppendLine($"{indent}  return __A.EvaluationFailure({assertionTextArg}, __e, {steps}, __l, {tailArgs});");
       sb.AppendLine($"{indent}}}");
 
       // The Bool/Opaque/Split patterns need no operand values (the delegate already
       // evaluated the body); everything else re-evaluates the operand(s) it reports on.
       if (call.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque or InterceptionKind.Split))
       {
-        sb.AppendLine($"{indent}var __left = {call.LeftSource};");
+        sb.AppendLine($"{indent}var __v1 = {call.LeftSource};");
       }
 
       if (HasRightOperand(call.Kind))
       {
-        sb.AppendLine($"{indent}var __right = {call.RightSource};");
+        sb.AppendLine($"{indent}var __v2 = {call.RightSource};");
       }
 
-      var tail = $"__locals, {tailArgs}";
+      var tail = $"__l, {tailArgs}";
 
       // Runtime-registered custom patterns take precedence over the built-in decomposition
       // (the old FallbackPattern consulted them first).
@@ -334,9 +334,9 @@ namespace Assertive.Generators
       {
         sb.AppendLine($"{indent}if (__A.TryCustomFailure({assertionTextArg},");
         sb.AppendLine($"{indent}  {call.CustomProbeSource},");
-        sb.AppendLine($"{indent}  {tail}) is {{ }} __custom)");
+        sb.AppendLine($"{indent}  {tail}) is {{ }} __u)");
         sb.AppendLine($"{indent}{{");
-        sb.AppendLine($"{indent}  return __custom;");
+        sb.AppendLine($"{indent}  return __u;");
         sb.AppendLine($"{indent}}}");
       }
 
@@ -348,7 +348,7 @@ namespace Assertive.Generators
         return;
       }
 
-      sb.AppendLine($"{indent}return __A.{BuildFailureInvocation(call, assertionTextArg, indent, tail, "__left", "__right")});");
+      sb.AppendLine($"{indent}return __A.{BuildFailureInvocation(call, assertionTextArg, indent, tail, "__v1", "__v2")});");
     }
 
     /// <summary>
@@ -392,17 +392,17 @@ namespace Assertive.Generators
 
         if (sub.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque))
         {
-          body.Append($"{inner}  var __subLeft = {sub.LeftSource};\n");
+          body.Append($"{inner}  var __w1 = {sub.LeftSource};\n");
         }
 
         if (HasRightOperand(sub.Kind))
         {
-          body.Append($"{inner}  var __subRight = {sub.RightSource};\n");
+          body.Append($"{inner}  var __w2 = {sub.RightSource};\n");
         }
 
         var subTail = $"{localsArray},\n{inner}    {tailArgs}";
 
-        body.Append($"{inner}  return {probe}{runtime}.{BuildFailureInvocation(sub, leafText, inner + "  ", subTail, "__subLeft", "__subRight")});\n");
+        body.Append($"{inner}  return {probe}{runtime}.{BuildFailureInvocation(sub, leafText, inner + "  ", subTail, "__w1", "__w2")});\n");
         body.Append($"{inner}}})");
         failure = body.ToString();
       }
@@ -416,7 +416,7 @@ namespace Assertive.Generators
              $"{indent}  Source = {leafText},\n" +
              $"{indent}  Condition = () => (bool)(object)({part.ConditionSource}),\n" +
              $"{indent}  Failure = {failure},\n" +
-             $"{indent}  ExceptionFailure = (__leafEx) => {runtime}.EvaluationFailure({leafText}, __leafEx, {part.StepsSource ?? "null"}, {localsArray}, {tailArgs}),\n" +
+             $"{indent}  ExceptionFailure = (__le) => {runtime}.EvaluationFailure({leafText}, __le, {part.StepsSource ?? "null"}, {localsArray}, {tailArgs}),\n" +
              $"{indent}}}";
     }
 
@@ -484,7 +484,7 @@ namespace Assertive.Generators
       var inner = indent + "    ";
       var renderer = new StringBuilder();
 
-      renderer.Append("(__FR)((__item, __idx) =>\n");
+      renderer.Append("(__FR)((__i, __j) =>\n");
       renderer.Append($"{indent}  {{\n");
 
       // The Throws interceptor declares its captures here rather than in the method body:
@@ -493,22 +493,22 @@ namespace Assertive.Generators
       // the captures already declared in the enclosing reporting scope.
       if (captureFrom != null)
       {
-        EmitCaptureDecls(renderer, captureFrom, "__assertion", inner);
+        EmitCaptureDecls(renderer, captureFrom, "__f", inner);
       }
 
       if (sub.Kind is not (InterceptionKind.Bool or InterceptionKind.Opaque))
       {
-        renderer.Append($"{inner}var __subLeft = {sub.LeftSource};\n");
+        renderer.Append($"{inner}var __w1 = {sub.LeftSource};\n");
       }
 
       if (HasRightOperand(sub.Kind))
       {
-        renderer.Append($"{inner}var __subRight = {sub.RightSource};\n");
+        renderer.Append($"{inner}var __w2 = {sub.RightSource};\n");
       }
 
       var subTail = $"global::System.Array.Empty<(string, object)>(),\n{inner}  null, null, null";
 
-      renderer.Append($"{inner}return __A.{BuildFailureInvocation(sub, assertionTextArg, inner, subTail, "__subLeft", "__subRight")});\n");
+      renderer.Append($"{inner}return __A.{BuildFailureInvocation(sub, assertionTextArg, inner, subTail, "__w1", "__w2")});\n");
       renderer.Append($"{indent}  }})");
 
       return renderer.ToString();

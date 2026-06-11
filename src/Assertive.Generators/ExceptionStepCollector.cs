@@ -226,7 +226,7 @@ namespace Assertive.Generators
 
           var innerBindings = new Dictionary<string, LambdaBinding>();
 
-          if (BindParameter(parameters[0], "__item") is not { } itemBinding)
+          if (BindParameter(parameters[0], "__i") is not { } itemBinding)
           {
             return;
           }
@@ -236,7 +236,7 @@ namespace Assertive.Generators
           if (parameters.Count > 1
               && _model.GetDeclaredSymbol(parameters[1], _ct) is { Type.SpecialType: SpecialType.System_Int32 })
           {
-            innerBindings[parameters[1].Identifier.ValueText] = new LambdaBinding("__idx", "__idx");
+            innerBindings[parameters[1].Identifier.ValueText] = new LambdaBinding("__j", "__j");
           }
 
           var collection = Eval(access.Expression, bindings);
@@ -418,7 +418,7 @@ namespace Assertive.Generators
 
             var filterParameter = filterLambda.Value.Parameters[0];
 
-            if (BindParameter(filterParameter, "__x") is { } candidateBinding)
+            if (BindParameter(filterParameter, "__k") is { } candidateBinding)
             {
               var filterBindings = bindings != null
                 ? bindings.ToDictionary(kv => kv.Key, kv => kv.Value)
@@ -428,7 +428,7 @@ namespace Assertive.Generators
 
               if (_compiler.Compile(filterLambda.Value.Body, filterBindings) is { } filter)
               {
-                parts.Add($"Filter = (__x, __item, __idx) => (bool)(object)({filter})");
+                parts.Add($"Filter = (__k, __i, __j) => (bool)(object)({filter})");
               }
             }
           }
@@ -521,7 +521,7 @@ namespace Assertive.Generators
       private string? Eval(ExpressionSyntax expression, IReadOnlyDictionary<string, LambdaBinding>? bindings)
       {
         return _compiler.Compile(expression, bindings) is { } compiled
-          ? $"(__item, __idx) => (object)({compiled})"
+          ? $"(__i, __j) => (object)({compiled})"
           : null;
       }
 

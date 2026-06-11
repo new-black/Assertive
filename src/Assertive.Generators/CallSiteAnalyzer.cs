@@ -200,7 +200,7 @@ namespace Assertive.Generators
 
       var bindings = new Dictionary<string, LambdaBinding>
       {
-        [parameterSymbol.Name] = new LambdaBinding($"(({exceptionTypeFqn})__item)", "__item"),
+        [parameterSymbol.Name] = new LambdaBinding($"(({exceptionTypeFqn})__i)", "__i"),
       };
 
       var subNegated = false;
@@ -767,9 +767,9 @@ namespace Assertive.Generators
               {
                 [parameterSymbol.Name] = new LambdaBinding(
                   IsUsableType(parameterSymbol.Type, ctx.SemanticModel.Compilation)
-                    ? $"(({parameterSymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})__item)"
+                    ? $"(({parameterSymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})__i)"
                     : null,
-                  "__item"),
+                  "__i"),
               };
 
               // Finding the failing items requires evaluating the filter per item: typed
@@ -777,7 +777,7 @@ namespace Assertive.Generators
               // (in)equality bodies (anonymous element types).
               if (compiler.CompileTypedOnly(allFilterBody, itemBindings) is { } typedFilter)
               {
-                call.AllFilterFunc = $"(__item, __idx) => (bool)({typedFilter})";
+                call.AllFilterFunc = $"(__i, __j) => (bool)({typedFilter})";
               }
 
               // Classify the filter body as a per-item sub-assertion, displayed with the
@@ -804,7 +804,7 @@ namespace Assertive.Generators
                 if (call.AllFilterFunc == null && subCall.Kind == InterceptionKind.Equality)
                 {
                   var equalsCheck = $"__A.ObjectEquals({subCall.LeftSource}, {subCall.RightSource})";
-                  call.AllFilterFunc = $"(__item, __idx) => {(subCall.Negated ? "!" : "")}{equalsCheck}";
+                  call.AllFilterFunc = $"(__i, __j) => {(subCall.Negated ? "!" : "")}{equalsCheck}";
                 }
               }
 
@@ -952,7 +952,7 @@ namespace Assertive.Generators
       private readonly CancellationToken _ct;
 
       private const string Runtime = "__A";
-      private const string CapturedThis = Runtime + ".GetCapturedThis(__assertion)";
+      private const string CapturedThis = Runtime + ".GetCapturedThis(__f)";
 
       public OperandCompiler(SemanticModel model, SyntaxNode body, InterceptedCall call, CancellationToken ct)
       {
@@ -1389,15 +1389,15 @@ namespace Assertive.Generators
 
               filterBindings[filterParameter.Name] = new LambdaBinding(
                 IsUsableType(filterParameter.Type, _compilation)
-                  ? $"(({filterParameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})__x)"
+                  ? $"(({filterParameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})__k)"
                   : null,
-                "__x");
+                "__k");
 
               var countReceiver = CompileReflective(filteredCountAccess.Expression, captures, bindings);
               var countFilter = countReceiver != null ? Compile(filterBody, filterBindings) : null;
 
               return countFilter != null
-                ? $"{Runtime}.EnumerableCount({countReceiver}, (object __x) => (bool)(object)({countFilter}))"
+                ? $"{Runtime}.EnumerableCount({countReceiver}, (object __k) => (bool)(object)({countFilter}))"
                 : null;
             }
 
