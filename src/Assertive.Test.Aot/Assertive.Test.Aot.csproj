@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+    <!-- Native AOT: also turns on the trim/AOT analyzers so IL2xxx/IL3xxx warnings
+         surface for Assertive's reflection during publish. -->
+    <PublishAot>true</PublishAot>
+    <!-- What buildTransitive/Assertive.props does for package consumers; needed explicitly
+         here because we reference the generator as a project, not via the package. -->
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Assertive.Generated</InterceptorsNamespaces>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Assertive.Generated</InterceptorsPreviewNamespaces>
+    <!-- Write generated sources to obj/.../generated for inspection. -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Experiment: root the app assembly so compiler-generated display classes (lambda
+         closures) keep their reflection metadata, which GeneratedAssert's decomposition
+         reads by field name. -->
+    <TrimmerRootAssembly Include="Assertive.Test.Aot" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Assertive\Assertive.csproj" />
+    <ProjectReference Include="..\Assertive.Generators\Assertive.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

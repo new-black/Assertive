@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="Assertive.Examples/Assertive.Examples.csproj" />
   <Project Path="Assertive.Generators/Assertive.Generators.csproj" />
+  <Project Path="Assertive.Test.Aot/Assertive.Test.Aot.csproj" />
   <Project Path="Assertive.Test.Generators/Assertive.Test.Generators.csproj" />
   <Project Path="Assertive.Test.MSTest/Assertive.Test.MSTest.csproj" />
   <Project Path="Assertive.Test.NUnit/Assertive.Test.NUnit.csproj" />
