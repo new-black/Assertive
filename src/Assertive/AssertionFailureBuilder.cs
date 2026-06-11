@@ -43,6 +43,7 @@ namespace Assertive
     {
       var colors = Configuration.Colors;
       var result = new List<string>();
+      var assertionText = colors.Expression(details.AssertionText);
 
       if (details.Expected != null)
       {
@@ -50,20 +51,20 @@ namespace Assertive
           ? $"{colors.ExpectedHeader()}\n{details.Expected}\n{colors.ActualHeader()}\n{details.Actual}\n"
           : $"{colors.ExpectedHeader()}\n{details.Expected}\n";
 
-        result.Add($"\n{details.AssertionText}\n\n{friendly}");
+        result.Add($"\n{assertionText}\n\n{friendly}");
       }
       else if (details.HandledExceptionMessage != null)
       {
-        result.Add($"\n{details.AssertionText}\n\n{details.HandledExceptionMessage}");
+        result.Add($"\n{assertionText}\n\n{details.HandledExceptionMessage}");
       }
       else if (details.Exception != null)
       {
         // FriendlyMessageProviderForException parity for unattributed exceptions.
-        result.Add($"\n{details.AssertionText}\n\nAssertion threw {details.Exception.GetType().FullName}: {details.Exception.Message}");
+        result.Add($"\n{assertionText}\n\nAssertion threw {details.Exception.GetType().FullName}: {details.Exception.Message}");
       }
       else
       {
-        result.Add($"\n{details.AssertionText}");
+        result.Add($"\n{assertionText}");
       }
 
       if (details.UserMessage != null)
@@ -85,7 +86,7 @@ namespace Assertive
           contextValue = $"<context evaluation threw {ex.GetType().Name}>";
         }
 
-        var contextText = StripLambdaPrefix(details.ContextExpression) ?? "context";
+        var contextText = colors.Expression(StripLambdaPrefix(details.ContextExpression) ?? "context");
         result.Add($"{colors.MetadataHeader("CONTEXT")}\n{contextText} = {Serializer.Serialize(contextValue)}");
       }
 
@@ -93,7 +94,7 @@ namespace Assertive
       {
         if (details.CauseSource != null)
         {
-          result.Add($"{colors.MetadataHeader("CAUSE OF EXCEPTION")}\n{details.CauseSource}");
+          result.Add($"{colors.MetadataHeader("CAUSE OF EXCEPTION")}\n{colors.Expression(details.CauseSource)}");
         }
 
         result.Add($"""
@@ -140,7 +141,7 @@ namespace Assertive
       string? contextExpression)
     {
       // A constant right-hand side displays as written; anything else displays its value.
-      var rightDisplay = rightIsConstant ? rightSource : DisplayValue(rightValue);
+      var rightDisplay = rightIsConstant ? E(rightSource) : DisplayValue(rightValue);
       var leftDisplay = DisplayValue(leftValue);
 
       leftSource = Q(leftSource);
@@ -322,7 +323,7 @@ namespace Assertive
       Func<object?>? context,
       string? contextExpression)
     {
-      var rightSourceDisplay = rightIsConstant ? rightSource : Q(rightSource);
+      var rightSourceDisplay = rightIsConstant ? E(rightSource) : Q(rightSource);
 
       leftSource = Q(leftSource);
 
@@ -359,7 +360,7 @@ namespace Assertive
       string? contextExpression)
     {
       var filter = filterSource != null ? $" with filter {Q(filterSource)}" : "";
-      var rightSourceDisplay = rightIsConstant ? rightSource : Q(rightSource);
+      var rightSourceDisplay = rightIsConstant ? E(rightSource) : Q(rightSource);
 
       operandSource = Q(operandSource);
 
@@ -397,7 +398,7 @@ namespace Assertive
       instanceSource = Q(instanceSource);
 
       var expectedValueString = expectedIsConstant
-        ? expectedSource
+        ? E(expectedSource)
         : $"{Q(expectedSource)} (value: {DisplayValue(expectedValue)})";
 
       string expected;
@@ -488,7 +489,7 @@ namespace Assertive
     {
       instanceSource = Q(instanceSource);
 
-      var argSourceDisplay = argIsConstant ? argSource : Q(argSource);
+      var argSourceDisplay = argIsConstant ? E(argSource) : Q(argSource);
 
       var expected = argIsConstant
         ? $"{instanceSource}: should{(negated ? " not " : " ")}{methodLabel} {argSourceDisplay}."
@@ -609,7 +610,7 @@ namespace Assertive
 
             if (subFailure != null && TryGetSubMessage(subFailure, item, index, colors) is { } subMessage)
             {
-              var prefix = collectionIsMethodCall ? $"[{index}]" : $"{collectionSource}[{index}]";
+              var prefix = collectionIsMethodCall ? $"[{index}]" : E($"{collectionSource}[{index}]");
               subMessages.Add($"{prefix}\n{subMessage}");
             }
           }
@@ -818,15 +819,24 @@ namespace Assertive
     }
 
     /// <summary>
-    /// Applies the configured expression quotation pattern to an expression's source text
-    /// (the expression-based pipeline applied this in ExpressionToString). Constants are
-    /// never quoted; callers skip this for constant sources.
+    /// Applies the configured expression quotation pattern and C# syntax highlighting to an
+    /// expression's source text (the expression-based pipeline applied both in
+    /// ExpressionToString). Constants are never quoted; callers use <see cref="E"/> for
+    /// constant sources.
     /// </summary>
     private static string Q(string source)
     {
-      return Configuration.ExpressionQuotationPattern is { } pattern
+      var quoted = Configuration.ExpressionQuotationPattern is { } pattern
         ? string.Format(pattern, source)
         : source;
+
+      return Configuration.Colors.Expression(quoted);
+    }
+
+    /// <summary>Syntax highlighting without quotation, for constant source text.</summary>
+    private static string E(string source)
+    {
+      return Configuration.Colors.Expression(source);
     }
 
     /// <summary>

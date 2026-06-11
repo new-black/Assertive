@@ -214,7 +214,10 @@ namespace Assertive.Runtime
       return evaluator;
     }
 
-    /// <summary>The old path rendered sources through ExpressionToString, which applies quotation.</summary>
+    /// <summary>
+    /// The old path rendered sources through ExpressionToString, which applies quotation
+    /// and C# syntax highlighting.
+    /// </summary>
     private static string? Q(string? source)
     {
       if (source == null)
@@ -222,9 +225,11 @@ namespace Assertive.Runtime
         return null;
       }
 
-      return Configuration.ExpressionQuotationPattern is { } pattern
+      var quoted = Configuration.ExpressionQuotationPattern is { } pattern
         ? string.Format(CultureInfo.InvariantCulture, pattern, source)
         : source;
+
+      return Configuration.Colors.Expression(quoted);
     }
   }
 }

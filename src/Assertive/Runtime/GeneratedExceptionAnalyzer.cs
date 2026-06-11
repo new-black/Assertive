@@ -186,7 +186,7 @@ namespace Assertive.Runtime
         // its final member rather than from a null reference in the chain.
         return step.ReceiverLastMemberName == null
           ? null
-          : new Handled($"NullReferenceException was thrown inside {step.ReceiverLastMemberName} on {Q(step.ReceiverSource)}.", step.ReceiverSource);
+          : new Handled($"NullReferenceException was thrown inside {E(step.ReceiverLastMemberName)} on {Q(step.ReceiverSource)}.", step.ReceiverSource);
       }
 
       if (receiver != null)
@@ -199,13 +199,13 @@ namespace Assertive.Runtime
         ExceptionStepKind.ArrayLength =>
           $"NullReferenceException caused by accessing array length on {Q(step.ReceiverSource)} which was null.",
         ExceptionStepKind.Member =>
-          $"NullReferenceException caused by accessing {step.MemberName} on {Q(step.ReceiverSource)} which was null.",
+          $"NullReferenceException caused by accessing {E(step.MemberName)} on {Q(step.ReceiverSource)} which was null.",
         ExceptionStepKind.Index when step.IsArray =>
           $"NullReferenceException caused by accessing array index {Q(step.IndexSource)} on {Q(step.ReceiverSource)} which was null.",
         ExceptionStepKind.Index =>
           $"NullReferenceException caused by calling get_Item on {Q(step.ReceiverSource)} which was null.",
         _ =>
-          $"NullReferenceException caused by calling {step.MemberName} on {Q(step.ReceiverSource)} which was null.",
+          $"NullReferenceException caused by calling {E(step.MemberName)} on {Q(step.ReceiverSource)} which was null.",
       };
 
       return new Handled(message, step.NodeSource);
@@ -411,10 +411,10 @@ namespace Assertive.Runtime
       }
 
       var message = instanceValue != null && step.MemberName == "Substring"
-        ? $"ArgumentOutOfRangeException caused by calling {step.MemberName}({argsString}) on {step.ReceiverSource} (length: {instanceValue.Length})."
+        ? $"ArgumentOutOfRangeException caused by calling {step.MemberName}({argsString}) on {E(step.ReceiverSource)} (length: {instanceValue.Length})."
         : instanceValue != null
-          ? $"ArgumentOutOfRangeException caused by calling {step.MemberName}({argsString}) on {step.ReceiverSource}. Value of {step.ReceiverSource}: {Serializer.Serialize(instanceValue)}"
-          : $"ArgumentOutOfRangeException caused by calling {step.MemberName}({argsString}) on {step.ReceiverSource}.";
+          ? $"ArgumentOutOfRangeException caused by calling {step.MemberName}({argsString}) on {E(step.ReceiverSource)}. Value of {E(step.ReceiverSource)}: {Serializer.Serialize(instanceValue)}"
+          : $"ArgumentOutOfRangeException caused by calling {step.MemberName}({argsString}) on {E(step.ReceiverSource)}.";
 
       return new Handled(message, step.NodeSource);
     }
@@ -449,11 +449,11 @@ namespace Assertive.Runtime
 
         if (step.ArgIsConstant?[i] == true)
         {
-          parts.Add(evaluated ? Serializer.Serialize(value).ToString() : source);
+          parts.Add(evaluated ? Serializer.Serialize(value).ToString() : E(source));
         }
         else
         {
-          parts.Add(evaluated ? $"{source} (value: {Serializer.Serialize(value)})" : source);
+          parts.Add(evaluated ? $"{E(source)} (value: {Serializer.Serialize(value)})" : E(source));
         }
       }
 
@@ -511,7 +511,7 @@ namespace Assertive.Runtime
 
       var keyString = step.IndexIsConstant
         ? Serializer.Serialize(keyValue).ToString()
-        : $"{step.IndexSource} (value: {Serializer.Serialize(keyValue)})";
+        : $"{E(step.IndexSource)} (value: {Serializer.Serialize(keyValue)})";
 
       return new Handled(
         $"KeyNotFoundException caused by accessing key {keyString} on {Q(step.ReceiverSource)}. Available keys: {availableKeys}.",
@@ -533,7 +533,7 @@ namespace Assertive.Runtime
       }
 
       return new Handled(
-        $"InvalidCastException caused by casting {step.ReceiverSource} to {TypeHelper.TypeNameToString(step.TargetType)}. Actual type was {TypeHelper.TypeNameToString(operand.GetType())}.",
+        $"InvalidCastException caused by casting {E(step.ReceiverSource)} to {TypeHelper.TypeNameToString(step.TargetType)}. Actual type was {TypeHelper.TypeNameToString(operand.GetType())}.",
         step.NodeSource);
     }
 
@@ -578,7 +578,7 @@ namespace Assertive.Runtime
       }
       else if (step.StringArgIndex >= 0 && step.ArgSources?[step.StringArgIndex] is { } source)
       {
-        inputString = source;
+        inputString = E(source);
       }
       else
       {
@@ -587,7 +587,7 @@ namespace Assertive.Runtime
 
       var message = step.Kind == ExceptionStepKind.StaticCall
         ? $"FormatException caused by calling {step.StaticTypeName}.{step.MemberName}({inputString}). {inputString} is not a valid {step.ParseTargetTypeName}."
-        : $"FormatException caused by calling {step.MemberName}({inputString}) on {step.ReceiverSource}.";
+        : $"FormatException caused by calling {step.MemberName}({inputString}) on {E(step.ReceiverSource)}.";
 
       return new Handled(message, step.NodeSource);
     }
@@ -618,14 +618,15 @@ namespace Assertive.Runtime
       }
 
       var operation = step.Kind == ExceptionStepKind.Divide ? "dividing" : "modulo";
-      var divisorString = step.RightIsConstant ? "0" : $"{step.RightSource} (value: 0)";
+      var divisorString = step.RightIsConstant ? "0" : $"{E(step.RightSource)} (value: 0)";
 
-      return new Handled($"DivideByZeroException caused by {operation} {step.LeftSource} by {divisorString}.", step.NodeSource);
+      return new Handled($"DivideByZeroException caused by {operation} {E(step.LeftSource)} by {divisorString}.", step.NodeSource);
     }
 
     /// <summary>
-    /// Applies the configured expression quotation pattern (slots that were Expression
-    /// arguments in the old FormattableString messages were quoted by the formatter).
+    /// Applies the configured expression quotation pattern and C# syntax highlighting
+    /// (slots that were Expression arguments in the old FormattableString messages were
+    /// quoted and highlighted by the formatter via ExpressionToString).
     /// </summary>
     private static string Q(string? source)
     {
@@ -634,9 +635,20 @@ namespace Assertive.Runtime
         return "";
       }
 
-      return Configuration.ExpressionQuotationPattern is { } pattern
+      var quoted = Configuration.ExpressionQuotationPattern is { } pattern
         ? string.Format(CultureInfo.InvariantCulture, pattern, source)
         : source;
+
+      return Configuration.Colors.Expression(quoted);
+    }
+
+    /// <summary>
+    /// Syntax highlighting without quotation, for slots the old patterns rendered with
+    /// ExpressionToString(allowQuotation: false) or wrapped in Colors.Expression directly.
+    /// </summary>
+    private static string E(string? source)
+    {
+      return source == null ? "" : Configuration.Colors.Expression(source);
     }
   }
 }
