@@ -4,6 +4,7 @@ namespace Assertive.Runtime
   /// Entry point for assertion wrapper implementations
   /// (see <see cref="AssertionWrapperAttribute"/>).
   /// </summary>
+  [System.Diagnostics.StackTraceHidden]
   public static class AssertionHandleExtensions
   {
     /// <summary>

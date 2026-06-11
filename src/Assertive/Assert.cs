@@ -7,6 +7,7 @@ namespace Assertive
   /// <summary>
   /// Provides assertion methods for unit testing.
   /// </summary>
+  [System.Diagnostics.StackTraceHidden]
   public static class Assert
   {
     /// <summary>

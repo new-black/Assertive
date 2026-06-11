@@ -8,6 +8,7 @@ namespace Assertive
   /// Provides assertion methods for use with <c>using static Assertive.DSL</c>.
   /// This allows writing assertions without a class prefix, e.g., <c>Assert(() => x == y)</c>.
   /// </summary>
+  [System.Diagnostics.StackTraceHidden]
   public static class DSL
   {
     /// <summary>

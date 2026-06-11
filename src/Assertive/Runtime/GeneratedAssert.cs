@@ -15,6 +15,7 @@ namespace Assertive.Runtime
   /// called directly from user code.
   /// </summary>
   [EditorBrowsable(EditorBrowsableState.Never)]
+  [System.Diagnostics.StackTraceHidden]
   public static class GeneratedAssert
   {
     private static long _interceptedCallCount;

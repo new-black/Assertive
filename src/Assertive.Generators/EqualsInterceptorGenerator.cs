@@ -158,7 +158,7 @@ namespace Assertive.Generators
       sb.AppendLine($"    public static {wrapper.ReturnTypeFqn} Wrapper{index}({string.Join(", ", parameters)})");
       sb.AppendLine("    {");
       sb.AppendLine("      global::Assertive.Runtime.GeneratedAssert.MarkIntercepted();");
-      sb.AppendLine($"      {returnKeyword}{target}.{wrapper.MethodName}(global::Assertive.AssertionHandle.Generated(() =>");
+      sb.AppendLine($"      {returnKeyword}{target}.{wrapper.MethodName}(global::Assertive.AssertionHandle.Generated([global::System.Diagnostics.StackTraceHidden] () =>");
       sb.AppendLine("      {");
       sb.AppendLine("        try");
       sb.AppendLine("        {");
