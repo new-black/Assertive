@@ -4,6 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using Assertive.Analyzers;
 using Assertive.Config;
+using Assertive.Runtime;
 using Xunit;
 using static Assertive.DSL;
 
@@ -134,7 +135,7 @@ ending: ""4""
     {
       try
       {
-        Assert.That(assertion);
+        assertion.Assert();
         Xunit.Assert.Fail("Expected assertion to fail.");
       }
       catch (Exception ex)

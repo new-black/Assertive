@@ -40,7 +40,7 @@ namespace Assertive.Generators
       }
 
       // First parameter must be the assertion delegate; this also excludes the DSL's
-      // snapshot overload (first parameter is `object`) and the AssertionHandle overloads.
+      // snapshot overload (first parameter is `object`).
       if (method.Parameters.Length == 0
           || method.Parameters[0].Type is not INamedTypeSymbol { Name: "Func", Arity: 1 })
       {

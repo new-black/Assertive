@@ -1,6 +1,7 @@
 using System;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using Assertive.Runtime;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -144,7 +145,7 @@ namespace Assertive.Test
 
       try
       {
-        Assert.That(assertion);
+        assertion.Assert();
         Xunit.Assert.Fail("Should have thrown");
       }
       catch (Exception ex)

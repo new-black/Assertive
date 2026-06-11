@@ -29,8 +29,8 @@ namespace Assertive
 
   /// <summary>
   /// An assertion as received by the handle overload of an assertion wrapper pair
-  /// (see <see cref="AssertionWrapperAttribute"/>). Pass it to
-  /// <see cref="Assert.That(AssertionHandle)"/> to evaluate it.
+  /// (see <see cref="AssertionWrapperAttribute"/>). Evaluate it with
+  /// <see cref="Runtime.AssertionHandleExtensions.Assert(AssertionHandle)"/>.
   /// </summary>
   public readonly struct AssertionHandle
   {

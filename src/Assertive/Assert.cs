@@ -38,23 +38,6 @@ namespace Assertive
       ThatCore(assertion, null, context, assertionExpression, contextExpression);
     }
 
-    /// <summary>
-    /// Asserts an assertion received through an assertion wrapper
-    /// (see <see cref="AssertionWrapperAttribute"/>). Uses the generated assertion when the
-    /// wrapper call site was intercepted; otherwise evaluates the plain delegate.
-    /// </summary>
-    /// <param name="assertion">The assertion handle to evaluate.</param>
-    public static void That(AssertionHandle assertion)
-    {
-      if (assertion.GeneratedAssertion is { } generated)
-      {
-        generated();
-        return;
-      }
-
-      ThatCore(assertion.Condition!, null, null, assertion.SourceText ?? "", null);
-    }
-
     internal static void ThatCore(Func<bool> assertion, object? message, Func<object?>? context, string assertionExpression, string? contextExpression)
     {
       bool passed;

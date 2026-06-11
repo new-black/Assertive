@@ -27,7 +27,7 @@ namespace Assertive.Test.Generators
     {
       try
       {
-        AssertiveAssert.That(assertion);
+        assertion.Assert();
         return null;
       }
       catch (Exception ex)
@@ -46,7 +46,7 @@ namespace Assertive.Test.Generators
     {
       try
       {
-        AssertiveAssert.That(assertion);
+        assertion.Assert();
         return null;
       }
       catch (Exception ex)

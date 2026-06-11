@@ -40,16 +40,6 @@ namespace Assertive
     }
 
     /// <summary>
-    /// Asserts an assertion received through an assertion wrapper
-    /// (see <see cref="AssertionWrapperAttribute"/>).
-    /// </summary>
-    /// <param name="assertion">The assertion handle to evaluate.</param>
-    public static void Assert(AssertionHandle assertion)
-    {
-      Assertive.Assert.That(assertion);
-    }
-
-    /// <summary>
     /// Asserts that an object matches a previously stored snapshot.
     /// </summary>
     /// <param name="snapshot">The object to compare against the stored snapshot.</param>
