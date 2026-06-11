@@ -302,16 +302,16 @@ namespace Assertive.Generators
               ctx.SemanticModel.GetTypeInfo(a, ct).Type is { } argType ? compiler.TypeAccessor(argType) ?? "null" : "null").ToList();
 
             // The runtime null-guards the value and type arrays: emit only non-default ones.
-            parts.Add($"ArgSources = new string[] {{ {string.Join(", ", sources)} }}");
+            parts.Add($"ArgSources = [{string.Join(", ", sources)}]");
 
             if (evaluators.Any(e => e != "null"))
             {
-              parts.Add($"Args = new __FC[] {{ {string.Join(", ", evaluators)} }}");
+              parts.Add($"Args = [{string.Join(", ", evaluators)}]");
             }
 
             if (types.Any(t => t != "null"))
             {
-              parts.Add($"ArgStaticTypes = new global::System.Type[] {{ {string.Join(", ", types)} }}");
+              parts.Add($"ArgStaticTypes = [{string.Join(", ", types)}]");
             }
           }
 
@@ -1451,8 +1451,8 @@ namespace Assertive.Generators
             }
 
             var argumentArray = arguments.Count == 0
-              ? "global::System.Array.Empty<object>()"
-              : $"new object[] {{ {string.Join(", ", arguments)} }}";
+              ? "[]"
+              : $"[{string.Join(", ", arguments)}]";
 
             return $"{Runtime}.InvokeInstance({receiver}, {Quote(method.Name)}, {argumentArray})";
           }

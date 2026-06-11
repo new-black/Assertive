@@ -67,7 +67,7 @@ namespace Assertive.Generators
       }
 
       private static string ToArrayLiteral(List<string> steps)
-        => $"new {StepType}[] {{ {string.Join(", ", steps)} }}";
+        => $"[{string.Join(", ", steps)}]";
 
       private void Visit(ExpressionSyntax node, IReadOnlyDictionary<string, LambdaBinding>? bindings, int depth, List<string> steps)
       {
@@ -382,16 +382,16 @@ namespace Assertive.Generators
 
           // The analyzer null-guards every argument array and StringArgIndex defaults to
           // -1: emit only what deviates from the defaults.
-          parts.Add($"ArgSources = new string[] {{ {string.Join(", ", sources)} }}");
+          parts.Add($"ArgSources = [{string.Join(", ", sources)}]");
 
           if (constants.Any(c => c == "true"))
           {
-            parts.Add($"ArgIsConstant = new bool[] {{ {string.Join(", ", constants)} }}");
+            parts.Add($"ArgIsConstant = [{string.Join(", ", constants)}]");
           }
 
           if (evals.Any(e => e != "null"))
           {
-            parts.Add($"Args = new __FO[] {{ {string.Join(", ", evals)} }}");
+            parts.Add($"Args = [{string.Join(", ", evals)}]");
           }
 
           if (stringArgIndex >= 0)

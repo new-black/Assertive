@@ -285,8 +285,8 @@ namespace Assertive.Generators
         .ToList();
 
       return displayedLocals.Count == 0
-        ? "global::System.Array.Empty<(string, object)>()"
-        : $"new (string, object)[] {{ {string.Join(", ", displayedLocals.Select(l => $"({Quote(l.Name)}, (object){CallSiteAnalyzer.Identifier(l.Name)})"))} }}";
+        ? "[]"
+        : $"[{string.Join(", ", displayedLocals.Select(l => $"({Quote(l.Name)}, (object){CallSiteAnalyzer.Identifier(l.Name)})"))}]";
     }
 
     /// <summary>
@@ -305,7 +305,7 @@ namespace Assertive.Generators
     {
       EmitCaptureDecls(sb, call, "__f", indent);
 
-      sb.AppendLine($"{indent}var __l = {BuildLocalsArray(call)};");
+      sb.AppendLine($"{indent}(string, object)[] __l = {BuildLocalsArray(call)};");
 
       var steps = call.ExceptionStepsSource ?? "null";
 
@@ -434,7 +434,7 @@ namespace Assertive.Generators
       var leafText = Quote(part.LeafSource);
       var localsArray = BuildLocalsArray(part.Locals, part.SubCall?.LeftDisplay ?? "", part.SubCall?.RightDisplay ?? "");
 
-      sb.AppendLine($"{indent}var __l2 = {localsArray};");
+      sb.AppendLine($"{indent}(string, object)[] __l2 = {localsArray};");
       sb.AppendLine($"{indent}if (__le != null)");
       sb.AppendLine($"{indent}{{");
       sb.AppendLine($"{indent}  return __A.EvaluationFailure({leafText}, __le, {part.StepsSource ?? "null"}, __l2, {tailArgs});");
@@ -501,7 +501,7 @@ namespace Assertive.Generators
 
       sb.AppendLine($"{indent}if ((__k & {1 << index}) != 0)");
       sb.AppendLine($"{indent}{{");
-      sb.AppendLine($"{inner}var __l2 = {localsArray};");
+      sb.AppendLine($"{inner}(string, object)[] __l2 = {localsArray};");
       sb.AppendLine($"{inner}if (__le != null && __n == {index})");
       sb.AppendLine($"{inner}{{");
       sb.AppendLine($"{inner}  __fs.Add(__A.EvaluationFailure({leafText}, __le, {part.StepsSource ?? "null"}, __l2, {tailArgs}));");
@@ -630,7 +630,7 @@ namespace Assertive.Generators
         renderer.Append($"{inner}var __w2 = {sub.RightSource};\n");
       }
 
-      var subTail = $"global::System.Array.Empty<(string, object)>(),\n{inner}  null, null, null";
+      var subTail = $"[],\n{inner}  null, null, null";
 
       renderer.Append($"{inner}return __A.{BuildFailureInvocation(sub, assertionTextArg, inner, subTail, "__w1", "__w2")});\n");
       renderer.Append($"{indent}  }})");
