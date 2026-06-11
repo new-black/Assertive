@@ -38,6 +38,27 @@ namespace Assertive
       ThatCore(assertion, null, context, UninterceptedSource, null);
     }
 
+    /// <summary>
+    /// Asserts that the given asynchronous condition evaluates to true.
+    /// </summary>
+    /// <param name="assertion">An asynchronous boolean condition to evaluate.</param>
+    /// <param name="message">A custom message to include in the failure output.</param>
+    /// <param name="context">Additional context to include in the failure output.</param>
+    public static Task That(Func<Task<bool>> assertion, object? message = null, Func<object?>? context = null)
+    {
+      return ThatCoreAsync(assertion, message, context, UninterceptedSource, null);
+    }
+
+    /// <summary>
+    /// Asserts that the given asynchronous condition evaluates to true.
+    /// </summary>
+    /// <param name="assertion">An asynchronous boolean condition to evaluate.</param>
+    /// <param name="context">Additional context to include in the failure output.</param>
+    public static Task That(Func<Task<bool>> assertion, Func<object?> context)
+    {
+      return ThatCoreAsync(assertion, null, context, UninterceptedSource, null);
+    }
+
     internal static void ThatCore(Func<bool> assertion, object? message, Func<object?>? context, string assertionExpression, string? contextExpression)
     {
       bool passed;
@@ -45,6 +66,25 @@ namespace Assertive
       try
       {
         passed = assertion();
+      }
+      catch (Exception ex) when (!Runtime.GeneratedAssert.IsAssertionFailure(ex))
+      {
+        throw Runtime.GeneratedAssert.EvaluationFailure(assertionExpression, ex, null, null, message, context, contextExpression);
+      }
+
+      if (!passed)
+      {
+        throw Runtime.GeneratedAssert.Failure(assertionExpression, null, message, context, contextExpression);
+      }
+    }
+
+    internal static async Task ThatCoreAsync(Func<Task<bool>> assertion, object? message, Func<object?>? context, string assertionExpression, string? contextExpression)
+    {
+      bool passed;
+
+      try
+      {
+        passed = await assertion();
       }
       catch (Exception ex) when (!Runtime.GeneratedAssert.IsAssertionFailure(ex))
       {

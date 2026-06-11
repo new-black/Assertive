@@ -42,7 +42,17 @@ namespace Assertive.Generators
       // First parameter must be the assertion delegate; this also excludes the DSL's
       // snapshot overload (first parameter is `object`).
       if (method.Parameters.Length == 0
-          || method.Parameters[0].Type is not INamedTypeSymbol { Name: "Func", Arity: 1 })
+          || method.Parameters[0].Type is not INamedTypeSymbol { Name: "Func", Arity: 1 } assertionDelegate)
+      {
+        return null;
+      }
+
+      // Func<bool> is the synchronous assertion; Func<Task<bool>> the async overloads,
+      // intercepted with a Task-returning interceptor whose render callback is async
+      // (awaited operands are re-evaluated inside it).
+      var isAsync = IsTaskOfBool(assertionDelegate.TypeArguments[0]);
+
+      if (!isAsync && assertionDelegate.TypeArguments[0].SpecialType != SpecialType.System_Boolean)
       {
         return null;
       }
@@ -57,8 +67,9 @@ namespace Assertive.Generators
       {
         overload = ClassifyOverload(method);
       }
-      else if (HasAssertionWrapperAttribute(method))
+      else if (!isAsync && HasAssertionWrapperAttribute(method))
       {
+        // AssertionHandle carries a synchronous condition; async wrappers stay degraded.
         wrapper = AnalyzeWrapper(method, ctx.SemanticModel.Compilation);
       }
 
@@ -104,6 +115,7 @@ namespace Assertive.Generators
         FilePath = invocation.SyntaxTree.FilePath,
         Overload = overload ?? ThatOverload.MessageContext,
         Wrapper = wrapper,
+        IsAsync = isAsync,
         BodySource = body.ToString(),
         Negated = outerNegated,
       };
@@ -310,7 +322,7 @@ namespace Assertive.Generators
           {
             var sources = argExpressions.Select(a => Quote(a.ToString()));
             var evaluators = argExpressions.Select(a =>
-              a is AnonymousFunctionExpressionSyntax ? "null"
+              a is AnonymousFunctionExpressionSyntax || ContainsAwait(a) ? "null"
                 : compiler.Compile(a) is { } compiled ? $"() => (object)({compiled})" : "null").ToList();
             var types = argExpressions.Select(a =>
               ctx.SemanticModel.GetTypeInfo(a, ct).Type is { } argType ? compiler.TypeAccessor(argType) ?? "null" : "null").ToList();
@@ -346,7 +358,7 @@ namespace Assertive.Generators
 
           AddProbeInstance(parts, ctx, member.Expression, compiler, ct);
 
-          if (compiler.Compile(member) is { } value)
+          if (!ContainsAwait(member) && compiler.Compile(member) is { } value)
           {
             parts.Add($"Value = () => (object)({value})");
           }
@@ -377,7 +389,7 @@ namespace Assertive.Generators
         parts.Add($"InstanceStaticType = {instanceTypeAccessor}");
       }
 
-      if (compiler.Compile(instance) is { } compiledInstance)
+      if (!ContainsAwait(instance) && compiler.Compile(instance) is { } compiledInstance)
       {
         parts.Add($"Instance = () => (object)({compiledInstance})");
       }
@@ -470,6 +482,26 @@ namespace Assertive.Generators
     }
 
     private static string Quote(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
+
+    private static bool IsTaskOfBool(ITypeSymbol type)
+    {
+      return type is INamedTypeSymbol { Name: "Task", Arity: 1 } task
+             && task.TypeArguments[0].SpecialType == SpecialType.System_Boolean
+             && task.ContainingNamespace is { Name: "Tasks", ContainingNamespace: { Name: "Threading", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } } };
+    }
+
+    /// <summary>
+    /// Whether the fragment directly contains an await (one not nested inside a lambda of
+    /// its own). Such code can only be pasted into the async render callback of an async
+    /// interceptor — not into the synchronous helper lambdas (exception steps,
+    /// custom-pattern probes), which skip it and degrade gracefully.
+    /// </summary>
+    internal static bool ContainsAwait(SyntaxNode node)
+    {
+      return node.DescendantNodesAndSelf(n => n == node || n is not AnonymousFunctionExpressionSyntax)
+        .OfType<AwaitExpressionSyntax>()
+        .Any();
+    }
 
     /// <summary>
     /// Escapes a captured name for use as an identifier in generated code. Symbol names of
@@ -1021,6 +1053,19 @@ namespace Assertive.Generators
             case QueryExpressionSyntax:
               return null;
 
+            case AwaitExpressionSyntax awaitExpression:
+            {
+              // Awaits paste fine into the async render callback, but the generated file
+              // has no using directives: awaitables whose GetAwaiter is an extension
+              // method would not bind there. Task and friends use an instance GetAwaiter.
+              if (_model.GetAwaitExpressionInfo(awaitExpression).GetAwaiterMethod is not { IsStatic: false, ReducedFrom: null })
+              {
+                return null;
+              }
+
+              continue;
+            }
+
             case InvocationExpressionSyntax innerCall:
             {
               if (_model.GetSymbolInfo(innerCall, _ct).Symbol is not IMethodSymbol innerMethod)
@@ -1281,6 +1326,29 @@ namespace Assertive.Generators
 
           case ThisExpressionSyntax:
             return CapturedThis;
+
+          case AwaitExpressionSyntax awaitExpression:
+          {
+            // Only reachable in async render callbacks: synchronous embeddings (exception
+            // steps, custom-pattern probes) exclude await fragments via ContainsAwait.
+            if (CompileReflective(awaitExpression.Expression, captures, bindings) is not { } awaited)
+            {
+              return null;
+            }
+
+            // A nameable awaitable type gets a typed await (cast back from object): no
+            // reflection, so it also survives Native AOT trimming. AwaitResult (reflective
+            // Task.Result read) is the fallback for unnameable awaitable types.
+            var awaitableType = _model.GetTypeInfo(awaitExpression.Expression, _ct).Type;
+
+            if (awaitableType != null && IsUsableType(awaitableType, _compilation))
+            {
+              var awaitableFqn = awaitableType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+              return $"((object)(await (({awaitableFqn})({awaited}))))";
+            }
+
+            return $"(await {Runtime}.AwaitResult({awaited}))";
+          }
 
           case IdentifierNameSyntax identifier:
             switch (_model.GetSymbolInfo(identifier, _ct).Symbol)

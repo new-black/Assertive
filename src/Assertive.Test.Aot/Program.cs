@@ -3,6 +3,7 @@ namespace Assertive.Test.Aot
   using System;
   using System.Linq;
   using System.Text.RegularExpressions;
+  using System.Threading.Tasks;
   using static Assertive.DSL;
   using AssertiveAssert = Assertive.Assert;
 
@@ -49,6 +50,10 @@ namespace Assertive.Test.Aot
       Check(nameof(Locals_are_serialized), Locals_are_serialized);
       Check(nameof(Degraded_path_reports_unintercepted_marker), Degraded_path_reports_unintercepted_marker);
       Check(nameof(Passing_assertion_does_not_throw), Passing_assertion_does_not_throw);
+      Check(nameof(Async_equality_is_decomposed_typed), () => Async_equality_is_decomposed_typed().GetAwaiter().GetResult());
+      Check(nameof(Async_equality_is_decomposed_reflectively), () => Async_equality_is_decomposed_reflectively().GetAwaiter().GetResult());
+      Check(nameof(Async_degraded_path_reports_unintercepted_marker), () => Async_degraded_path_reports_unintercepted_marker().GetAwaiter().GetResult());
+      Check(nameof(Passing_async_assertion_does_not_throw), () => Passing_async_assertion_does_not_throw().GetAwaiter().GetResult());
       Check(nameof(Throws_returns_the_exception), Throws_returns_the_exception);
       Check(nameof(Throws_fails_when_nothing_is_thrown), Throws_fails_when_nothing_is_thrown);
       Check(nameof(Throws_with_passing_predicate_does_not_throw), Throws_with_passing_predicate_does_not_throw);
@@ -258,6 +263,79 @@ namespace Assertive.Test.Aot
         ExpectEqual("e.Message: \"not boom\"", expected);
         ExpectEqual("e.Message: \"boom\"", actual);
       });
+    }
+
+    private static async Task Async_equality_is_decomposed_typed()
+    {
+      var fetcher = new AsyncFetcher();
+      var expectedValue = 5;
+
+      // Member access on a captured local: the awaited operand pastes typed into the
+      // async render callback, no reflective await involved.
+      var exception = await CaptureAsync(() => Assert(async () => await fetcher.GetAsync(3) == expectedValue));
+
+      ExpectFailure(exception, "await fetcher.GetAsync(3) == expectedValue", () =>
+      {
+        var (expected, actual) = Decomposition(exception!);
+        ExpectEqual("await fetcher.GetAsync(3): 5", expected);
+        ExpectEqual("await fetcher.GetAsync(3): 3", actual);
+      });
+    }
+
+    private static async Task Async_equality_is_decomposed_reflectively()
+    {
+      var expectedValue = 5;
+
+      // A simple-name static call fails the typed strategy, so the operand re-evaluates
+      // reflectively; the await itself stays a typed cast (Task<int> is nameable), which
+      // keeps it AOT-safe — Task<T>.Result metadata is trimmed even in rooted publishes.
+      var exception = await CaptureAsync(() => Assert(async () => await ValueAsync(3) == expectedValue));
+
+      ExpectFailure(exception, "await ValueAsync(3) == expectedValue", () =>
+      {
+        var (expected, actual) = Decomposition(exception!);
+        ExpectEqual("await ValueAsync(3): 5", expected);
+        ExpectEqual("await ValueAsync(3): 3", actual);
+      });
+    }
+
+    private static async Task Async_degraded_path_reports_unintercepted_marker()
+    {
+      Func<Task<bool>> stored = () => Task.FromResult(false);
+
+      var exception = await CaptureAsync(() => Assert(stored));
+
+      Expect(exception != null, "assertion should fail");
+      Expect(StripAnsi(exception!.Message).Contains("was not intercepted"), $"missing unintercepted marker: {exception.Message}");
+    }
+
+    private static async Task Passing_async_assertion_does_not_throw()
+    {
+      var fetcher = new AsyncFetcher();
+
+      var exception = await CaptureAsync(() => Assert(async () => await fetcher.GetAsync(1) == 1));
+
+      Expect(exception == null, $"passing async assertion threw: {exception?.Message}");
+    }
+
+    internal static Task<int> ValueAsync(int value) => Task.FromResult(value);
+
+    public sealed class AsyncFetcher
+    {
+      public Task<int> GetAsync(int value) => Task.FromResult(value);
+    }
+
+    private static async Task<Exception?> CaptureAsync(Func<Task> assertion)
+    {
+      try
+      {
+        await assertion();
+        return null;
+      }
+      catch (Exception ex)
+      {
+        return ex;
+      }
     }
 
     private static void ThrowSomething() => throw new InvalidOperationException("boom");

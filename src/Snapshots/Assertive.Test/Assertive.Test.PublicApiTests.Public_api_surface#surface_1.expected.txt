@@ -4,6 +4,8 @@ static class Assert
   static void Snapshot(object snapshot, AssertSnapshotOptions options, string expression, string sourceFile)
   static void That(Func<bool> assertion, object message, Func<object> context)
   static void That(Func<bool> assertion, Func<object> context)
+  static Task That(Func<Task<bool>> assertion, object message, Func<object> context)
+  static Task That(Func<Task<bool>> assertion, Func<object> context)
   static Exception Throws(Action action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
   static TException Throws<TException>(Action action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
   static Exception Throws(Func<object> func, Func<Exception, bool> exceptionAssertion, string funcExpression, string exceptionExpression)
@@ -27,6 +29,8 @@ class AssertSnapshotOptions
 static class DSL
   static void Assert(Func<bool> assertion, object message, Func<object> context)
   static void Assert(Func<bool> assertion, Func<object> context)
+  static Task Assert(Func<Task<bool>> assertion, object message, Func<object> context)
+  static Task Assert(Func<Task<bool>> assertion, Func<object> context)
   static void Assert(object snapshot, AssertSnapshotOptions options, string expression, string sourceFile)
   static Exception Throws(Action action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
   static TException Throws<TException>(Action action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
@@ -235,6 +239,7 @@ enum ExceptionStepKind
 static class GeneratedAssert
   static Exception AllFailure(string assertionExpression, string collectionSource, string filterSource, bool collectionIsMethodCall, object collectionValue, bool negated, Func<object, int, bool> filter, Func<object, int, Exception> subFailure, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception AnyFailure(string assertionExpression, string collectionSource, string filterSource, bool negated, int count, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
+  static Task<object> AwaitResult(object awaitable)
   static Exception BoolFailure(string assertionExpression, string source, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception CombinedFailure(List<Exception> failures)
   static Exception ComparisonFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool rightIsConstant, string comparisonLabel, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
@@ -244,6 +249,7 @@ static class GeneratedAssert
   static Exception EqualityFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool rightIsConstant, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception EvaluationFailure(string assertionExpression, Exception exception, ExceptionStep[] steps, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static void Execute(Func<bool> assertion, string assertionExpression, object message, Func<object> context, string contextExpression, Func<Exception, Exception> render)
+  static Task Execute(Func<Task<bool>> assertion, string assertionExpression, object message, Func<object> context, string contextExpression, Func<Exception, Task<Exception>> render)
   static Exception Failure(string assertionExpression, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static object GetCapturedThis(Delegate assertion)
   static object GetCapturedValue(Delegate assertion, string name)

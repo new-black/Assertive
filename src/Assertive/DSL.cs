@@ -33,6 +33,27 @@ namespace Assertive
     }
 
     /// <summary>
+    /// Asserts that the given asynchronous condition evaluates to true.
+    /// </summary>
+    /// <param name="assertion">An asynchronous boolean condition to evaluate.</param>
+    /// <param name="message">A custom message to include in the failure output.</param>
+    /// <param name="context">Additional context to include in the failure output.</param>
+    public static Task Assert(Func<Task<bool>> assertion, object? message = null, Func<object?>? context = null)
+    {
+      return Assertive.Assert.ThatCoreAsync(assertion, message, context, Assertive.Assert.UninterceptedSource, null);
+    }
+
+    /// <summary>
+    /// Asserts that the given asynchronous condition evaluates to true.
+    /// </summary>
+    /// <param name="assertion">An asynchronous boolean condition to evaluate.</param>
+    /// <param name="context">Additional context to include in the failure output.</param>
+    public static Task Assert(Func<Task<bool>> assertion, Func<object?> context)
+    {
+      return Assertive.Assert.ThatCoreAsync(assertion, null, context, Assertive.Assert.UninterceptedSource, null);
+    }
+
+    /// <summary>
     /// Asserts that an object matches a previously stored snapshot.
     /// </summary>
     /// <param name="snapshot">The object to compare against the stored snapshot.</param>

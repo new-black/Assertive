@@ -520,6 +520,13 @@ namespace Assertive.Generators
 
       private string? Eval(ExpressionSyntax expression, IReadOnlyDictionary<string, LambdaBinding>? bindings)
       {
+        // Step evaluators are synchronous lambdas: fragments that directly await cannot
+        // be re-evaluated here (their step is skipped; attribution degrades gracefully).
+        if (ContainsAwait(expression))
+        {
+          return null;
+        }
+
         return _compiler.Compile(expression, bindings) is { } compiled
           ? $"(__i, __j) => (object)({compiled})"
           : null;

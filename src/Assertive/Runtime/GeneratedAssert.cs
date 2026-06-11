@@ -76,6 +76,56 @@ namespace Assertive.Runtime
     }
 
     /// <summary>
+    /// Async counterpart of <see cref="Execute(Func{bool}, string, object, Func{object}, string, Func{Exception, Exception})"/>
+    /// for Func&lt;Task&lt;bool&gt;&gt; assertions: the render callback is asynchronous because
+    /// rebuilding the report re-evaluates operands, which may themselves await.
+    /// </summary>
+    public static async System.Threading.Tasks.Task Execute(Func<System.Threading.Tasks.Task<bool>> assertion,
+      string assertionExpression, object? message, Func<object?>? context, string? contextExpression,
+      Func<Exception?, System.Threading.Tasks.Task<Exception>> render)
+    {
+      bool passed;
+
+      try
+      {
+        passed = await assertion();
+      }
+      catch (Exception ex) when (!IsAssertionFailure(ex))
+      {
+        Exception report;
+
+        try
+        {
+          report = await render(ex);
+        }
+        catch (Exception rex) when (!IsAssertionFailure(rex))
+        {
+          report = EvaluationFailure(assertionExpression, ex, null, null, message, context, contextExpression);
+        }
+
+        throw report;
+      }
+
+      if (passed)
+      {
+        return;
+      }
+
+      Exception failure;
+
+      try
+      {
+        failure = await render(null);
+      }
+      catch (Exception rex) when (!IsAssertionFailure(rex))
+      {
+        failure = Failure(assertionExpression, null, message, context, contextExpression);
+      }
+
+      throw failure;
+    }
+
+    /// <summary>
     /// Extracts the value of a captured local variable or parameter from the assertion
     /// delegate's closure. The compiler stores captured variables as public fields named
     /// after the variable on compiler-generated display classes; captures from multiple
@@ -752,6 +802,37 @@ namespace Assertive.Runtime
 
     /// <summary>Equals-based equality for reflective filter evaluation over object-typed operands.</summary>
     public static bool ObjectEquals(object? left, object? right) => Equals(left, right);
+
+    /// <summary>
+    /// Awaits an object-typed Task and reads its result reflectively, for reflective
+    /// re-evaluation of awaited operands (where the result type cannot be named in
+    /// generated code). Non-generic tasks yield null.
+    /// </summary>
+    public static async System.Threading.Tasks.Task<object?> AwaitResult(object awaitable)
+    {
+      if (awaitable is not System.Threading.Tasks.Task task)
+      {
+        throw new InvalidOperationException($"Assertive: cannot reflectively await a {awaitable?.GetType().ToString() ?? "null"}; only Task-based awaitables are supported.");
+      }
+
+      await task.ConfigureAwait(false);
+
+      var taskType = task.GetType();
+
+      if (!taskType.IsGenericType)
+      {
+        return null;
+      }
+
+      // Throw rather than silently yield null when the property metadata was trimmed away
+      // (Native AOT): the render callback's failure falls back to the source-text report.
+      var resultProperty = taskType.GetProperty("Result", BindingFlags.Public | BindingFlags.Instance)
+        ?? throw new InvalidOperationException($"Assertive: could not read the result of a {taskType} reflectively.");
+
+      return resultProperty.PropertyType.Name != "VoidTaskResult"
+        ? resultProperty.GetValue(task)
+        : null;
+    }
 
     /// <summary>Reads an element by index/key, ignoring accessibility (arrays, lists, indexers).</summary>
     public static object? GetElementValue(object target, object? index)

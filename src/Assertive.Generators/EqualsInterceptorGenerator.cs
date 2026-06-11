@@ -63,6 +63,7 @@ namespace Assertive.Generators
         sb.AppendLine("using __FE = global::System.Func<global::System.Exception, bool>;");
         sb.AppendLine("using __FO = global::System.Func<object, int, object>;");
         sb.AppendLine("using __FR = global::System.Func<object, int, global::System.Exception>;");
+        sb.AppendLine("using __FTB = global::System.Func<global::System.Threading.Tasks.Task<bool>>;");
         sb.AppendLine("using __IL = global::System.Runtime.CompilerServices.InterceptsLocationAttribute;");
         sb.AppendLine("using __STH = global::System.Diagnostics.StackTraceHiddenAttribute;");
         sb.AppendLine();
@@ -148,10 +149,14 @@ namespace Assertive.Generators
 
     private static string BuildThatInterceptor(InterceptedCall call)
     {
+      // Async call sites get a Task-returning interceptor (matching the Task-returning
+      // That overload) and an async render callback, so awaited operand source pastes in.
+      var delegateType = call.IsAsync ? "__FTB" : "__FB";
+
       var parameters = call.Overload switch
       {
-        ThatOverload.Context => "__FB __f, __FC __c",
-        _ => "__FB __f, object __m, __FC __c",
+        ThatOverload.Context => $"{delegateType} __f, __FC __c",
+        _ => $"{delegateType} __f, object __m, __FC __c",
       };
 
       var messageArg = call.Overload is ThatOverload.MessageContext ? "__m" : "null";
@@ -160,7 +165,7 @@ namespace Assertive.Generators
 
       var sb = new StringBuilder();
 
-      sb.AppendLine($"    public static void {NamePlaceholder}({parameters})");
+      sb.AppendLine($"    public static {(call.IsAsync ? "global::System.Threading.Tasks.Task" : "void")} {NamePlaceholder}({parameters})");
       sb.AppendLine("    {");
       // Local consts: the interceptor reconstructs the source texts the public API no
       // longer captures; referenced from the render lambda without forcing a capture.
@@ -171,7 +176,7 @@ namespace Assertive.Generators
         sb.AppendLine($"      const string __cs = {Quote(call.ContextSource)};");
       }
 
-      sb.AppendLine($"      __A.Execute(__f, __s, {tailArgs}, __e =>");
+      sb.AppendLine($"      {(call.IsAsync ? "return " : "")}__A.Execute(__f, __s, {tailArgs}, {(call.IsAsync ? "async " : "")}__e =>");
       sb.AppendLine("      {");
       BuildRender(sb, call, "__s", tailArgs, "        ");
       sb.AppendLine("      });");
@@ -725,6 +730,9 @@ namespace Assertive.Generators
     public ThatOverload Overload;
     public WrapperModel? Wrapper;
     public InterceptionKind Kind;
+
+    /// <summary>Whether the assertion delegate is Func&lt;Task&lt;bool&gt;&gt; (the async That overloads).</summary>
+    public bool IsAsync;
 
     /// <summary>Captured locals to declare; Type is null for unnameable types (read as object).</summary>
     public List<(string Name, string? Type)> CapturedLocals { get; } = new();
