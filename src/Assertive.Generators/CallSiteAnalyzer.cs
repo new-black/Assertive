@@ -1452,6 +1452,13 @@ namespace Assertive.Generators
               return null;
             }
 
+            // Local functions are not members of their containing type: they can neither
+            // be invoked from generated code nor resolved reflectively by name.
+            if (method.MethodKind == MethodKind.LocalFunction)
+            {
+              return null;
+            }
+
             // LINQ Count() works untyped: the element type never needs to be named.
             if (method is { ReducedFrom: not null, Parameters.Length: 0, Name: "Count", ContainingType.Name: "Enumerable" }
                 && method.ContainingType.ContainingNamespace is { Name: "Linq", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } }

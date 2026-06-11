@@ -163,6 +163,20 @@ namespace Assertive.Test
     }
 
     [Fact]
+    public async Task Local_function_operand_degrades_to_source_text()
+    {
+      // Local functions are not members of their containing type, so generated code can
+      // neither call nor reflectively resolve them: the assertion reports source text
+      // only. (Regression: the generator used to emit Program.LocalValueAsync(...).)
+      static Task<int> LocalValueAsync(int value) => Task.FromResult(value);
+
+      var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
+        () => Assert(async () => await LocalValueAsync(1) == 2));
+
+      Xunit.Assert.Contains("await LocalValueAsync(1) == 2", StripAnsi(ex.Message));
+    }
+
+    [Fact]
     public async Task Stored_async_delegate_reports_the_unintercepted_marker()
     {
       Func<Task<bool>> stored = async () => await ValueAsync(1) == 2;
