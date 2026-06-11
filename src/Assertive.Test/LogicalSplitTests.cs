@@ -230,7 +230,7 @@ namespace Assertive.Test
     {
       var counter = new Counter();
 
-      var ex = Xunit.Assert.ThrowsAny<Exception>(() =>
+      var ex = CaptureFailure(() =>
         Assert(() => counter.Run("one", false) & counter.Run("two", false)));
 
       Xunit.Assert.Equal(2, counter.ExecutionCount("one"));

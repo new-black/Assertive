@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using Assertive.Config;
 using Assertive.Runtime;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -11,7 +12,10 @@ namespace Assertive.Test
     private static partial class AnsiHelper
     {
 
-      [GeneratedRegex(@"\[[0-9;]*[A-Za-z]")]
+      // Match only real ANSI/CSI escape sequences (ESC '[' … letter). The ESC prefix is
+      // load-bearing: without it the pattern also eats literal no-color labels like
+      // "[EXPECTED]" (which look like "[" + letter), corrupting the snapshot text.
+      [GeneratedRegex(@"\u001b\[[0-9;]*[A-Za-z]")]
       public static partial Regex AnsiRegex();
 
     }
@@ -21,25 +25,109 @@ namespace Assertive.Test
       return stripped.Replace("\r\n", "\n").Replace("\r", "\n");
     }
 
+    // Snapshotted failure messages must be byte-for-byte identical regardless of the
+    // environment. Colors are auto-enabled when running locally but disabled on CI (and
+    // under NUnit, Visual Studio, NO_COLOR, etc.), and the two modes don't just differ by
+    // ANSI escape codes — the no-color renderer emits structurally different text (plain
+    // [EXPECTED] headers, ASCII diff markers, no padding/icons). To keep snapshots stable
+    // we render every captured message with colors turned off, restoring the previous
+    // setting afterwards so colour-rendering tests are unaffected.
+    private static Exception? CaptureWithColorsDisabled(Action body)
+    {
+      var original = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+      try
+      {
+        body();
+        return null;
+      }
+      catch (Exception ex)
+      {
+        return ex;
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = original;
+      }
+    }
+
+    private static async Task<Exception?> CaptureWithColorsDisabledAsync(Func<Task> body)
+    {
+      var original = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+      try
+      {
+        await body();
+        return null;
+      }
+      catch (Exception ex)
+      {
+        return ex;
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = original;
+      }
+    }
+
+    /// <summary>
+    /// Runs an assertion that is expected to fail, with colorization disabled so the captured
+    /// message is deterministic, and returns the resulting exception. Use this instead of
+    /// <c>Xunit.Assert.ThrowsAny</c> when the exception is going to be snapshotted via
+    /// <see cref="SnapshotMessage"/>.
+    /// </summary>
+    protected static Exception CaptureFailure(Action assertion)
+    {
+      var original = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+      try
+      {
+        return Xunit.Assert.ThrowsAny<Exception>(assertion);
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = original;
+      }
+    }
+
+    /// <summary>
+    /// Async counterpart to <see cref="CaptureFailure"/>.
+    /// </summary>
+    protected static async Task<Exception> CaptureFailureAsync(Func<Task> assertion)
+    {
+      var original = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
+      try
+      {
+        return await Xunit.Assert.ThrowsAnyAsync<Exception>(assertion);
+      }
+      finally
+      {
+        Configuration.Colors.Enabled = original;
+      }
+    }
+
+    private void SnapshotFailure(Exception ex, string expression, string callerFilePath, int callerLineNumber)
+    {
+      Assert.Snapshot(StripAnsi(ex.Message),
+        options: $"L{callerLineNumber}",
+        expression: expression,
+        sourceFile: callerFilePath);
+    }
+
     protected void ShouldThrow(Action action,
       [CallerArgumentExpression(nameof(action))] string actionExpression = "",
       [CallerFilePath] string callerFilePath = "",
       [CallerLineNumber] int callerLineNumber = 0)
     {
-      try
+      var ex = CaptureWithColorsDisabled(() => Assert.Throws(action, null, actionExpression));
+
+      if (ex == null)
       {
-        Assert.Throws(action, null, actionExpression);
-      }
-      catch (Exception ex)
-      {
-        Assert.Snapshot(StripAnsi(ex.Message),
-          options: $"L{callerLineNumber}",
-          expression: actionExpression,
-          sourceFile: callerFilePath);
-        return;
+        Xunit.Assert.Fail($"Expected Assert.Throws({actionExpression}) to fail but it did not.");
       }
 
-      Xunit.Assert.Fail($"Expected Assert.Throws({actionExpression}) to fail but it did not.");
+      SnapshotFailure(ex!, actionExpression, callerFilePath, callerLineNumber);
     }
 
     protected void ShouldThrow(Func<object?> func,
@@ -47,20 +135,14 @@ namespace Assertive.Test
       [CallerFilePath] string callerFilePath = "",
       [CallerLineNumber] int callerLineNumber = 0)
     {
-      try
+      var ex = CaptureWithColorsDisabled(() => Assert.Throws(func, null, funcExpression));
+
+      if (ex == null)
       {
-        Assert.Throws(func, null, funcExpression);
-      }
-      catch (Exception ex)
-      {
-        Assert.Snapshot(StripAnsi(ex.Message),
-          options: $"L{callerLineNumber}",
-          expression: funcExpression,
-          sourceFile: callerFilePath);
-        return;
+        Xunit.Assert.Fail($"Expected Assert.Throws({funcExpression}) to fail but it did not.");
       }
 
-      Xunit.Assert.Fail($"Expected Assert.Throws({funcExpression}) to fail but it did not.");
+      SnapshotFailure(ex!, funcExpression, callerFilePath, callerLineNumber);
     }
 
     protected async Task ShouldThrow(Func<Task> action,
@@ -68,20 +150,14 @@ namespace Assertive.Test
       [CallerFilePath] string callerFilePath = "",
       [CallerLineNumber] int callerLineNumber = 0)
     {
-      try
+      var ex = await CaptureWithColorsDisabledAsync(() => Assert.Throws(action, null, actionExpression));
+
+      if (ex == null)
       {
-        await Assert.Throws(action, null, actionExpression);
-      }
-      catch (Exception ex)
-      {
-        Assert.Snapshot(StripAnsi(ex.Message),
-          options: $"L{callerLineNumber}",
-          expression: actionExpression,
-          sourceFile: callerFilePath);
-        return;
+        Xunit.Assert.Fail($"Expected Assert.Throws({actionExpression}) to fail but it did not.");
       }
 
-      Xunit.Assert.Fail($"Expected Assert.Throws({actionExpression}) to fail but it did not.");
+      SnapshotFailure(ex!, actionExpression, callerFilePath, callerLineNumber);
     }
 
     protected async Task ShouldThrow<T>(Func<Task> action,
@@ -89,20 +165,14 @@ namespace Assertive.Test
       [CallerFilePath] string callerFilePath = "",
       [CallerLineNumber] int callerLineNumber = 0) where T : Exception
     {
-      try
+      var ex = await CaptureWithColorsDisabledAsync(() => Assert.Throws<T>(action, null, actionExpression));
+
+      if (ex == null)
       {
-        await Assert.Throws<T>(action, null, actionExpression);
-      }
-      catch (Exception ex)
-      {
-        Assert.Snapshot(StripAnsi(ex.Message),
-          options: $"L{callerLineNumber}",
-          expression: actionExpression,
-          sourceFile: callerFilePath);
-        return;
+        Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({actionExpression}) to fail but it did not.");
       }
 
-      Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({actionExpression}) to fail but it did not.");
+      SnapshotFailure(ex!, actionExpression, callerFilePath, callerLineNumber);
     }
 
     protected void ShouldThrow<T>(Action action,
@@ -110,20 +180,14 @@ namespace Assertive.Test
       [CallerFilePath] string callerFilePath = "",
       [CallerLineNumber] int callerLineNumber = 0) where T : Exception
     {
-      try
+      var ex = CaptureWithColorsDisabled(() => Assert.Throws<T>(action, null, actionExpression));
+
+      if (ex == null)
       {
-        Assert.Throws<T>(action, null, actionExpression);
-      }
-      catch (Exception ex)
-      {
-        Assert.Snapshot(StripAnsi(ex.Message),
-          options: $"L{callerLineNumber}",
-          expression: actionExpression,
-          sourceFile: callerFilePath);
-        return;
+        Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({actionExpression}) to fail but it did not.");
       }
 
-      Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({actionExpression}) to fail but it did not.");
+      SnapshotFailure(ex!, actionExpression, callerFilePath, callerLineNumber);
     }
 
     protected void ShouldThrow<T>(Func<object?> func,
@@ -131,20 +195,14 @@ namespace Assertive.Test
       [CallerFilePath] string callerFilePath = "",
       [CallerLineNumber] int callerLineNumber = 0) where T : Exception
     {
-      try
+      var ex = CaptureWithColorsDisabled(() => Assert.Throws<T>(func, null, funcExpression));
+
+      if (ex == null)
       {
-        Assert.Throws<T>(func, null, funcExpression);
-      }
-      catch (Exception ex)
-      {
-        Assert.Snapshot(StripAnsi(ex.Message),
-          options: $"L{callerLineNumber}",
-          expression: funcExpression,
-          sourceFile: callerFilePath);
-        return;
+        Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({funcExpression}) to fail but it did not.");
       }
 
-      Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({funcExpression}) to fail but it did not.");
+      SnapshotFailure(ex!, funcExpression, callerFilePath, callerLineNumber);
     }
 
     [AssertionWrapper]
@@ -156,20 +214,14 @@ namespace Assertive.Test
 
     internal void ShouldFail(AssertionHandle assertion, string assertionExpression = "", string callerFilePath = "", int callerLineNumber = 0)
     {
-      try
+      var ex = CaptureWithColorsDisabled(() => assertion.Assert());
+
+      if (ex == null)
       {
-        assertion.Assert();
-      }
-      catch (Exception ex)
-      {
-        Assert.Snapshot(StripAnsi(ex.Message),
-          options: $"L{callerLineNumber}",
-          expression: assertionExpression,
-          sourceFile: callerFilePath);
-        return;
+        Xunit.Assert.Fail($"Expected assertion to fail but it passed: {assertionExpression}");
       }
 
-      Xunit.Assert.Fail($"Expected assertion to fail but it passed: {assertionExpression}");
+      SnapshotFailure(ex!, assertionExpression, callerFilePath, callerLineNumber);
     }
 
     protected void ShouldFailWith(Action assertion,
@@ -177,11 +229,8 @@ namespace Assertive.Test
       [CallerFilePath] string callerFilePath = "",
       [CallerLineNumber] int callerLineNumber = 0)
     {
-      var ex = Xunit.Assert.ThrowsAny<Exception>(assertion);
-      Assert.Snapshot(StripAnsi(ex.Message),
-        options: $"L{callerLineNumber}",
-        expression: assertionExpression,
-        sourceFile: callerFilePath);
+      var ex = CaptureFailure(assertion);
+      SnapshotFailure(ex, assertionExpression, callerFilePath, callerLineNumber);
     }
 
     protected void SnapshotMessage(Exception ex,

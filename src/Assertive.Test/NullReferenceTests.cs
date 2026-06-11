@@ -279,7 +279,7 @@ namespace Assertive.Test
       // The third parameter (extra) is null and accessing .Length throws NullReferenceException.
       // Since Assertive can't bind the third parameter, it can't find the cause and falls back
       // to a generic exception message. This test verifies Assertive doesn't crash internally.
-      var exception = Xunit.Assert.ThrowsAny<Exception>(() =>
+      var exception = CaptureFailure(() =>
         Assert.That(() => surveys.CustomAnyWithNullThirdParam((s, i, extra) => extra!.Length > 0)));
 
       SnapshotMessage(exception);

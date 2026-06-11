@@ -63,8 +63,7 @@ namespace Assertive.Test
     [Fact]
     public void Throws_additional_assertion_failure_is_reported_sync()
     {
-      Configuration.Colors.Enabled = false;
-      var ex = Xunit.Assert.ThrowsAny<Exception>(() =>
+      var ex = CaptureFailure(() =>
         Assert.Throws<InvalidOperationException>(() => ThrowInvalidOperation("boom"), e => e.Message == "wrong"));
       SnapshotMessage(ex);
     }
@@ -72,8 +71,7 @@ namespace Assertive.Test
     [Fact]
     public async Task Throws_additional_assertion_failure_is_reported_async()
     {
-      Configuration.Colors.Enabled = false;
-      var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(() =>
+      var ex = await CaptureFailureAsync(() =>
         Assert.Throws<InvalidOperationException>(() => ThrowAsyncException(), e => e.Message == "wrong"));
       SnapshotMessage(ex);
     }

@@ -37,7 +37,7 @@ namespace Assertive.Test
         AssertOnce(10, 10);
       }
 
-      var ex = Xunit.Assert.ThrowsAny<Exception>(() => AssertOnce(3, 7));
+      var ex = CaptureFailure(() => AssertOnce(3, 7));
 
       SnapshotMessage(ex);
     }

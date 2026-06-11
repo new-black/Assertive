@@ -105,7 +105,7 @@ namespace Assertive.Test
     {
       var threshold = 5;
 
-      var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
+      var ex = await CaptureFailureAsync(
         () => Assert(async () => await ValueAsync(1) > threshold + 2));
 
       SnapshotMessage(ex);
@@ -116,7 +116,7 @@ namespace Assertive.Test
     {
       var orderID = 10;
 
-      var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
+      var ex = await CaptureFailureAsync(
         () => Assert(async () => await ValueAsync(1) == 2, "order mismatch", () => orderID));
 
       SnapshotMessage(ex);
@@ -127,7 +127,7 @@ namespace Assertive.Test
     {
       var orderID = 10;
 
-      var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
+      var ex = await CaptureFailureAsync(
         () => Assert(async () => await ValueAsync(1) == 2, () => orderID));
 
       SnapshotMessage(ex);
@@ -136,7 +136,7 @@ namespace Assertive.Test
     [Fact]
     public async Task Throwing_awaited_call_reports_the_exception_with_source_text()
     {
-      var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
+      var ex = await CaptureFailureAsync(
         () => Assert(async () => await ThrowingAsync() == 1));
 
       SnapshotMessage(ex);
@@ -147,7 +147,7 @@ namespace Assertive.Test
     {
       var values = new List<int>();
 
-      var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(
+      var ex = await CaptureFailureAsync(
         () => Assert(async () => await ValueAsync(values.First()) == 1));
 
       SnapshotMessage(ex);
@@ -198,7 +198,7 @@ namespace Assertive.Test
     {
       Func<Task<bool>> stored = async () => await ValueAsync(1) == 2;
 
-      var ex = await Xunit.Assert.ThrowsAnyAsync<Exception>(() => Assert(stored));
+      var ex = await CaptureFailureAsync(() => Assert(stored));
 
       SnapshotMessage(ex);
     }
