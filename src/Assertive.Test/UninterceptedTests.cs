@@ -5,10 +5,8 @@ using static Assertive.DSL;
 namespace Assertive.Test
 {
   /// <summary>
-  /// Call sites the generator cannot intercept (stored delegates, named arguments) have no
-  /// source text: the public API no longer captures it via CallerArgumentExpression — the
-  /// interceptor embeds it instead. The failure says so explicitly rather than silently
-  /// looking like a healthy report.
+  /// Call sites the generator cannot intercept (stored delegates, statement-body lambdas)
+  /// fall back to CallerArgumentExpression source text with no decomposition or locals.
   /// </summary>
   public class UninterceptedTests : AssertionTestBase
   {
@@ -28,6 +26,13 @@ namespace Assertive.Test
       Func<bool> stored = () => x == 1;
 
       Assert(stored);
+    }
+
+    [Fact]
+    public void Statement_body_lambda_shows_block_source_only()
+    {
+      var x = 5;
+      ShouldFail(() => { return x > 10; });
     }
   }
 }
