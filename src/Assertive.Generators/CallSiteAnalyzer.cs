@@ -424,12 +424,11 @@ namespace Assertive.Generators
     internal static string Identifier(string name)
       => SyntaxFacts.GetKeywordKind(name) == SyntaxKind.None ? name : "@" + name;
 
-    private static readonly ILeafClassifier[] s_classifiers =
+    private static readonly ILeafClassifier[] _classifiers =
     {
       new LogicalSplitClassifier(),
       new EqualityClassifier(),
       new ComparisonClassifier(),
-      new IsExpressionClassifier(),
       new IsPatternClassifier(),
       new MethodCallClassifier(),
       new HasValueClassifier(),
@@ -446,7 +445,7 @@ namespace Assertive.Generators
     /// </summary>
     internal static bool ClassifyForm(ClassificationContext ctx, ExpressionSyntax core, bool outerNegated, bool leafContext = false)
     {
-      foreach (var classifier in s_classifiers)
+      foreach (var classifier in _classifiers)
       {
         var result = classifier.TryClassify(ctx, core, outerNegated, leafContext);
         if (result.HasValue)
