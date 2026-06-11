@@ -16,6 +16,10 @@ namespace Assertive.TestFrameworks
       }
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Best-effort reflection to detect the running NUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Best-effort reflection to detect the running NUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort reflection to detect the running NUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2080", Justification = "Best-effort reflection to detect the running NUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
     public CurrentTestInfo? GetCurrentTestInfo()
     {
       var testContextType = _testContextType ??= TestFrameworkHelper.TryGetType("nunit.framework", "NUnit.Framework.Internal.TestExecutionContext");

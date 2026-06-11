@@ -13,6 +13,11 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <LangVersion>12</LangVersion>
+
+    <!-- Run the trim/AOT analyzers against this assembly so its reflection is reviewed and
+         kept warning-clean. The reflective decomposition helpers are intentionally guarded
+         (they degrade to source text when metadata is trimmed) and carry [UnconditionalSuppressMessage]. -->
+    <IsAotCompatible>true</IsAotCompatible>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
 

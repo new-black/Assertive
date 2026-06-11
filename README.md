@@ -124,7 +124,7 @@ The `using static Assertive.DSL` import allows you to write `Assert()` instead o
 
 Assertive uses a **source generator** that inspects each `Assert(() => ...)` call at compile time and generates code tailored to that specific assertion. For a passing assertion, the delegate is simply called once and that's it. When the assertion fails, the generated code breaks the expression down to produce a precise, contextual error message that should give you all the information you need what went wrong without having to attach a debugger or add more output logging.
 
-This means you can write assertions using the **full C# language** — `await`, pattern matching, null-conditional `?.`, tuple literals, `out var`, and so on all work and are understood by the failure analysis. Any valid C# you can put in a lambda expression is fair game. Not every single expression will have a pattern dedicated to it, but many do (see below). Even if it's a pattern Assertive does not recognize, it will still give you useful output such as the values of used locals. 
+This means you can write assertions using the **full C# language** - `await`, pattern matching, null-conditional `?.`, tuple literals, `out var`, and so on all work and are understood by the failure analysis. Any valid C# you can put in a lambda expression is fair game. Not every single expression will have a pattern dedicated to it, but many do (see below). Even if it's a pattern Assertive does not recognize, it will still give you useful output such as the values of used locals. 
 
 No configuration is required: referencing the `Assertive` package automatically opts your test project into the interceptors the generator emits.
 
@@ -186,9 +186,9 @@ This assertion would fail with the message:
 
 When you chain conditions with `&&`, short-circuiting works as you would expect: the assertion stops at the first condition that fails, and that condition is the one reported.
 
-With any other combination — `||`, the bitwise `&` or `|`, or a mix of operators — Assertive reports *every* condition that failed rather than just the first. For `||` this is exactly what you want: the assertion only fails when all of its alternatives are false, so all of them are worth showing.
+With any other combination - `||`, the bitwise `&` or `|`, or a mix of operators - Assertive reports *every* condition that failed rather than just the first. For `||` this is exactly what you want: the assertion only fails when all of its alternatives are false, so all of them are worth showing.
 
-The same per-condition reporting applies to `and` patterns. An assertion like `Assert(() => age is >= 18 and <= 65)` is broken into its individual checks, so a failure tells you exactly which bound was violated — a concise way to assert that a single value satisfies several constraints at once.
+The same per-condition reporting applies to `and` patterns. An assertion like `Assert(() => age is >= 18 and <= 65)` is broken into its individual checks, so a failure tells you exactly which bound was violated - a concise way to assert that a single value satisfies several constraints at once.
 
 ### Async assertions
 
@@ -198,7 +198,7 @@ Assertions can be `async`. Just pass an async lambda and `await` the result:
 await Assert(async () => await GetOrderStatusAsync(orderId) == OrderStatus.Paid);
 ```
 
-The same failure analysis applies — the awaited result is shown in the error message just like a synchronous one. This works with any awaitable, and you can freely mix `await` with the other features (multiple assertions, pattern matching, etc.) in a single assertion.
+The same failure analysis applies - the awaited result is shown in the error message just like a synchronous one. This works with any awaitable, and you can freely mix `await` with the other features (multiple assertions, pattern matching, etc.) in a single assertion.
 
 ### Exception assertions
 
@@ -245,7 +245,7 @@ Assert.Throws<ArgumentException>(() => ThrowsInvalidOperation());
 
 ### Snapshot testing
 
-Inspired by the snapshot testing of [Verify](https://github.com/VerifyTests/Verify) Assertive also supports snapshot testing of objects. What this means is that you simply call `Assert(myObject);` (or `Assert.Snapshot` if not using `using static Assertive.DSL`) and a snapshot is made of the object — in JSON format, or verbatim as a plain `.txt` file when you pass a `string` directly — and is compared to a stored
+Inspired by the snapshot testing of [Verify](https://github.com/VerifyTests/Verify) Assertive also supports snapshot testing of objects. What this means is that you simply call `Assert(myObject);` (or `Assert.Snapshot` if not using `using static Assertive.DSL`) and a snapshot is made of the object - in JSON format, or verbatim as a plain `.txt` file when you pass a `string` directly - and is compared to a stored
 snapshot from a previous execution. If they still match, the test passes and otherwise it fails.
 
 The first time you add a snapshot assertion, no `expected.json` file exists yet for the assertion. If you have a diff tool like WinMerge installed, you can integrate with the excellent [DiffEngine](https://github.com/VerifyTests/DiffEngine) and register it like this:
@@ -884,12 +884,12 @@ Configuration.Output.MaxValueLength = null;
 
 ## Native AOT and trimming
 
-Assertive works in Native AOT and trimmed applications. Because the failure analysis is generated at compile time rather than relying on runtime reflection or expression compilation, there's no runtime code generation to trip over AOT's restrictions.
+Assertive works in Native AOT and trimmed applications. The restriction Native AOT enforces is on **runtime code generation** - compiling code (such as expression trees) or emitting IL while the program runs. Assertive never does that for normal assertions: your assertion runs as an ordinary compiled delegate, and the code that builds the failure message is produced at compile time by the source generator.
 
-The reporting is **best-effort under trimming**, and degrades gracefully when the metadata it would otherwise use has been trimmed away:
+Building that detailed failure message does, however, use **reflection** to read the values and members involved. Reflection is allowed under AOT, but it's subject to trimming - so the reporting is **best-effort** and degrades gracefully when the metadata it needs has been trimmed away:
 
-- **Passing assertions** are completely unaffected — the assertion lambda runs directly and nothing is reflected over.
-- **Failing assertions** are still reported. When a value or member the detailed message would render has been trimmed away, that part falls back to showing the assertion source text instead of the fully decomposed value. You always get a failure with the source of the assertion; you may not always get every evaluated sub-value.
+- **Passing assertions** are completely unaffected - the lambda runs directly and nothing is reflected over (decomposition only happens on failure).
+- **Failing assertions** are always reported. When a value or member the detailed message would render has been trimmed away, that part falls back to the assertion source text. You always get a failure identifying the assertion; you may not always get every evaluated sub-value.
 
 For the fullest failure messages under AOT/trimming, root your test (or app) assembly so its metadata is preserved:
 
@@ -899,7 +899,11 @@ For the fullest failure messages under AOT/trimming, root your test (or app) ass
 </ItemGroup>
 ```
 
-With the assembly rooted, decomposition works for everything declared in it. Reads that reach into other assemblies that have themselves been trimmed (for example `ValueTuple.Item1` in the BCL) degrade per-value to source text rather than failing.
+With the assembly rooted, full assertion richness should work for everything declared in it. Reads that reach into other assemblies that have themselves been trimmed (for example `ValueTuple.Item1` in the BCL) degrade per-value to source text rather than failing.
+
+Assertive is marked AOT-compatible and publishes without trim-analysis warnings: its best-effort reflective reads are annotated for the trimmer, so they stay silent and simply degrade as described above.
+
+[Snapshot testing](#snapshot-testing) is the exception. It serializes arbitrary objects with reflection-based `System.Text.Json`, which isn't trim/AOT-safe, so the snapshot methods are annotated `[RequiresUnreferencedCode]`/`[RequiresDynamicCode]`.
 
 ## Compatibility
 
@@ -907,11 +911,11 @@ With the assembly rooted, decomposition works for everything declared in it. Rea
 
 Assertive targets .NET 8, so your test project can target **.NET 8 or newer**.
 
-The one extra requirement concerns the **SDK you build with**, not the framework you target. Because the failure analysis is produced by a source generator that emits C# interceptors, your project needs to be built with the **.NET 9.0.300 SDK (or newer)** — equivalently Visual Studio 2022 17.14+, or any .NET 10 SDK. This is purely a build-time requirement: a project targeting `net8.0` builds and runs perfectly fine as long as a recent enough SDK is installed on the build machine. The interceptors are enabled automatically when you reference the package — no project configuration is needed.
+The one extra requirement concerns the **SDK you build with**, not the framework you target. Because the failure analysis is produced by a source generator that emits C# interceptors, your project needs to be built with the **.NET 9.0.300 SDK (or newer)** - equivalently Visual Studio 2022 17.14+, or any .NET 10 SDK. This is purely a build-time requirement: a project targeting `net8.0` builds and runs perfectly fine as long as a recent enough SDK is installed on the build machine. The interceptors are enabled automatically when you reference the package - no project configuration is needed.
 
-If you build with an older SDK, nothing breaks — assertions still pass and fail correctly, but failure messages fall back to showing the assertion source text instead of the fully decomposed output.
+If you build with an older SDK, nothing breaks - assertions still pass and fail correctly, but failure messages fall back to showing the assertion source text instead of the fully decomposed output.
 
-If the SDK requirement is a problem for you, the older `0.25.0` release is still available on NuGet. It predates the move to source generation and is built on the .NET Expression API instead, so it runs on older toolchains — at the cost of the expanded C# syntax support (`await`, pattern matching, `?.`, tuple literals, and so on) that the interceptor-based version provides.
+If the SDK requirement is a problem for you, the older `0.25.0` release is still available on NuGet. It predates the move to source generation and is built on the .NET Expression API instead, so it runs on older toolchains - at the cost of the expanded C# syntax support (`await`, pattern matching, `?.`, tuple literals, and so on) that the interceptor-based version provides.
 
 ### Test frameworks
 

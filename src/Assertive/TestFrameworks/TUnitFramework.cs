@@ -14,6 +14,10 @@ namespace Assertive.TestFrameworks
     public Type? ExceptionType =>
       _exceptionType ??= TestFrameworkHelper.TryGetType("TUnit.Assertions", "TUnit.Assertions.Exceptions.AssertionException", "TUnit");
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Best-effort reflection to detect the running TUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Best-effort reflection to detect the running TUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort reflection to detect the running TUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2080", Justification = "Best-effort reflection to detect the running TUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
     public CurrentTestInfo? GetCurrentTestInfo()
     {
       var testContextType = _testContextType ??= TestFrameworkHelper.TryGetType("TUnit.Core", "TUnit.Core.TestContext", "TUnit");

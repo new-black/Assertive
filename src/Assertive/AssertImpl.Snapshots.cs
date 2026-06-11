@@ -91,6 +91,8 @@ internal partial class AssertImpl
     }
   }
 
+  [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Snapshot testing serializes arbitrary objects with reflection-based System.Text.Json, which is not compatible with trimming.")]
+  [System.Diagnostics.CodeAnalysis.RequiresDynamicCode("Snapshot testing serializes arbitrary objects with reflection-based System.Text.Json, which may require runtime code generation under Native AOT.")]
   public static Exception? Snapshot(object actualObject, AssertSnapshotOptions options, string expression, string sourceFile)
   {
     var testFramework = ITestFramework.GetActiveTestFramework();
@@ -452,6 +454,8 @@ internal partial class AssertImpl
     return ExceptionHelper.GetException(sb.ToString());
   }
 
+  [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Snapshot testing serializes arbitrary objects with reflection-based System.Text.Json, which is not compatible with trimming.")]
+  [System.Diagnostics.CodeAnalysis.RequiresDynamicCode("Snapshot testing serializes arbitrary objects with reflection-based System.Text.Json, which may require runtime code generation under Native AOT.")]
   private static JsonNode? SerializeToNode(object actualObject, JsonSerializerOptions serializerOptions)
   {
     // System.Text.Json JsonNode types - use directly (DeepClone to detach from parent)

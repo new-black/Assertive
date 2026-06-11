@@ -44,6 +44,8 @@ namespace Assertive.Helpers
       return typeof(IEnumerable).IsAssignableFrom(t) && t != typeof(string);
     }
     
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Best-effort discovery of an enumerable's element type for failure rendering; trimmed metadata simply yields no element type and rendering degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Constructs KeyValuePair<,> for dictionary element types; best-effort for failure rendering and degrades gracefully if unavailable under AOT.")]
     public static Type? GetTypeInsideEnumerable(Type type)
     {
       var getEnumeratorMethod = type.GetMethod("GetEnumerator", Type.EmptyTypes);

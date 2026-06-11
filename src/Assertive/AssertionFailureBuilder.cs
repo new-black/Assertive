@@ -776,6 +776,8 @@ namespace Assertive
       });
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort lookup of an equality comparer for SequenceEqual failure rendering; trimmed metadata makes the lookup fail and rendering degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Constructs EqualityComparer<T> for SequenceEqual failure rendering; best-effort and degrades gracefully if unavailable under AOT.")]
     private static Func<object?, object?, bool>? GetSequenceComparer(object? comparer, Type? elementType)
     {
       if (comparer == null && elementType != null)

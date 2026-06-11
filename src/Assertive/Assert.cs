@@ -239,6 +239,8 @@ namespace Assertive
     /// <param name="options">Optional settings for the snapshot comparison.</param>
     /// <param name="expression">The expression text (automatically captured).</param>
     /// <param name="sourceFile">The source file path (automatically captured).</param>
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Snapshot testing serializes arbitrary objects with reflection-based System.Text.Json, which is not compatible with trimming.")]
+    [System.Diagnostics.CodeAnalysis.RequiresDynamicCode("Snapshot testing serializes arbitrary objects with reflection-based System.Text.Json, which may require runtime code generation under Native AOT.")]
     public static void Snapshot(object snapshot, AssertSnapshotOptions? options = null, [CallerArgumentExpression(nameof(snapshot))] string expression = "", [CallerFilePath] string sourceFile = "")
     {
       var exception = AssertImpl.Snapshot(snapshot, options ?? AssertSnapshotOptions.Default, expression, sourceFile);

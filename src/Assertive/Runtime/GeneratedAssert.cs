@@ -144,6 +144,7 @@ namespace Assertive.Runtime
       throw new InvalidOperationException($"Assertive: could not locate captured variable '{name}' in the assertion's closure.");
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort read of a captured local from a closure for failure messages; if the closure's fields are trimmed the read fails and the assertion degrades to reporting its source text.")]
     private static bool TryGetCapturedValue(object closure, string name, int depth, out object? value)
     {
       var type = closure.GetType();
@@ -196,6 +197,7 @@ namespace Assertive.Runtime
       throw new InvalidOperationException("Assertive: could not locate the captured 'this' reference in the assertion's closure.");
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort read of the captured 'this' from a closure for failure messages; if the closure's fields are trimmed the read fails and the assertion degrades to reporting its source text.")]
     private static bool TryGetCapturedThis(object closure, int depth, out object? value)
     {
       var fields = closure.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
@@ -232,6 +234,7 @@ namespace Assertive.Runtime
     /// members, private nested types); the generator guarantees the name + argument count
     /// resolve to a single method. Exceptions thrown by the method are rethrown unwrapped.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort reflective method invocation for failure messages; trimmed metadata makes the lookup fail and the assertion degrades to reporting its source text.")]
     public static object? InvokeInstance(object target, string methodName, object?[] arguments)
     {
       for (var type = target.GetType(); type != null; type = type.BaseType)
@@ -274,6 +277,8 @@ namespace Assertive.Runtime
     /// (private helpers); the generator guarantees the name + argument count resolve to a
     /// single method. Exceptions thrown by the method are rethrown unwrapped.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Best-effort reflective decomposition for failure messages; trimmed metadata makes the lookup fail and the assertion degrades to reporting its source text.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort reflective decomposition for failure messages; trimmed metadata makes the lookup fail and the assertion degrades to reporting its source text.")]
     public static object? InvokeStatic(Type type, string methodName, object?[] arguments)
     {
       for (var current = type; current != null; current = current.BaseType)
@@ -311,6 +316,7 @@ namespace Assertive.Runtime
     }
 
     /// <summary>Reads an instance field or property by name, ignoring accessibility.</summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort reflective member read for failure messages; trimmed metadata makes the lookup fail and the assertion degrades to reporting its source text.")]
     public static object? GetMemberValue(object target, string memberName)
     {
       const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly;
@@ -345,6 +351,8 @@ namespace Assertive.Runtime
     /// on an untyped source, for reflective evaluation when the element type cannot be
     /// named in generated code. Exceptions thrown by the method are rethrown unwrapped.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2060", Justification = "Best-effort reflective evaluation of a parameterless LINQ operator; trimmed metadata makes the lookup fail and the assertion degrades to reporting its source text.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050", Justification = "MakeGenericMethod over the element type is best-effort; under AOT it may throw and the assertion degrades to reporting its source text.")]
     public static object? InvokeLinq(object source, string methodName)
     {
       var elementType = GetEnumerableElementType(source.GetType())
@@ -377,6 +385,7 @@ namespace Assertive.Runtime
       }
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Best-effort element-type discovery for reflective LINQ evaluation; trimmed interface metadata simply yields no element type and the assertion degrades to reporting its source text.")]
     private static Type? GetEnumerableElementType(Type type)
     {
       if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
@@ -396,6 +405,7 @@ namespace Assertive.Runtime
     }
 
     /// <summary>Resolves a nested type by metadata name, ignoring accessibility.</summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Best-effort reflective decomposition for failure messages; trimmed metadata makes the lookup fail and the assertion degrades to reporting its source text.")]
     public static Type GetNestedType(Type parent, string name)
     {
       return parent.GetNestedType(name, BindingFlags.Public | BindingFlags.NonPublic)
@@ -403,6 +413,8 @@ namespace Assertive.Runtime
     }
 
     /// <summary>Reads a static field or property (including enum constants) by name, ignoring accessibility.</summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Best-effort reflective decomposition for failure messages; trimmed metadata makes the lookup fail and the assertion degrades to reporting its source text.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort reflective decomposition for failure messages; trimmed metadata makes the lookup fail and the assertion degrades to reporting its source text.")]
     public static object? GetStaticMemberValue(Type type, string memberName)
     {
       const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.DeclaredOnly;

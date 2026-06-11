@@ -22,6 +22,9 @@ namespace Assertive.TestFrameworks
       }
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Best-effort reflection to detect the running xUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort reflection to detect the running xUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2080", Justification = "Best-effort reflection to detect the running xUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
     public CurrentTestInfo? GetCurrentTestInfo()
     {
       // Assertive.xUnit.v3 (xUnit v3) and Assertive.xUnit (xUnit v2) both expose the same
