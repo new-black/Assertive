@@ -413,21 +413,53 @@ namespace Assertive.Generators
       }
     }
 
+    /// <summary>Syntax-level pure &&-only check (no ||, &, | anywhere in the tree).</summary>
+    private static bool IsPureAndAlsoSyntax(ExpressionSyntax expression)
+    {
+      expression = StripParens(expression);
+
+      if (expression is not BinaryExpressionSyntax binary)
+      {
+        return true;
+      }
+
+      var kind = binary.Kind();
+
+      if (kind != SyntaxKind.LogicalAndExpression)
+      {
+        // Non-logical binary (==, !=, +, >, etc.) is a leaf, not a chain operator — OK.
+        // Logical || / & / | make the chain mixed, which breaks pattern-var scoping.
+        return kind is not (SyntaxKind.LogicalOrExpression
+          or SyntaxKind.BitwiseAndExpression
+          or SyntaxKind.BitwiseOrExpression);
+      }
+
+      return IsPureAndAlsoSyntax(binary.Left) && IsPureAndAlsoSyntax(binary.Right);
+    }
+
     /// <summary>
     /// Builds the part tree of a logically-composed assertion. Each leaf carries a pasted
     /// re-evaluation of its source (exact semantics), its classified decomposition (when the
     /// leaf is a whitelisted form), a custom-pattern probe, its exception steps, and the
     /// captured locals it introduced. Null when any leaf cannot be re-evaluated.
+    ///
+    /// patternBindings accumulates pattern-variable bindings across &&-chain leaves
+    /// (left-to-right), enabling cross-conjunct pattern var use (obj is T u &amp;&amp; u.Prop == x).
     /// </summary>
     private static SplitPart? BuildSplitPart(GeneratorSyntaxContext ctx, ExpressionSyntax expression,
-      InterceptedCall call, OperandCompiler compiler, CancellationToken ct)
+      InterceptedCall call, OperandCompiler compiler, CancellationToken ct,
+      Dictionary<string, LambdaBinding>? patternBindings = null)
     {
       expression = StripParens(expression);
 
       if (expression is BinaryExpressionSyntax binary && IsSplittableLogical(binary, ctx, ct))
       {
-        var left = BuildSplitPart(ctx, binary.Left, call, compiler, ct);
-        var right = left != null ? BuildSplitPart(ctx, binary.Right, call, compiler, ct) : null;
+        // For &&-only chains, the same patternBindings dict flows left→right so pattern vars
+        // declared in left subtrees are visible in right subtrees. For other operators (||, &,
+        // |) pattern vars don't cross branches (C# semantics), so bindings are withheld.
+        var isAndAlso = binary.IsKind(SyntaxKind.LogicalAndExpression);
+        var left = BuildSplitPart(ctx, binary.Left, call, compiler, ct, isAndAlso ? patternBindings : null);
+        var right = left != null ? BuildSplitPart(ctx, binary.Right, call, compiler, ct, isAndAlso ? patternBindings : null) : null;
 
         if (right == null)
         {
@@ -447,7 +479,38 @@ namespace Assertive.Generators
 
       // Leaf: locals registered while compiling this leaf belong to its report.
       var localsBefore = call.CapturedLocals.Count;
-      var condition = compiler.Compile(expression);
+
+      // Detect a pattern-variable declaration in this leaf: `obj is T u` or `obj is T { } u`.
+      // When the chain is &&-only (patternBindings non-null) and the type is nameable, set up:
+      //   - A pre-declared outer nullable var (PreDeclName) accessible outside the try block.
+      //   - A temp pattern var name (TmpName) used inside the condition to avoid CS0136.
+      //   - A LambdaBinding entry so subsequent leaves see the pre-declared var in their code.
+      // The condition source is compiled with designationRenames so it references TmpName.
+      Dictionary<string, string>? designationRenames = null;
+      var patternVarDecls = new List<(string TypeFqn, string PreDeclName, string TmpName)>();
+
+      if (patternBindings != null
+          && expression is IsPatternExpressionSyntax
+          {
+            Pattern: DeclarationPatternSyntax { Designation: SingleVariableDesignationSyntax pvDesig }
+          }
+          && ctx.SemanticModel.GetDeclaredSymbol(pvDesig, ct) is ILocalSymbol pvSymbol
+          && IsUsableType(pvSymbol.Type, ctx.SemanticModel.Compilation))
+      {
+        var typeFqn = pvSymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var origName = pvDesig.Identifier.ValueText;
+        var pvIndex = patternBindings.Count;
+        var preDeclName = $"__pv{pvIndex}_{origName}";
+        var tmpName = $"__pvtmp{pvIndex}_{origName}";
+
+        designationRenames = new Dictionary<string, string> { [origName] = tmpName };
+
+        // The TypedReplacement cast peels the nullable and casts to the declared type.
+        patternBindings[origName] = new LambdaBinding($"(({typeFqn}){preDeclName}!)", preDeclName);
+        patternVarDecls.Add((typeFqn, preDeclName, tmpName));
+      }
+
+      var condition = compiler.Compile(expression, patternBindings, designationRenames);
 
       if (condition == null)
       {
@@ -465,7 +528,7 @@ namespace Assertive.Generators
 
       // Kinds that don't recompute negation (Contains, Bool, ...) read the pre-set value.
       var subCall = new InterceptedCall { Negated = leafNegated };
-      var classified = ClassifyForm(ctx, leafCore, leafNegated, subCall, compiler, ct);
+      var classified = ClassifyForm(ctx, leafCore, leafNegated, subCall, compiler, ct, bindings: patternBindings);
 
       var part = new SplitPart
       {
@@ -477,6 +540,7 @@ namespace Assertive.Generators
       };
 
       part.Locals.AddRange(call.CapturedLocals.Skip(localsBefore));
+      part.PatternVars.AddRange(patternVarDecls);
 
       return part;
     }
@@ -539,7 +603,14 @@ namespace Assertive.Generators
           }
 
           call.Kind = InterceptionKind.Split;
-          call.SplitRoot = BuildSplitPart(ctx, logical, call, compiler, ct);
+
+          // For pure &&-only chains, pattern variables declared in one conjunct (obj is T u)
+          // can be used in subsequent conjuncts (u.Name == "Bob"). The bindings accumulate
+          // left-to-right and are only safe with &&-short-circuit semantics. Mixed chains
+          // (||, &, |) don't get this accumulator; cross-conjunct pattern vars there degrade
+          // to Opaque (correct — C# scoping is more complex).
+          var patternBindings = IsPureAndAlsoSyntax(logical) ? new Dictionary<string, LambdaBinding>() : null;
+          call.SplitRoot = BuildSplitPart(ctx, logical, call, compiler, ct, patternBindings);
           return call.SplitRoot != null;
         }
 
@@ -662,6 +733,34 @@ namespace Assertive.Generators
           call.Kind = InterceptionKind.Is;
           call.TypeAccessor = compiler.TypeAccessor(checkedType);
           return call.TypeAccessor != null && SetLeft(call, compiler, binary.Left, bindings, display);
+        }
+
+        // C# 7+ pattern matching: `obj is Type`, `obj is Type u`, `obj is { Prop: val }`, etc.
+        // Declaration and type patterns route to the Is kind; others fall through to Opaque.
+        case IsPatternExpressionSyntax isPattern:
+        {
+          ITypeSymbol? checkedType = isPattern.Pattern switch
+          {
+            TypePatternSyntax typePat => ctx.SemanticModel.GetTypeInfo(typePat.Type, ct).Type,
+            DeclarationPatternSyntax declPat => ctx.SemanticModel.GetTypeInfo(declPat.Type, ct).Type,
+            _ => null,
+          };
+
+          if (checkedType == null)
+          {
+            return false;
+          }
+
+          if (checkedType.SpecialType == SpecialType.System_Object)
+          {
+            call.Kind = InterceptionKind.Null;
+            call.Negated = outerNegated;
+            return SetLeft(call, compiler, isPattern.Expression, bindings, display);
+          }
+
+          call.Kind = InterceptionKind.Is;
+          call.TypeAccessor = compiler.TypeAccessor(checkedType);
+          return call.TypeAccessor != null && SetLeft(call, compiler, isPattern.Expression, bindings, display);
         }
 
         case InvocationExpressionSyntax
@@ -1035,9 +1134,10 @@ namespace Assertive.Generators
       public string? CompileTypedOnly(ExpressionSyntax operand, IReadOnlyDictionary<string, LambdaBinding>? bindings = null)
         => CompileTyped(operand, bindings);
 
-      public string? Compile(ExpressionSyntax operand, IReadOnlyDictionary<string, LambdaBinding>? bindings = null)
+      public string? Compile(ExpressionSyntax operand, IReadOnlyDictionary<string, LambdaBinding>? bindings = null,
+        IReadOnlyDictionary<string, string>? designationRenames = null)
       {
-        var typed = CompileTyped(operand, bindings);
+        var typed = CompileTyped(operand, bindings, designationRenames);
 
         if (typed != null)
         {
@@ -1055,7 +1155,8 @@ namespace Assertive.Generators
         return reflective;
       }
 
-      private string? CompileTyped(ExpressionSyntax operand, IReadOnlyDictionary<string, LambdaBinding>? bindings = null)
+      private string? CompileTyped(ExpressionSyntax operand, IReadOnlyDictionary<string, LambdaBinding>? bindings = null,
+        IReadOnlyDictionary<string, string>? designationRenames = null)
       {
         var captures = new List<(string Name, string? Type)>();
 
@@ -1064,7 +1165,7 @@ namespace Assertive.Generators
           return null;
         }
 
-        var rewriter = new TypedRenderRewriter(_model, operand, bindings, _ct);
+        var rewriter = new TypedRenderRewriter(_model, operand, bindings, _ct, designationRenames);
         var rendered = rewriter.Visit(operand);
 
         if (rewriter.Failed || rendered == null)
@@ -1214,6 +1315,22 @@ namespace Assertive.Generators
                 continue;
               }
 
+              // Pattern-variable binding from a prior &&-chain conjunct: the TypedRenderRewriter
+              // replaces this name with the pre-declared outer variable.
+              if (bindings != null && bindings.TryGetValue(local.Name, out var pvBinding)
+                  && pvBinding.TypedReplacement != null)
+              {
+                continue;
+              }
+
+              // A local declared inside the assertion body but not within this fragment is
+              // a pattern variable (or out-var) from another conjunct — it is not a closure
+              // field and cannot be read via GetCapturedValue.
+              if (IsDeclaredWithin(local, _body))
+              {
+                return false;
+              }
+
               // Const locals have no closure field (they're baked in as constants).
               if (local.IsConst || !IsUsableType(local.Type, _compilation))
               {
@@ -1341,15 +1458,18 @@ namespace Assertive.Generators
         private readonly SyntaxNode _fragment;
         private readonly IReadOnlyDictionary<string, LambdaBinding>? _bindings;
         private readonly CancellationToken _ct;
+        private readonly IReadOnlyDictionary<string, string>? _designationRenames;
 
         public bool Failed;
 
-        public TypedRenderRewriter(SemanticModel model, SyntaxNode fragment, IReadOnlyDictionary<string, LambdaBinding>? bindings, CancellationToken ct)
+        public TypedRenderRewriter(SemanticModel model, SyntaxNode fragment, IReadOnlyDictionary<string, LambdaBinding>? bindings,
+          CancellationToken ct, IReadOnlyDictionary<string, string>? designationRenames = null)
         {
           _model = model;
           _fragment = fragment;
           _bindings = bindings;
           _ct = ct;
+          _designationRenames = designationRenames;
         }
 
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
@@ -1357,6 +1477,20 @@ namespace Assertive.Generators
 
         public override SyntaxNode? VisitGenericName(GenericNameSyntax node)
           => RewriteName(node, base.VisitGenericName(node));
+
+        // Rename the declaration variable in is-pattern expressions when the analyzer has
+        // assigned a temp name (e.g. `obj is User u` → `obj is User __pvtmp0_u`) to avoid
+        // CS0136 with the pre-declared outer pattern variable.
+        public override SyntaxNode? VisitSingleVariableDesignation(SingleVariableDesignationSyntax node)
+        {
+          if (_designationRenames != null
+              && _designationRenames.TryGetValue(node.Identifier.ValueText, out var renamed))
+          {
+            return node.WithIdentifier(SyntaxFactory.Identifier(renamed).WithTriviaFrom(node.Identifier));
+          }
+
+          return base.VisitSingleVariableDesignation(node);
+        }
 
         private SyntaxNode? RewriteName(SimpleNameSyntax original, SyntaxNode? visited)
         {
@@ -1382,6 +1516,17 @@ namespace Assertive.Generators
               && binding.TypedReplacement != null)
           {
             return SyntaxFactory.ParseExpression(binding.TypedReplacement).WithTriviaFrom(original);
+          }
+
+          // Pattern variable from a prior &&-chain conjunct: replace with the pre-declared
+          // outer variable (TypedReplacement is e.g. "((User)__pv0_u!)").
+          if (_bindings != null
+              && symbol is ILocalSymbol local
+              && !IsDeclaredWithin(local, _fragment)
+              && _bindings.TryGetValue(local.Name, out var localBinding)
+              && localBinding.TypedReplacement != null)
+          {
+            return SyntaxFactory.ParseExpression(localBinding.TypedReplacement).WithTriviaFrom(original);
           }
 
           return visited;
@@ -1462,6 +1607,19 @@ namespace Assertive.Generators
             switch (_model.GetSymbolInfo(identifier, _ct).Symbol)
             {
               case ILocalSymbol { IsConst: false } local:
+                // Pattern variable binding from a prior &&-chain conjunct.
+                if (bindings != null && bindings.TryGetValue(local.Name, out var pvBinding))
+                {
+                  return pvBinding.ReflectiveReplacement;
+                }
+
+                // Local declared inside the body but not bound = pattern var from another
+                // conjunct without a binding → not in the closure, cannot read reflectively.
+                if (IsDeclaredWithin(local, _body))
+                {
+                  return null;
+                }
+
                 AddCapture(captures, local.Name, local.Type);
                 return Identifier(local.Name);
 

@@ -426,16 +426,28 @@ namespace Assertive.Generators
     /// </summary>
     private static void BuildAndChain(StringBuilder sb, List<SplitPart> leaves, string assertionTextArg, string tailArgs, string indent)
     {
+      // Pre-declare pattern variables outside the try block so they're accessible in the
+      // switch cases too. Each is nullable (T?) so the pre-declaration is valid before the
+      // is-match runs. The condition uses a separate __pvtmpN_name pattern variable to avoid
+      // CS0136 (outer-scope conflict); on match, __pvN_name is assigned from the temp.
+      foreach (var leaf in leaves)
+      {
+        foreach (var pv in leaf.PatternVars)
+        {
+          sb.AppendLine($"{indent}{pv.TypeFqn}? {pv.PreDeclName} = default;");
+        }
+      }
+
       sb.AppendLine($"{indent}var __k = 0;");
       sb.AppendLine($"{indent}var __ok = false;");
       sb.AppendLine($"{indent}global::System.Exception __le = null;");
       sb.AppendLine($"{indent}try");
       sb.AppendLine($"{indent}{{");
-      sb.AppendLine($"{indent}  __ok = (bool)(object)({leaves[0].ConditionSource});");
+      EmitAndChainLeafEval(sb, leaves[0], $"{indent}  ", first: true, index: 0);
 
       for (var i = 1; i < leaves.Count; i++)
       {
-        sb.AppendLine($"{indent}  if (__ok) {{ __k = {i}; __ok = (bool)(object)({leaves[i].ConditionSource}); }}");
+        EmitAndChainLeafEval(sb, leaves[i], $"{indent}  ", first: false, index: i);
       }
 
       sb.AppendLine($"{indent}}}");
@@ -460,6 +472,53 @@ namespace Assertive.Generators
       }
 
       sb.AppendLine($"{indent}}}");
+    }
+
+    /// <summary>
+    /// Emits one leaf's condition evaluation inside the try block of BuildAndChain.
+    /// Plain leaves use the compact single-line form; leaves that declare pattern variables
+    /// expand to multi-line so the pattern-var assignment can follow the condition.
+    /// </summary>
+    private static void EmitAndChainLeafEval(StringBuilder sb, SplitPart leaf, string indent, bool first, int index)
+    {
+      var condition = $"(bool)(object)({leaf.ConditionSource})";
+
+      if (leaf.PatternVars.Count == 0)
+      {
+        // No pattern variables: the existing compact form.
+        sb.AppendLine(first
+          ? $"{indent}__ok = {condition};"
+          : $"{indent}if (__ok) {{ __k = {index}; __ok = {condition}; }}");
+      }
+      else
+      {
+        // Pattern-variable leaf: use an if/else form so C# flow analysis knows the
+        // temp pattern variable (e.g. __pvtmp0_u) is definitely assigned in the true
+        // branch before we copy it to the pre-declared outer variable.
+        // Using __ok = (bool)(object)(... is T __pvtmpN_v); if (__ok) __pvN_v = __pvtmpN_v;
+        // would trigger CS0165 because the compiler doesn't track that __ok==true implies
+        // the pattern matched and the temp var is assigned.
+        if (!first)
+        {
+          sb.AppendLine($"{indent}if (__ok)");
+          sb.AppendLine($"{indent}{{");
+          sb.AppendLine($"{indent}  __k = {index};");
+        }
+
+        var inner = first ? indent : $"{indent}  ";
+        sb.Append($"{inner}if ({leaf.ConditionSource}) {{ __ok = true;");
+        foreach (var pv in leaf.PatternVars)
+        {
+          sb.Append($" {pv.PreDeclName} = {pv.TmpName};");
+        }
+
+        sb.AppendLine($" }} else __ok = false;");
+
+        if (!first)
+        {
+          sb.AppendLine($"{indent}}}");
+        }
+      }
     }
 
     /// <summary>One conjunct's report: leaf-scoped locals once, the exception case, then the classified decomposition.</summary>
@@ -862,6 +921,14 @@ namespace Assertive.Generators
 
     /// <summary>Captured locals introduced by this leaf's compilations.</summary>
     public List<(string Name, string? Type)> Locals { get; } = new();
+
+    /// <summary>
+    /// Pattern variables declared by this leaf via an is-pattern in a &&-only chain. Each
+    /// entry names a nullable pre-declared var (PreDeclName, e.g. __pv0_u) that holds the
+    /// matched value across the chain, and a temp pattern var name (TmpName, e.g. __pvtmp0_u)
+    /// used inside the try-block condition to avoid the outer-scope conflict (CS0136).
+    /// </summary>
+    public List<(string TypeFqn, string PreDeclName, string TmpName)> PatternVars { get; } = new();
   }
 
   /// <summary>An [AssertionWrapper] method pair (see AssertionWrapperAttribute in Assertive).</summary>
