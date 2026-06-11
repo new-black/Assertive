@@ -17,7 +17,7 @@ dotnet add package Assertive
 Or add to your project file:
 
 ```xml
-<PackageReference Include="Assertive" Version="0.25.0" />
+<PackageReference Include="Assertive" Version="0.26.0" />
 ```
 
 For [snapshot testing](#snapshot-testing) with xUnit, also add:
@@ -37,9 +37,11 @@ dotnet add package Assertive.xUnit.v3
 - [Installation](#installation)
 - [What it looks like](#what-it-looks-like)
 - [Using the DSL](#using-the-dsl)
+- [How it works](#how-it-works)
 - [How is this different from using Assert.IsTrue?](#how-is-this-different-from-using-assertistrue)
 - [Features](#features)
   - [Multiple assertions](#multiple-assertions)
+  - [Async assertions](#async-assertions)
   - [Exception assertions](#exception-assertions)
   - [Snapshot testing](#snapshot-testing)
     - [Configuration](#configuration)
@@ -69,6 +71,7 @@ dotnet add package Assertive.xUnit.v3
   - [Configuration](#configuration-1)
 - [Output](#output)
   - [Value length truncation](#value-length-truncation)
+- [Native AOT and trimming](#native-aot-and-trimming)
 - [Compatibility](#compatibility)
   - [.NET](#net)
   - [Test frameworks](#test-frameworks)
@@ -115,29 +118,43 @@ using static Assertive.DSL;
 Assert(() => payment.Amount == 50);
 ```
 
-The `using static Assertive.DSL` import allows you to write `Assert()` instead of `Assert.That()`. Both are functionally identical, so use whichever style you prefer.
+The `using static Assertive.DSL` import allows you to write `Assert()` instead of `Assert.That()`. Both are functionally identical, but the DSL form is generally preferred: writing `Assert.That(...)` can clash with the `Assert` class that test frameworks like xUnit bring into scope, whereas the `Assert(...)` DSL call avoids that conflict.
+
+## How it works
+
+Assertive uses a **source generator** that inspects each `Assert(() => ...)` call at compile time and generates code tailored to that specific assertion. When an assertion passes, the lambda runs once and that's it. When it fails, the generated code breaks the expression down to produce a precise, contextual error message.
+
+This means you can write assertions using the **full C# language** — `await`, pattern matching, null-conditional `?.`, tuple literals, `out var`, and so on all work and are understood by the failure analysis. Any valid C# you can put in a lambda is fair game.
+
+No configuration is required: referencing the `Assertive` package automatically opts your test project into the interceptors the generator emits.
 
 ## How is this different from using Assert.IsTrue?
 
 While `Assert.IsTrue(a == b)` would have the same result for a passing test, it will give you an opaque error message about false not being true or something along those lines when the test fails. 
 
-Because Assertive accepts an expression it will analyze the expression and output an error message like this:
+Because Assertive analyzes the assertion at compile time it can break it down and output an error message like this:
 
 <img width="642" height="181" alt="image" src="https://github.com/user-attachments/assets/324a8471-d4c5-4c71-b70b-b1b493c7832a" />
 
 Assertive has a number of built-in patterns that it recognizes, which currently consists of:
 
-- Boolean check (`Assert(() => success)`)
-- Equality comparison (`Assert(() => a == b)`)
-- Numerical comparisons (`Assert(() => a >= b)`)
-- Null checks (`Assert(() => value != null)` or `Assert(() => creditBalance.HasValue)` or `Assert(() => value is object)`)
-- Size and length checks (`Assert(() => customers.Count(c => c.Age > 50) > 0))` or `Assert(() => name.Length < 50)`)
-- Collection existence checks (`Assert(() => customers.Any(c => c.Age <= 40))` or `Assert(() => customers.All(c => c.IsVerified))`)
-- Collection contains checks (`Assert(() => result.Contains("test"))`)
-- Collection equality comparison (`Assert(() => seq1.SequenceEqual(seq2))`)
-- String contains/starts with/ends with checks (`Assert(() => name.StartsWith("John"))`)
-- Reference equality checks (`Assert(() => ReferenceEquals(a, b))`)
-- Type checks (`Assert(() => value is string)`)
+| What you're checking | Example |
+|---|---|
+| Boolean | `Assert(() => success)` |
+| Equality | `Assert(() => a == b)` |
+| Ordering | `Assert(() => a >= b)` |
+| Null / has-value | `Assert(() => value != null)`, `Assert(() => balance.HasValue)` |
+| Size & length | `Assert(() => name.Length < 50)`, `Assert(() => customers.Count(c => c.Age > 50) > 0)` |
+| Collection existence | `Assert(() => customers.Any(c => c.Age <= 40))`, `Assert(() => customers.All(c => c.IsVerified))` |
+| Collection contains | `Assert(() => result.Contains("test"))` |
+| Sequence equality | `Assert(() => seq1.SequenceEqual(seq2))` |
+| String prefix / suffix / contains | `Assert(() => name.StartsWith("John"))` |
+| Reference equality | `Assert(() => ReferenceEquals(a, b))` |
+| Type / `is` patterns | `Assert(() => value is string)`, `Assert(() => value is User u && u.Name == "Bob")` |
+| Property patterns (incl. nested) | `Assert(() => value is User { Age: > 18 })`, `Assert(() => person is { Address: { City: "NYC" } })` |
+| Relational / constant | `Assert(() => n is >= 0 and <= 100)` |
+| List patterns | `Assert(() => arr is [1, 2, 3])`, `Assert(() => arr is [_, > 0, ..])` |
+| `out var` | `Assert(() => dict.TryGetValue(key, out var v) && v.Length > 3)` |
 
 When there is no matching pattern for your assertion, it will simply report the assertion that failed plus whatever useful information can be distilled from the assertion.
 
@@ -165,9 +182,19 @@ This assertion would fail with the message:
 
 <img width="658" height="220" alt="image" src="https://github.com/user-attachments/assets/29fb06cf-e1f2-48c6-814e-cb2978da2954" />
 
-Short-circuiting works as you would expect, if the first assertion fails then the second one is not evaluated.
+When you chain conditions with `&&`, short-circuiting works as you would expect: the assertion stops at the first condition that fails, and that condition is the one reported.
 
-Likewise, it's possible to use a bitwise AND (`&`) to force evaluation of both sides.
+With any other combination — `||`, the bitwise `&` or `|`, or a mix of operators — Assertive reports *every* condition that failed rather than just the first. For `||` this is exactly what you want: the assertion only fails when all of its alternatives are false, so all of them are worth showing.
+
+### Async assertions
+
+Assertions can be `async`. Just pass an async lambda and `await` the result:
+
+```csharp
+await Assert(async () => await GetOrderStatusAsync(orderId) == OrderStatus.Paid);
+```
+
+The same failure analysis applies — the awaited result is shown in the error message just like a synchronous one. This works with any awaitable, and you can freely mix `await` with the other features (multiple assertions, pattern matching, etc.) in a single assertion.
 
 ### Exception assertions
 
@@ -214,8 +241,8 @@ Assert.Throws<ArgumentException>(() => ThrowsInvalidOperation());
 
 ### Snapshot testing
 
-Inspired by the snapshot testing of [Verify](https://github.com/VerifyTests/Verify) Assertive also supports snapshot testing of objects. What this means is that you simply call `Assert(myObject);` (or `Assert.Snapshot` if not using `using static Assertive.DSL`) and a snapshot is made of the object (in JSON format) and is compared to a stored
-snapshot from a previous execution. If they still match, the test passes and otherwise it fails. 
+Inspired by the snapshot testing of [Verify](https://github.com/VerifyTests/Verify) Assertive also supports snapshot testing of objects. What this means is that you simply call `Assert(myObject);` (or `Assert.Snapshot` if not using `using static Assertive.DSL`) and a snapshot is made of the object — in JSON format, or verbatim as a plain `.txt` file when you pass a `string` directly — and is compared to a stored
+snapshot from a previous execution. If they still match, the test passes and otherwise it fails.
 
 The first time you add a snapshot assertion, no `expected.json` file exists yet for the assertion. If you have a diff tool like WinMerge installed, you can integrate with the excellent [DiffEngine](https://github.com/VerifyTests/DiffEngine) and register it like this:
 
@@ -469,6 +496,25 @@ Configuration.Snapshots.IgnoreLineEndingDifferences = true;
 ```
 
 When enabled, `\r\n`, `\r`, and `\n` are all treated as equivalent for the comparison and the diff that's shown on failure.
+
+**Normalizing string snapshots line by line:**
+
+When asserting a `string` directly (`Assert(myString)`), you can register a transform that runs on every line before it's written or compared. This is useful for stripping machine- or run-specific content so the snapshot stays stable. Return the (possibly rewritten) line, or `null` to drop the line entirely:
+
+```csharp
+Configuration.Snapshots.StringTransform = line =>
+{
+    // Drop volatile framework stack-trace frames (they differ across OS/runtime),
+    // keeping only your own frames.
+    if (Regex.IsMatch(line, @"^\s+at ") && !line.Contains("MyCompany."))
+    {
+        return null;
+    }
+
+    // Strip absolute file paths down to "<file>.cs:line <n>".
+    return Regex.Replace(line, @" in .+[/\\]([^/\\]+\.cs):line (\d+)", " in $1:line $2");
+};
+```
 
 ### Exception handling
 
@@ -830,11 +876,30 @@ Configuration.Output.MaxValueLength = 500;
 Configuration.Output.MaxValueLength = null;
 ```
 
+## Native AOT and trimming
+
+Assertive works in Native AOT and trimmed applications. Because the failure analysis is generated at compile time rather than relying on runtime reflection or expression compilation, there's no runtime code generation to trip over AOT's restrictions.
+
+The reporting is **best-effort under trimming**, and degrades gracefully when the metadata it would otherwise use has been trimmed away:
+
+- **Passing assertions** are completely unaffected — the assertion lambda runs directly and nothing is reflected over.
+- **Failing assertions** are still reported. When a value or member the detailed message would render has been trimmed away, that part falls back to showing the assertion source text instead of the fully decomposed value. You always get a failure with the source of the assertion; you may not always get every evaluated sub-value.
+
+For the fullest failure messages under AOT/trimming, root your test (or app) assembly so its metadata is preserved:
+
+```xml
+<ItemGroup>
+  <TrimmerRootAssembly Include="YourTestAssembly" />
+</ItemGroup>
+```
+
+With the assembly rooted, decomposition works for everything declared in it. Reads that reach into other assemblies that have themselves been trimmed (for example `ValueTuple.Item1` in the BCL) degrade per-value to source text rather than failing.
+
 ## Compatibility
 
 ### .NET
 
-Assertive targets .NET 8. 
+Assertive targets .NET 8. Because it relies on C# interceptors to generate its failure analysis, a reasonably recent .NET SDK is required to build your test project. The interceptors are enabled automatically when you reference the package — no project configuration is needed.
 
 ### Test frameworks
 
@@ -857,8 +922,7 @@ The attribute lives in the `Assertive.xUnit` namespace in both packages, so the 
 
 ## Limitations
 
-- Assertive is entirely based on the .NET Expression API which has some limitations in the syntax that is supported inside an expression. Most notable is a lack of support for `await`, `dynamic`, tuple literals and the `?.` operator. 
-- For accurate messages on failing tests it's important that the assertions themselves are side-effect free and don't modify state, as Assertive works by evaluating expressions multiple times in case of a failed assertion. If the assertion modifies state then that state will be modified multiple times.
+- For accurate messages on failing tests it's important that the assertions themselves are side-effect free and don't modify state. When an assertion **fails**, Assertive re-evaluates parts of it to build the detailed error message, so any side-effects in the assertion would run more than once. (A passing assertion is only ever evaluated once.)
 
 
 
