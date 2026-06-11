@@ -112,7 +112,6 @@ namespace Assertive.Generators
       sb.AppendLine($"    [global::System.Runtime.CompilerServices.InterceptsLocation({call.LocationVersion}, {Quote(call.LocationData)})]");
       sb.AppendLine($"    public static void That{index}({parameters})");
       sb.AppendLine("    {");
-      sb.AppendLine("      global::Assertive.Runtime.GeneratedAssert.MarkIntercepted();");
       sb.AppendLine("      try");
       sb.AppendLine("      {");
       EmitEvaluation(sb, call, "__assertion", "__expr", $"{messageArg}, {contextArg}, {contextExprArg}", "        ");
@@ -157,7 +156,6 @@ namespace Assertive.Generators
       sb.AppendLine($"    [global::System.Runtime.CompilerServices.InterceptsLocation({call.LocationVersion}, {Quote(call.LocationData)})]");
       sb.AppendLine($"    public static {wrapper.ReturnTypeFqn} Wrapper{index}({string.Join(", ", parameters)})");
       sb.AppendLine("    {");
-      sb.AppendLine("      global::Assertive.Runtime.GeneratedAssert.MarkIntercepted();");
       sb.AppendLine($"      {returnKeyword}{target}.{wrapper.MethodName}(global::Assertive.AssertionHandle.Generated([global::System.Diagnostics.StackTraceHidden] () =>");
       sb.AppendLine("      {");
       sb.AppendLine("        try");
@@ -206,7 +204,6 @@ namespace Assertive.Generators
       sb.AppendLine($"    [global::System.Runtime.CompilerServices.InterceptsLocation({call.LocationVersion}, {Quote(call.LocationData)})]");
       sb.AppendLine($"    public static {(isAsync ? "async " : "")}{returnType} Throws{index}({actionType} __action, global::System.Func<{exceptionType}, bool> __assertion, string __actionExpr, string __exceptionExpr)");
       sb.AppendLine("    {");
-      sb.AppendLine("      global::Assertive.Runtime.GeneratedAssert.MarkIntercepted();");
       EmitCaptureDecls(sb, call, "__assertion", "      ");
       sb.AppendLine($"      return ({exceptionType}){awaitKeyword}global::Assertive.Runtime.GeneratedAssert.{runtimeEntry}(");
       sb.AppendLine($"        {actionArg},");

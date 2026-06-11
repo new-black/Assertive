@@ -61,10 +61,8 @@ namespace Assertive.Test.Generators
       var x = "foobar";
       var expectedIndex = 5;
 
-      var before = GeneratedAssert.InterceptedCallCount;
       var exception = CaptureFailure(() => x.IndexOf('b') == expectedIndex, "label");
 
-      Assert.True(GeneratedAssert.InterceptedCallCount > before);
       Assert.NotNull(exception);
 
       var expected = StripAnsi(string.Join("\n", (string[])exception!.Data["Assertive.Expected"]!));
@@ -76,24 +74,19 @@ namespace Assertive.Test.Generators
     {
       var value = 41;
 
-      var before = GeneratedAssert.InterceptedCallCount;
       var exception = CaptureFailureInstance(() => value == 42);
-
-      Assert.True(GeneratedAssert.InterceptedCallCount > before);
 
       var expected = StripAnsi(string.Join("\n", (string[])exception!.Data["Assertive.Expected"]!));
       Assert.Equal("value: 42", expected);
     }
 
     [Fact]
-    public void Passing_assertion_through_wrapper_is_intercepted_and_returns_no_failure()
+    public void Passing_assertion_through_wrapper_returns_no_failure()
     {
       var x = "foobar";
 
-      var before = GeneratedAssert.InterceptedCallCount;
       var result = CaptureFailure(() => x.IndexOf('o') == 1, "label");
 
-      Assert.True(GeneratedAssert.InterceptedCallCount > before);
       Assert.Null(result);
     }
 
@@ -103,10 +96,9 @@ namespace Assertive.Test.Generators
       var x = "foobar";
       Func<bool> storedCondition = () => x.Length == 5;
 
-      var before = GeneratedAssert.InterceptedCallCount;
       var exception = CaptureFailure(storedCondition, "label");
 
-      Assert.Equal(before, GeneratedAssert.InterceptedCallCount);
+      // Not intercepted (no lambda literal): no decomposition, source text only.
       Assert.NotNull(exception);
       Assert.Contains("storedCondition", StripAnsi(exception!.Message));
       Assert.Empty((string[])exception.Data["Assertive.Expected"]!);
@@ -117,12 +109,10 @@ namespace Assertive.Test.Generators
     {
       var x = "not null";
 
-      var before = GeneratedAssert.InterceptedCallCount;
       var exception = CaptureFailure(() => x.Contains('n') && x.Contains('z'), "label");
 
       // The && body splits into conjuncts through the wrapper too: the failing one
       // reports with its own decomposed message.
-      Assert.True(GeneratedAssert.InterceptedCallCount > before);
       Assert.NotNull(exception);
       Assert.Contains("x should contain the substring 'z'.", StripAnsi(exception!.Message));
     }

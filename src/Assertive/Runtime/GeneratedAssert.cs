@@ -5,7 +5,6 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using System.Threading;
 using Assertive.Helpers;
 
 namespace Assertive.Runtime
@@ -18,16 +17,6 @@ namespace Assertive.Runtime
   [System.Diagnostics.StackTraceHidden]
   public static class GeneratedAssert
   {
-    private static long _interceptedCallCount;
-
-    /// <summary>
-    /// The number of Assert.That calls that were served by a generated interceptor in this
-    /// process. Exists for diagnostics and for tests that need to prove interception is active.
-    /// </summary>
-    public static long InterceptedCallCount => Interlocked.Read(ref _interceptedCallCount);
-
-    public static void MarkIntercepted() => Interlocked.Increment(ref _interceptedCallCount);
-
     /// <summary>
     /// Whether the exception is an Assertive assertion failure (as opposed to an exception
     /// thrown while evaluating the assertion). Used by generated exception filters.

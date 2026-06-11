@@ -250,7 +250,6 @@ enum ExceptionStepKind
   LambdaIteration
 
 static class GeneratedAssert
-  static long InterceptedCallCount { get; }
   static Exception AllFailure(string assertionExpression, string collectionSource, string filterSource, bool collectionIsMethodCall, object collectionValue, bool negated, Func<object, int, bool> filter, Func<object, int, Exception> subFailure, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception AnyFailure(string assertionExpression, string collectionSource, string filterSource, bool negated, int count, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception BoolFailure(string assertionExpression, string source, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
@@ -273,7 +272,6 @@ static class GeneratedAssert
   static bool IsAssertionFailure(Exception exception)
   static Exception IsTypeFailure(string assertionExpression, string source, object value, Type expectedType, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception LengthFailure(string assertionExpression, string operandSource, string filterSource, string countLabel, string comparisonLabel, object actualLength, string rightSource, object rightValue, bool rightIsConstant, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
-  static void MarkIntercepted()
   static Exception NullFailure(string assertionExpression, string source, object value, bool expectedNull, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static bool ObjectEquals(object left, object right)
   static Exception ReferenceEqualsFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)

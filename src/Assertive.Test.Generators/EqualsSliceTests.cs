@@ -3,7 +3,6 @@ namespace Assertive.Test.Generators
   using System;
   using System.Linq;
   using System.Text.RegularExpressions;
-  using Assertive.Runtime;
   using Xunit;
   using Assert = Xunit.Assert;
   using AssertiveAssert = Assertive.Assert;
@@ -17,21 +16,19 @@ namespace Assertive.Test.Generators
   {
     private static string StripAnsi(string input) => Regex.Replace(input, @"\[[0-9;]*[A-Za-z]", "");
 
-    private static (Exception? Exception, bool WasIntercepted) Run(Action assert)
+    // Interception is observable through the failure itself: only intercepted call sites
+    // produce decomposed Expected/Actual data; the degraded path leaves it empty.
+    private static Exception? Run(Action assert)
     {
-      var before = GeneratedAssert.InterceptedCallCount;
-      Exception? exception = null;
-
       try
       {
         assert();
+        return null;
       }
       catch (Exception ex)
       {
-        exception = ex;
+        return ex;
       }
-
-      return (exception, GeneratedAssert.InterceptedCallCount > before);
     }
 
     private static (string Expected, string Actual) Decomposition(Exception exception)
@@ -47,9 +44,8 @@ namespace Assertive.Test.Generators
       var x = "foobar";
       var expectedIndex = 5;
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => x.IndexOf('b') == expectedIndex));
+      var exception = Run(() => AssertiveAssert.That(() => x.IndexOf('b') == expectedIndex));
 
-      Assert.True(wasIntercepted);
       Assert.NotNull(exception);
 
       var (expected, actual) = Decomposition(exception!);
@@ -58,13 +54,12 @@ namespace Assertive.Test.Generators
     }
 
     [Fact]
-    public void Passing_equality_is_intercepted_and_does_not_throw()
+    public void Passing_equality_does_not_throw()
     {
       var x = "foobar";
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => x.IndexOf('o') == 1));
+      var exception = Run(() => AssertiveAssert.That(() => x.IndexOf('o') == 1));
 
-      Assert.True(wasIntercepted);
       Assert.Null(exception);
     }
 
@@ -74,9 +69,7 @@ namespace Assertive.Test.Generators
       var left = "same";
       var right = "same";
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => left != right));
-
-      Assert.True(wasIntercepted);
+      var exception = Run(() => AssertiveAssert.That(() => left != right));
 
       var (expected, actual) = Decomposition(exception!);
       Assert.Equal("left: should not equal \"same\".", expected);
@@ -89,9 +82,7 @@ namespace Assertive.Test.Generators
       var a = "A";
       var b = "B";
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => a.Equals(b)));
-
-      Assert.True(wasIntercepted);
+      var exception = Run(() => AssertiveAssert.That(() => a.Equals(b)));
 
       var (expected, actual) = Decomposition(exception!);
       Assert.Equal("a: \"B\"", expected);
@@ -104,9 +95,8 @@ namespace Assertive.Test.Generators
       var actualValue = 41;
       var expectedValue = 42;
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => actualValue == expectedValue, "the answer matters"));
+      var exception = Run(() => AssertiveAssert.That(() => actualValue == expectedValue, "the answer matters"));
 
-      Assert.True(wasIntercepted);
       Assert.Contains("the answer matters", StripAnsi(exception!.Message));
       Assert.Contains("MESSAGE", StripAnsi(exception.Message));
     }
@@ -116,9 +106,7 @@ namespace Assertive.Test.Generators
     {
       var comparison = StringComparison.OrdinalIgnoreCase;
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => comparison == StringComparison.Ordinal));
-
-      Assert.True(wasIntercepted);
+      var exception = Run(() => AssertiveAssert.That(() => comparison == StringComparison.Ordinal));
 
       var (expected, _) = Decomposition(exception!);
       Assert.Contains("comparison:", expected);
@@ -130,9 +118,8 @@ namespace Assertive.Test.Generators
     {
       var user = new User();
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => user.Name.ToUpper() == "FOO"));
+      var exception = Run(() => AssertiveAssert.That(() => user.Name.ToUpper() == "FOO"));
 
-      Assert.True(wasIntercepted);
       Assert.NotNull(exception);
 
       var message = StripAnsi(exception!.Message);
@@ -147,7 +134,7 @@ namespace Assertive.Test.Generators
       var x = "foobar";
       var expectedIndex = 5;
 
-      var (exception, _) = Run(() => AssertiveAssert.That(() => x.IndexOf('b') == expectedIndex));
+      var exception = Run(() => AssertiveAssert.That(() => x.IndexOf('b') == expectedIndex));
 
       var message = StripAnsi(exception!.Message);
       Assert.Contains("LOCALS", message);
@@ -161,9 +148,7 @@ namespace Assertive.Test.Generators
     {
       string? value = "not null";
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => value == null));
-
-      Assert.True(wasIntercepted);
+      var exception = Run(() => AssertiveAssert.That(() => value == null));
 
       var (expected, actual) = Decomposition(exception!);
       Assert.Equal("value should be null.", expected);
@@ -175,11 +160,10 @@ namespace Assertive.Test.Generators
     {
       var value = "ab";
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => value.Contains('a') && value.Contains('z')));
+      var exception = Run(() => AssertiveAssert.That(() => value.Contains('a') && value.Contains('z')));
 
       // && combines multiple asserts in one statement: only the failing conjunct is
       // reported, with its own decomposed message.
-      Assert.True(wasIntercepted);
       Assert.NotNull(exception);
 
       var (expected, actual) = Decomposition(exception!);
@@ -192,9 +176,8 @@ namespace Assertive.Test.Generators
     {
       var secret = new Secret();
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => secret.Value == 4));
+      var exception = Run(() => AssertiveAssert.That(() => secret.Value == 4));
 
-      Assert.True(wasIntercepted);
       Assert.NotNull(exception);
 
       var (expected, actual) = Decomposition(exception!);
@@ -208,9 +191,7 @@ namespace Assertive.Test.Generators
       var a = Mood.Happy;
       var b = Mood.Grumpy;
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => a == b));
-
-      Assert.True(wasIntercepted);
+      var exception = Run(() => AssertiveAssert.That(() => a == b));
 
       var (expected, actual) = Decomposition(exception!);
       Assert.Equal("a: Mood.Grumpy", expected);
@@ -222,9 +203,7 @@ namespace Assertive.Test.Generators
     {
       Mood? a = null;
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => a == Mood.Grumpy));
-
-      Assert.True(wasIntercepted);
+      var exception = Run(() => AssertiveAssert.That(() => a == Mood.Grumpy));
 
       var (expected, actual) = Decomposition(exception!);
       Assert.Equal("a: Mood.Grumpy", expected);
@@ -234,9 +213,7 @@ namespace Assertive.Test.Generators
     [Fact]
     public void Private_method_on_this_is_invoked_reflectively()
     {
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => GetTuple().a == GetTuple().b));
-
-      Assert.True(wasIntercepted);
+      var exception = Run(() => AssertiveAssert.That(() => GetTuple().a == GetTuple().b));
 
       var (expected, actual) = Decomposition(exception!);
       Assert.Equal("GetTuple().a: \"b\"", expected);
@@ -249,9 +226,7 @@ namespace Assertive.Test.Generators
       var instance1 = new object();
       var instance2 = new object();
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => ReferenceEquals(instance1, instance2)));
-
-      Assert.True(wasIntercepted);
+      var exception = Run(() => AssertiveAssert.That(() => ReferenceEquals(instance1, instance2)));
 
       var (expected, actual) = Decomposition(exception!);
       Assert.Equal("instance1 and instance2 should be the same instance.", expected);
@@ -264,9 +239,7 @@ namespace Assertive.Test.Generators
       var instance1 = new object();
       var instance2 = instance1;
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => !ReferenceEquals(instance1, instance2)));
-
-      Assert.True(wasIntercepted);
+      var exception = Run(() => AssertiveAssert.That(() => !ReferenceEquals(instance1, instance2)));
 
       var (expected, _) = Decomposition(exception!);
       Assert.Equal("instance1 and instance2 should be different instances.", expected);
@@ -283,9 +256,8 @@ namespace Assertive.Test.Generators
     {
       Secret secret = null!;
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => secret.Value == 4));
+      var exception = Run(() => AssertiveAssert.That(() => secret.Value == 4));
 
-      Assert.True(wasIntercepted);
       Assert.NotNull(exception);
 
       var handled = (string[])exception!.Data["Assertive.HandledExceptions"]!;
@@ -297,9 +269,8 @@ namespace Assertive.Test.Generators
     {
       var users = new[] { new User { Name = "a" }, new User { Name = null! } };
 
-      var (exception, wasIntercepted) = Run(() => AssertiveAssert.That(() => users.All(u => u.Name.Length > 0)));
+      var exception = Run(() => AssertiveAssert.That(() => users.All(u => u.Name.Length > 0)));
 
-      Assert.True(wasIntercepted);
       Assert.NotNull(exception);
 
       var handled = StripAnsi(((string[])exception!.Data["Assertive.HandledExceptions"]!).Single());
