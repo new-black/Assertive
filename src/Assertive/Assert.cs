@@ -11,18 +11,21 @@ namespace Assertive
   public static class Assert
   {
     /// <summary>
+    /// The assertion source text shown when a call site was not intercepted by the source
+    /// generator (stored delegate, named arguments, generator not running): the interceptor
+    /// embeds the source text; without it there is nothing to report.
+    /// </summary>
+    internal const string UninterceptedSource = "(assertion source unavailable: this call site was not intercepted by the Assertive source generator)";
+
+    /// <summary>
     /// Asserts that the given condition evaluates to true.
     /// </summary>
     /// <param name="assertion">A boolean condition to evaluate.</param>
     /// <param name="message">A custom message to include in the failure output.</param>
     /// <param name="context">Additional context to include in the failure output.</param>
-    /// <param name="assertionExpression">The assertion source text (automatically captured).</param>
-    /// <param name="contextExpression">The context source text (automatically captured).</param>
-    public static void That(Func<bool> assertion, object? message = null, Func<object?>? context = null,
-      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
-      [CallerArgumentExpression(nameof(context))] string? contextExpression = null)
+    public static void That(Func<bool> assertion, object? message = null, Func<object?>? context = null)
     {
-      ThatCore(assertion, message, context, assertionExpression, contextExpression);
+      ThatCore(assertion, message, context, UninterceptedSource, null);
     }
 
     /// <summary>
@@ -30,13 +33,9 @@ namespace Assertive
     /// </summary>
     /// <param name="assertion">A boolean condition to evaluate.</param>
     /// <param name="context">Additional context to include in the failure output.</param>
-    /// <param name="assertionExpression">The assertion source text (automatically captured).</param>
-    /// <param name="contextExpression">The context source text (automatically captured).</param>
-    public static void That(Func<bool> assertion, Func<object?> context,
-      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
-      [CallerArgumentExpression(nameof(context))] string? contextExpression = null)
+    public static void That(Func<bool> assertion, Func<object?> context)
     {
-      ThatCore(assertion, null, context, assertionExpression, contextExpression);
+      ThatCore(assertion, null, context, UninterceptedSource, null);
     }
 
     internal static void ThatCore(Func<bool> assertion, object? message, Func<object?>? context, string assertionExpression, string? contextExpression)

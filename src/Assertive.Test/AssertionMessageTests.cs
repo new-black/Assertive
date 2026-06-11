@@ -28,7 +28,7 @@ namespace Assertive.Test
         Amount = 10
       };
       
-      ShouldFailWithMessage(() => order.Amount > 20, "Expected orderID to be more than 20", """
+      ShouldFailWith(() => Assert.That(() => order.Amount > 20, "Expected orderID to be more than 20"), """
                                                                                             [MESSAGE]
                                                                                             Expected orderID to be more than 20
                                                                                             """);
@@ -49,7 +49,7 @@ namespace Assertive.Test
         Amount = 10
       };
       
-      ShouldFailWithMessage(() => order.Amount > 20, order, """
+      ShouldFailWith(() => Assert.That(() => order.Amount > 20, order), """
                                                             [MESSAGE]
                                                             { ID = 999, Amount = 10 }
                                                             """);
@@ -64,7 +64,7 @@ namespace Assertive.Test
         Amount = 10
       };
 
-      ShouldFailWithMessage(() => order.Amount > 20, order, """
+      ShouldFailWith(() => Assert.That(() => order.Amount > 20, order), """
                                                             [MESSAGE]
                                                             { ID = 999, Amount = 10 }
                                                             """);

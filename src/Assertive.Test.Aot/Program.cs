@@ -47,7 +47,7 @@ namespace Assertive.Test.Aot
       Check(nameof(Exception_cause_inside_lambda_gets_item_context), Exception_cause_inside_lambda_gets_item_context);
       Check(nameof(Logical_and_is_split), Logical_and_is_split);
       Check(nameof(Locals_are_serialized), Locals_are_serialized);
-      Check(nameof(Degraded_path_reports_source_text), Degraded_path_reports_source_text);
+      Check(nameof(Degraded_path_reports_unintercepted_marker), Degraded_path_reports_unintercepted_marker);
       Check(nameof(Passing_assertion_does_not_throw), Passing_assertion_does_not_throw);
       Check(nameof(Throws_returns_the_exception), Throws_returns_the_exception);
       Check(nameof(Throws_fails_when_nothing_is_thrown), Throws_fails_when_nothing_is_thrown);
@@ -197,16 +197,17 @@ namespace Assertive.Test.Aot
       });
     }
 
-    private static void Degraded_path_reports_source_text()
+    private static void Degraded_path_reports_unintercepted_marker()
     {
       var x = "foobar";
       Func<bool> storedCondition = () => x.Length == 5;
 
       var exception = Capture(() => Assert(storedCondition));
 
-      // Not intercepted (no lambda literal): no decomposition, source text only.
+      // Not intercepted (no lambda literal): without CallerArgumentExpression on the public
+      // API there is no source text; the failure says so explicitly.
       Expect(exception != null, "assertion should fail");
-      Expect(StripAnsi(exception!.Message).Contains("storedCondition"), $"missing source text: {exception.Message}");
+      Expect(StripAnsi(exception!.Message).Contains("was not intercepted"), $"missing unintercepted marker: {exception.Message}");
     }
 
     private static void Passing_assertion_does_not_throw()

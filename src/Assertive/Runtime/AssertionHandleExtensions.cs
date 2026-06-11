@@ -21,7 +21,8 @@ namespace Assertive.Runtime
         return;
       }
 
-      Assertive.Assert.ThatCore(assertion.Condition!, null, null, assertion.SourceText ?? "", null);
+      Assertive.Assert.ThatCore(assertion.Condition!, null, null,
+        string.IsNullOrEmpty(assertion.SourceText) ? Assertive.Assert.UninterceptedSource : assertion.SourceText!, null);
     }
   }
 }

@@ -108,6 +108,20 @@ namespace Assertive.Generators
         Negated = outerNegated,
       };
 
+      // The context argument's source text labels the CONTEXT section; without the
+      // CallerArgumentExpression parameters it is reconstructed here from the call site.
+      if (overload != null)
+      {
+        var contextArgIndex = overload == ThatOverload.Context ? 1 : 2;
+        var arguments = invocation.ArgumentList.Arguments;
+
+        if (arguments.Count > contextArgIndex
+            && !arguments[contextArgIndex].Expression.IsKind(SyntaxKind.NullLiteralExpression))
+        {
+          call.ContextSource = arguments[contextArgIndex].Expression.ToString();
+        }
+      }
+
       var compiler = new OperandCompiler(ctx.SemanticModel, body, call, ct);
 
       if (!ClassifyForm(ctx, core, outerNegated, call, compiler, ct))
@@ -1833,12 +1847,12 @@ namespace Assertive.Generators
 
     private static ThatOverload? ClassifyOverload(IMethodSymbol method)
     {
-      // That(Func<bool>, object? message, Func<object?>? context, [CAE] string, [CAE] string)
-      // and That(Func<bool>, Func<object?> context, [CAE] string, [CAE] string).
+      // That(Func<bool>, object? message, Func<object?>? context)
+      // and That(Func<bool>, Func<object?> context).
       return method.Parameters.Length switch
       {
-        4 when method.Parameters[1].Type is INamedTypeSymbol { Name: "Func" } => ThatOverload.Context,
-        5 when method.Parameters[1].Type.SpecialType == SpecialType.System_Object => ThatOverload.MessageContext,
+        2 when method.Parameters[1].Type is INamedTypeSymbol { Name: "Func" } => ThatOverload.Context,
+        3 when method.Parameters[1].Type.SpecialType == SpecialType.System_Object => ThatOverload.MessageContext,
         _ => null,
       };
     }

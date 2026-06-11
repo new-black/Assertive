@@ -150,17 +150,27 @@ namespace Assertive.Generators
     {
       var parameters = call.Overload switch
       {
-        ThatOverload.Context => "__FB __f, __FC __c, string __s, string __cs",
-        _ => "__FB __f, object __m, __FC __c, string __s, string __cs",
+        ThatOverload.Context => "__FB __f, __FC __c",
+        _ => "__FB __f, object __m, __FC __c",
       };
 
       var messageArg = call.Overload is ThatOverload.MessageContext ? "__m" : "null";
-      var tailArgs = $"{messageArg}, __c, __cs";
+      var contextExprArg = call.ContextSource != null ? "__cs" : "null";
+      var tailArgs = $"{messageArg}, __c, {contextExprArg}";
 
       var sb = new StringBuilder();
 
       sb.AppendLine($"    public static void {NamePlaceholder}({parameters})");
       sb.AppendLine("    {");
+      // Local consts: the interceptor reconstructs the source texts the public API no
+      // longer captures; referenced from the render lambda without forcing a capture.
+      sb.AppendLine($"      const string __s = {Quote(call.BodySource)};");
+
+      if (call.ContextSource != null)
+      {
+        sb.AppendLine($"      const string __cs = {Quote(call.ContextSource)};");
+      }
+
       sb.AppendLine($"      __A.Execute(__f, __s, {tailArgs}, __e =>");
       sb.AppendLine("      {");
       BuildRender(sb, call, "__s", tailArgs, "        ");
@@ -720,6 +730,10 @@ namespace Assertive.Generators
     public List<(string Name, string? Type)> CapturedLocals { get; } = new();
 
     public string BodySource = "";
+
+    /// <summary>Source text of the context argument at the call site, when one was passed.</summary>
+    public string? ContextSource;
+
     public string LeftSource = "";
     public string RightSource = "";
     public string LeftDisplay = "";

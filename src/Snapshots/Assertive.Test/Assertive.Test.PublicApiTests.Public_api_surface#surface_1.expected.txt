@@ -2,8 +2,8 @@ namespace Assertive
 
 static class Assert
   static void Snapshot(object snapshot, AssertSnapshotOptions options, string expression, string sourceFile)
-  static void That(Func<bool> assertion, object message, Func<object> context, string assertionExpression, string contextExpression)
-  static void That(Func<bool> assertion, Func<object> context, string assertionExpression, string contextExpression)
+  static void That(Func<bool> assertion, object message, Func<object> context)
+  static void That(Func<bool> assertion, Func<object> context)
   static Exception Throws(Action action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
   static TException Throws<TException>(Action action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
   static Exception Throws(Func<object> func, Func<Exception, bool> exceptionAssertion, string funcExpression, string exceptionExpression)
@@ -25,8 +25,8 @@ class AssertSnapshotOptions
   string SnapshotIdentifier { get; set; }
 
 static class DSL
-  static void Assert(Func<bool> assertion, object message, Func<object> context, string assertionExpression, string contextExpression)
-  static void Assert(Func<bool> assertion, Func<object> context, string assertionExpression, string contextExpression)
+  static void Assert(Func<bool> assertion, object message, Func<object> context)
+  static void Assert(Func<bool> assertion, Func<object> context)
   static void Assert(object snapshot, AssertSnapshotOptions options, string expression, string sourceFile)
   static Exception Throws(Action action, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression)
   static TException Throws<TException>(Action action, Func<TException, bool> exceptionAssertion, string actionExpression, string exceptionExpression)

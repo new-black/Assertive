@@ -201,43 +201,15 @@ namespace Assertive.Test
       Xunit.Assert.True(throws);
     }
 
-    protected void ShouldFail(Func<bool> assertion, Func<object> context, string expectedMessage,
-      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
-      [CallerArgumentExpression(nameof(context))] string contextExpression = "")
+    /// <summary>
+    /// Runs an assertion statement expected to fail — written inline at the test so its
+    /// Assert call site is intercepted — and checks the failure message.
+    /// </summary>
+    protected void ShouldFailWith(Action assertion, string expectedMessage)
     {
-      bool throws = false;
+      var ex = Xunit.Assert.ThrowsAny<Exception>(assertion);
 
-      try
-      {
-        Assert.That(assertion, context, assertionExpression, contextExpression);
-        Xunit.Assert.Fail("Should have thrown");
-      }
-      catch (Exception ex)
-      {
-        throws = true;
-        Assert.That(() => StripAnsi(ex.Message).Contains(expectedMessage));
-      }
-
-      Xunit.Assert.True(throws);
-    }
-
-    protected void ShouldFailWithMessage(Func<bool> assertion, object message, string expectedMessage,
-      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "")
-    {
-      bool throws = false;
-
-      try
-      {
-        Assert.That(assertion, message, assertionExpression: assertionExpression);
-        Xunit.Assert.Fail("Should have thrown");
-      }
-      catch (Exception ex)
-      {
-        throws = true;
-        Assert.That(() => StripAnsi(ex.Message).Contains(expectedMessage));
-      }
-
-      Xunit.Assert.True(throws);
+      Assert.That(() => StripAnsi(ex.Message).Contains(expectedMessage));
     }
   }
 }

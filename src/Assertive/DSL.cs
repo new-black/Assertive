@@ -17,13 +17,9 @@ namespace Assertive
     /// <param name="assertion">A boolean condition to evaluate.</param>
     /// <param name="message">A custom message to include in the failure output.</param>
     /// <param name="context">Additional context to include in the failure output.</param>
-    /// <param name="assertionExpression">The assertion source text (automatically captured).</param>
-    /// <param name="contextExpression">The context source text (automatically captured).</param>
-    public static void Assert(Func<bool> assertion, object? message = null, Func<object?>? context = null,
-      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
-      [CallerArgumentExpression(nameof(context))] string? contextExpression = null)
+    public static void Assert(Func<bool> assertion, object? message = null, Func<object?>? context = null)
     {
-      Assertive.Assert.ThatCore(assertion, message, context, assertionExpression, contextExpression);
+      Assertive.Assert.ThatCore(assertion, message, context, Assertive.Assert.UninterceptedSource, null);
     }
 
     /// <summary>
@@ -31,13 +27,9 @@ namespace Assertive
     /// </summary>
     /// <param name="assertion">A boolean condition to evaluate.</param>
     /// <param name="context">Additional context to include in the failure output.</param>
-    /// <param name="assertionExpression">The assertion source text (automatically captured).</param>
-    /// <param name="contextExpression">The context source text (automatically captured).</param>
-    public static void Assert(Func<bool> assertion, Func<object?> context,
-      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
-      [CallerArgumentExpression(nameof(context))] string? contextExpression = null)
+    public static void Assert(Func<bool> assertion, Func<object?> context)
     {
-      Assertive.Assert.ThatCore(assertion, null, context, assertionExpression, contextExpression);
+      Assertive.Assert.ThatCore(assertion, null, context, Assertive.Assert.UninterceptedSource, null);
     }
 
     /// <summary>
