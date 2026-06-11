@@ -1,5 +1,5 @@
 
 StartsWith(value: "hello", prefix: prefix)
- ℹ LOCALS                                                                       
+[LOCALS]
 prefix: "world"
 ················································································

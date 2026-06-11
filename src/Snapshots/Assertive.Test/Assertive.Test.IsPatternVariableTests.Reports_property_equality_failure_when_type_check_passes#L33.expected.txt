@@ -1,9 +1,9 @@
 
 u.Name == "Bob"
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 u.Name: "Bob"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 u.Name: "Alice"
 
 ················································································

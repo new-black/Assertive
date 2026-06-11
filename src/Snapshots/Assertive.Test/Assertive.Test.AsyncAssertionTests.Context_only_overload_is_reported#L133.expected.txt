@@ -1,11 +1,11 @@
 
 await ValueAsync(1) == 2
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 await ValueAsync(1): 2
- ✗ ACTUAL                                                                       
+[ACTUAL]
 await ValueAsync(1): 1
 
-   CONTEXT                                                                      
+[CONTEXT]
 orderID = 10
 ················································································

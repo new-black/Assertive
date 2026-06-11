@@ -1,11 +1,11 @@
 
 list.Count() == six
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 list should have a Count equal to six (value: 6).
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Count: 8.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
 ················································································

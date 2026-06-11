@@ -1,9 +1,9 @@
 
 two < one
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 two should be less than one.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 two: 2
 one: 1
 

@@ -1,0 +1,1 @@
+Expected array[1] to throw an exception, but it did not.

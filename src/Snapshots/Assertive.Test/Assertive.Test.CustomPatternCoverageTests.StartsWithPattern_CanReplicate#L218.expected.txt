@@ -1,9 +1,9 @@
 
 text.StartsWith("xyz")
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 text should start with "xyz".
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Value: "hello world"
 
 ················································································

@@ -1,9 +1,9 @@
 
 obj is PropPatUser
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 obj should be of type PropPatUser.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Type: string.
 
 ················································································

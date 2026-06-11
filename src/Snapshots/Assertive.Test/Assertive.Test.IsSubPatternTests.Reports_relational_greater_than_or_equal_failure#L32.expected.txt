@@ -1,9 +1,9 @@
 
 n is >= 10
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 n should be greater than or equal to 10.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 n: 3.
 
 ················································································

@@ -1,9 +1,9 @@
 
 value is string
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 value should be of type string.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 It was null.
 
 ················································································

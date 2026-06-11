@@ -35,7 +35,7 @@ namespace Assertive.Generators
     /// LambdaIteration step whose inner steps bind the lambda's item/index parameters,
     /// replacing LambdaAwareExpressionVisitor.
     /// </summary>
-    private sealed class ExceptionStepWalker
+    internal sealed class ExceptionStepWalker
     {
       private const string StepType = "__ES";
       private const string StepKind = "__ESK";

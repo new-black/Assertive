@@ -2,12 +2,12 @@
 foo.StringField == "A"
 
 NullReferenceException caused by accessing StringField on foo which was null.
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 foo.StringField
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Object reference not set to an instance of an object.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at Assertive.Test.NullReferenceTests.<>c__DisplayClass6_0.<CauseOfNullReference_on_field_is_found_single_level>b__1() in NullReferenceTests.cs:line 88
- ℹ LOCALS                                                                       
+[LOCALS]
 foo: null
 ················································································

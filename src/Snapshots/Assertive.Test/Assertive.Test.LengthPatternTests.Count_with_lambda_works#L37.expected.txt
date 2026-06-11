@@ -1,11 +1,11 @@
 
 customers.Count(c => c.Age > 50) > 0
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 customers with filter c.Age > 50 should have a Count greater than 0.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Count: 0.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 customers: [ ]
 ················································································

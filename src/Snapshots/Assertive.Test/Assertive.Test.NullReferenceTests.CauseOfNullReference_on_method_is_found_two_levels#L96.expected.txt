@@ -2,12 +2,12 @@
 foo.Bar.ReturnsNotNull().Length == 1
 
 NullReferenceException caused by calling ReturnsNotNull on foo.Bar which was null.
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 foo.Bar.ReturnsNotNull()
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Object reference not set to an instance of an object.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at Assertive.Test.NullReferenceTests.<>c__DisplayClass7_0.<CauseOfNullReference_on_method_is_found_two_levels>b__0() in NullReferenceTests.cs:line 96
- ℹ LOCALS                                                                       
+[LOCALS]
 foo: { }
 ················································································

@@ -2,12 +2,12 @@
 foo.Bar.StringProperty.Replace("a", "b").Length == 1
 
 NullReferenceException caused by calling Replace on foo.Bar.StringProperty which was null.
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 foo.Bar.StringProperty.Replace("a", "b")
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Object reference not set to an instance of an object.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at Assertive.Test.NullReferenceTests.<>c__DisplayClass10_0.<CauseOfNullReference_on_method_is_found_three_levels>b__0() in NullReferenceTests.cs:line 125
- ℹ LOCALS                                                                       
+[LOCALS]
 foo: { Bar = { Throws = <exception serializing = NullReferenceException> } }
 ················································································

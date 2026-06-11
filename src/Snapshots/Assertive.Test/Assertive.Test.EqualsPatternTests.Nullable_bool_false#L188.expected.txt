@@ -1,9 +1,9 @@
 
 success == false
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 success: false
- ✗ ACTUAL                                                                       
+[ACTUAL]
 success: null
 
 ················································································

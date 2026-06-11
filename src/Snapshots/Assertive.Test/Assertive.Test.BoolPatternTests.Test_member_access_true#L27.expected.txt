@@ -1,11 +1,11 @@
 
 foo.Success
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 foo.Success: true
- ✗ ACTUAL                                                                       
+[ACTUAL]
 false
 
- ℹ LOCALS                                                                       
+[LOCALS]
 foo: { Success = False }
 ················································································

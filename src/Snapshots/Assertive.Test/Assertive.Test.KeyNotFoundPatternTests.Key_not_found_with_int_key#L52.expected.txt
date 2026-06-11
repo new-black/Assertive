@@ -2,13 +2,13 @@
 dict[99] == "ninety-nine"
 
 KeyNotFoundException caused by accessing key 99 on dict. Available keys: 1, 2.
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 dict[99]
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 The given key '99' was not present in the dictionary.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at System.Collections.Generic.Dictionary`2.get_Item(TKey key)
    at Assertive.Test.KeyNotFoundPatternTests.<>c__DisplayClass3_0.<Key_not_found_with_int_key>b__0() in KeyNotFoundPatternTests.cs:line 52
- ℹ LOCALS                                                                       
+[LOCALS]
 dict: { [1] = "one", [2] = "two" }
 ················································································

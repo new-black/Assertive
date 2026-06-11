@@ -2,12 +2,12 @@
 list.FirstOrDefault().Bar.StringField.Length == 1
 
 NullReferenceException caused by accessing Bar on list.FirstOrDefault() which was null.
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 list.FirstOrDefault().Bar
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Object reference not set to an instance of an object.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at Assertive.Test.NullReferenceTests.<>c__DisplayClass13_0.<First_or_default_on_empty_collection>b__0() in NullReferenceTests.cs:line 151
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ ]
 ················································································

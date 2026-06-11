@@ -1,9 +1,9 @@
 
 @event == "handled"
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 @event: "handled"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 @event: "raised"
 
 ················································································

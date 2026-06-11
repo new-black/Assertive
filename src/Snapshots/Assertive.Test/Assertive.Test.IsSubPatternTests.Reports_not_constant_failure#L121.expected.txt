@@ -1,9 +1,9 @@
 
 n is not 42
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 n: should not equal 42.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 n: 42
 
 ················································································

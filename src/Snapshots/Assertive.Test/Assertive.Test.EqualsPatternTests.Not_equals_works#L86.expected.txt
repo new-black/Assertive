@@ -1,12 +1,12 @@
 
 foo + bar != "foobar"
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 foo + bar: should not equal "foobar".
- ✗ ACTUAL                                                                       
+[ACTUAL]
 foo + bar: "foobar"
 
- ℹ LOCALS                                                                       
+[LOCALS]
 foo: "foo"
 bar: "bar"
 ················································································

@@ -2,12 +2,12 @@
 array[1] == 1
 
 IndexOutOfRangeException caused by accessing index 1 on array, actual length was 0.
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 array[1]
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Index was outside the bounds of the array.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at Assertive.Test.ThrowsTests.<>c__DisplayClass3_0.<Assertion_that_throw_tests>b__1() in ThrowsTests.cs:line 30
- ℹ LOCALS                                                                       
+[LOCALS]
 array: [ ]
 ················································································

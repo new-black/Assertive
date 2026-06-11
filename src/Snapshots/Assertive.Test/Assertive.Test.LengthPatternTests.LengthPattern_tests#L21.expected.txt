@@ -1,12 +1,12 @@
 
 list.Count != array.Length
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 list should have a Count not equal to array.Length (value: 2).
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Count: 2.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ "a", "b" ]
 array: [ 0, 0 ]
 ················································································

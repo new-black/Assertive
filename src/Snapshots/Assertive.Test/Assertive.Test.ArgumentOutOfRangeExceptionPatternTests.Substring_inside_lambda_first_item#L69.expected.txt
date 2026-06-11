@@ -5,16 +5,16 @@ ArgumentOutOfRangeException caused by calling Substring(i.StartIndex (value: 5))
 
 On item [0] of items:
 { Text = "x", StartIndex = 5 }
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 i.Text.Substring(i.StartIndex)
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 startIndex cannot be larger than length of string. (Parameter 'startIndex')
-   STACKTRACE                                                                   
+[STACKTRACE]
    at System.String.ThrowSubstringArgumentOutOfRange(Int32 startIndex, Int32 length)
    at System.String.Substring(Int32 startIndex)
    at Assertive.Test.ArgumentOutOfRangeExceptionPatternTests.<>c.<Substring_inside_lambda_first_item>b__6_1(Item i) in ArgumentOutOfRangeExceptionPatternTests.cs:line 69
    at System.Linq.Enumerable.Any[TSource](IEnumerable`1 source, Func`2 predicate)
    at Assertive.Test.ArgumentOutOfRangeExceptionPatternTests.<>c__DisplayClass6_0.<Substring_inside_lambda_first_item>b__0() in ArgumentOutOfRangeExceptionPatternTests.cs:line 69
- ℹ LOCALS                                                                       
+[LOCALS]
 items: [ { Text = "x", StartIndex = 5 }, { Text = "hello", StartIndex = 2 } ]
 ················································································

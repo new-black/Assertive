@@ -1,9 +1,9 @@
 
 a == MyEnum.B
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 a: MyEnum.B
- ✗ ACTUAL                                                                       
+[ACTUAL]
 a: MyEnum.A
 
 ················································································

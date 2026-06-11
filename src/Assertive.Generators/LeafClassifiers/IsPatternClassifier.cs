@@ -31,7 +31,7 @@ namespace Assertive.Generators
       {
         ctx.Call.Kind = InterceptionKind.Split;
         var innerBindings = new Dictionary<string, CallSiteAnalyzer.LambdaBinding>();
-        ctx.Call.SplitRoot = CallSiteAnalyzer.BuildSplitPart(ctx.Syntax, isPattern, ctx.Call, ctx.Compiler, ctx.Ct, innerBindings);
+        ctx.Call.SplitRoot = SplitTreeBuilder.BuildSplitPart(ctx.Syntax, isPattern, ctx.Call, ctx.Compiler, ctx.Ct, innerBindings);
         return ctx.Call.SplitRoot != null;
       }
 
@@ -42,7 +42,7 @@ namespace Assertive.Generators
       {
         ctx.Call.Kind = InterceptionKind.Split;
         var innerBindings = new Dictionary<string, CallSiteAnalyzer.LambdaBinding>();
-        ctx.Call.SplitRoot = CallSiteAnalyzer.BuildSplitPart(ctx.Syntax, isPattern, ctx.Call, ctx.Compiler, ctx.Ct, innerBindings);
+        ctx.Call.SplitRoot = SplitTreeBuilder.BuildSplitPart(ctx.Syntax, isPattern, ctx.Call, ctx.Compiler, ctx.Ct, innerBindings);
         return ctx.Call.SplitRoot != null;
       }
 
@@ -52,7 +52,7 @@ namespace Assertive.Generators
       {
         ctx.Call.Kind = InterceptionKind.Split;
         var innerBindings = new Dictionary<string, CallSiteAnalyzer.LambdaBinding>();
-        ctx.Call.SplitRoot = CallSiteAnalyzer.BuildSplitPart(ctx.Syntax, isPattern, ctx.Call, ctx.Compiler, ctx.Ct, innerBindings);
+        ctx.Call.SplitRoot = SplitTreeBuilder.BuildSplitPart(ctx.Syntax, isPattern, ctx.Call, ctx.Compiler, ctx.Ct, innerBindings);
         return ctx.Call.SplitRoot != null;
       }
 
@@ -61,7 +61,7 @@ namespace Assertive.Generators
       {
         case RelationalPatternSyntax relational when !patternNegated && !outerNegated:
         {
-          var (compLabel, opStr) = CallSiteAnalyzer.GetRelationalParts(relational.OperatorToken.Kind());
+          var (compLabel, opStr) = SplitTreeBuilder.GetRelationalParts(relational.OperatorToken.Kind());
           ctx.Call.Kind = InterceptionKind.Comparison;
           ctx.Call.ComparisonLabel = compLabel;
           return CallSiteAnalyzer.SetLeft(ctx.Call, ctx.Compiler, isPattern.Expression, ctx.Bindings, ctx.Display)

@@ -1,9 +1,9 @@
 
 arr == null
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 arr should be null.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 [
   1,
   2,

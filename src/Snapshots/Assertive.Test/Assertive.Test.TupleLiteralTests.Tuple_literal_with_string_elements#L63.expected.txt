@@ -1,11 +1,11 @@
 
 (name, 1) == ("bar", 1)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 (name, 1): (bar, 1)
- ✗ ACTUAL                                                                       
+[ACTUAL]
 (name, 1): (foo, 1)
 
- ℹ LOCALS                                                                       
+[LOCALS]
 name: "foo"
 ················································································

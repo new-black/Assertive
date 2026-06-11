@@ -1,11 +1,11 @@
 
 list.Any()
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 Collection list should contain some items.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 It contained no items.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ ]
 ················································································

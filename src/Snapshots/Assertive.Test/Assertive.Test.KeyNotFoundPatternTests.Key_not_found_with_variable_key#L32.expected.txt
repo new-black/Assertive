@@ -2,14 +2,14 @@
 dict[key] == 3
 
 KeyNotFoundException caused by accessing key key (value: "missing") on dict. Available keys: "foo", "bar".
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 dict[key]
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 The given key 'missing' was not present in the dictionary.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at System.Collections.Generic.Dictionary`2.get_Item(TKey key)
    at Assertive.Test.KeyNotFoundPatternTests.<>c__DisplayClass1_0.<Key_not_found_with_variable_key>b__0() in KeyNotFoundPatternTests.cs:line 32
- ℹ LOCALS                                                                       
+[LOCALS]
 dict: { ["foo"] = 1, ["bar"] = 2 }
 key: "missing"
 ················································································

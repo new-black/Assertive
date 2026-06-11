@@ -1,11 +1,11 @@
 
 customers.Count() == expectedCustomers
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 customers should have a Count equal to expectedCustomers (value: 2).
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Count: 3.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 customers: [ { ID = 1, FirstName = "John" }, { ID = 2, FirstName = "Bob" }, { ID = 3, FirstName = "Alice " } ]
 ················································································

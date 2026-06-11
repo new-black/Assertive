@@ -1,11 +1,11 @@
 
 list.IsEmpty()
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 list should be empty.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 It was not empty.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ "a" ]
 ················································································

@@ -1,9 +1,9 @@
 
 n > 0
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 n should be greater than 0.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 n: -5.
 
 ················································································

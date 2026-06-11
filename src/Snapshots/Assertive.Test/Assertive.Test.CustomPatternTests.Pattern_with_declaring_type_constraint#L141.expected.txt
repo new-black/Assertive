@@ -1,11 +1,11 @@
 
 list.None()
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 Custom: list should be empty.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 It had items.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ "a" ]
 ················································································

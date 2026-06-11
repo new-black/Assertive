@@ -8,7 +8,7 @@ namespace Assertive.Generators
     public bool? TryClassify(ClassificationContext ctx, ExpressionSyntax expr, bool outerNegated, bool leafContext)
     {
       if (expr is not BinaryExpressionSyntax logical
-          || !CallSiteAnalyzer.IsSplittableLogical(logical, ctx.Syntax, ctx.Ct))
+          || !SplitTreeBuilder.IsSplittableLogical(logical, ctx.Syntax, ctx.Ct))
         return null;
 
       // `a && b` is the documented way to combine multiple asserts in one statement:
@@ -25,10 +25,10 @@ namespace Assertive.Generators
       // left-to-right and are only safe with &&-short-circuit semantics. Mixed chains
       // (||, &, |) don't get this accumulator; cross-conjunct pattern vars there degrade
       // to Opaque (correct — C# scoping is more complex).
-      var patternBindings = CallSiteAnalyzer.IsPureAndAlsoSyntax(logical)
+      var patternBindings = SplitTreeBuilder.IsPureAndAlsoSyntax(logical)
         ? new Dictionary<string, CallSiteAnalyzer.LambdaBinding>()
         : null;
-      ctx.Call.SplitRoot = CallSiteAnalyzer.BuildSplitPart(ctx.Syntax, logical, ctx.Call, ctx.Compiler, ctx.Ct, patternBindings);
+      ctx.Call.SplitRoot = SplitTreeBuilder.BuildSplitPart(ctx.Syntax, logical, ctx.Call, ctx.Compiler, ctx.Ct, patternBindings);
       return ctx.Call.SplitRoot != null;
     }
   }

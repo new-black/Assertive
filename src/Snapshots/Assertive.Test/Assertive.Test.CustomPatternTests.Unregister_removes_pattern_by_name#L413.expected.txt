@@ -1,11 +1,11 @@
 
 list.None()
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 Custom message.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Custom actual.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ "a" ]
 ················································································

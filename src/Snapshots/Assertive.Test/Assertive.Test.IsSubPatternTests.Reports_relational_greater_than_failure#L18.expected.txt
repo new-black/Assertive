@@ -1,9 +1,9 @@
 
 n is > 18
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 n should be greater than 18.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 n: 5.
 
 ················································································

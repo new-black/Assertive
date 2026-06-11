@@ -1,11 +1,11 @@
 
 Scaled(2) == 7
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 Scaled(2): 7
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Scaled(2): 6
 
- ℹ LOCALS                                                                       
+[LOCALS]
 factor: 3
 ················································································

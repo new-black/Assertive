@@ -1,11 +1,11 @@
 
 myString.StartsWith(prefix)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 myString: should start with prefix.
 
 prefix: "cba"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 myString: "abcdefghijklmnop"
 
 ················································································

@@ -1,11 +1,11 @@
 
 !list.None()
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 Collection list should contain at least one item.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 It was empty.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ ]
 ················································································

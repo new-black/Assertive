@@ -1,9 +1,9 @@
 
 person.Address.City is "NYC"
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 person.Address.City: "NYC"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 person.Address.City: "London"
 
 ················································································

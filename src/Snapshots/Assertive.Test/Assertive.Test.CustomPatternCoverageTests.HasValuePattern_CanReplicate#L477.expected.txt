@@ -1,9 +1,9 @@
 
 value.HasValue
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 value should have a value.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 It was null.
 
 ················································································

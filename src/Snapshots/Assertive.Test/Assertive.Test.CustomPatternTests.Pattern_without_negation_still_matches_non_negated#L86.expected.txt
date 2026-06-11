@@ -1,11 +1,11 @@
 
 list.NoneStrict()
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 Collection list should not contain any items.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 It contained 2 items.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ "a", "b" ]
 ················································································

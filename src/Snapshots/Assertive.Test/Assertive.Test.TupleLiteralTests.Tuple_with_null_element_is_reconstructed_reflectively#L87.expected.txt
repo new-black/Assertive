@@ -1,9 +1,9 @@
 
 (GetValue(), null) == (9, "x")
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 (GetValue(), null): (9, x)
- ✗ ACTUAL                                                                       
+[ACTUAL]
 (GetValue(), null): (7, )
 
 ················································································

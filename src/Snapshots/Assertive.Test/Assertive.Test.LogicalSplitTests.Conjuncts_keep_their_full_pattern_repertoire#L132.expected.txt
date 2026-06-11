@@ -1,9 +1,9 @@
 
 flag
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 flag: true
- ✗ ACTUAL                                                                       
+[ACTUAL]
 false
 
 ················································································

@@ -1,9 +1,9 @@
 
 final == expected
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 final: 6
- ✗ ACTUAL                                                                       
+[ACTUAL]
 final: 5
 
 ················································································

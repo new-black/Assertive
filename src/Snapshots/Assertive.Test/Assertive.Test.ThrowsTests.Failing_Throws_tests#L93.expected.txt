@@ -1,1 +1,1 @@
-Expected array[1] to throw an exception, but it did not.
+Expected DontThrowAsync() to throw an exception, but it did not.

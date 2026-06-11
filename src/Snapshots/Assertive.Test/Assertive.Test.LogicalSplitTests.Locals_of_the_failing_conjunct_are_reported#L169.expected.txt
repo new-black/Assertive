@@ -1,11 +1,11 @@
 
 items.Length == 5
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 items should have a Length equal to 5.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Length: 2.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 items: [ 1, 2 ]
 ················································································

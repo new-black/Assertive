@@ -1,11 +1,11 @@
 
 foo == s.bar
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 foo: "bar"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 foo: "foo"
 
- ℹ LOCALS                                                                       
+[LOCALS]
 s: (foo, bar)
 ················································································

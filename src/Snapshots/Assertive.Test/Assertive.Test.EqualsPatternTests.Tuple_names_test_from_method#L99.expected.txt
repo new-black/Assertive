@@ -1,9 +1,9 @@
 
 GetTuple().a == GetTuple().b
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 GetTuple().a: "b"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 GetTuple().a: "a"
 
 ················································································

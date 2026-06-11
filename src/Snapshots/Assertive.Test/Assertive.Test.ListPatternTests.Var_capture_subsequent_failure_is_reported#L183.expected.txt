@@ -1,9 +1,9 @@
 
 first > 5
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 first should be greater than 5.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 first: 1.
 
 ················································································

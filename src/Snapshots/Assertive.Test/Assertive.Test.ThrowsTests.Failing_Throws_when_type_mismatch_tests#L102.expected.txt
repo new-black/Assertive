@@ -1,0 +1,1 @@
+Expected sb!.Append("A") to throw an exception of type System.InvalidOperationException, but it threw an exception of type System.NullReferenceException instead.

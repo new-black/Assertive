@@ -1,9 +1,9 @@
 
 u.Age > 18
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 u.Age should be greater than 18.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 u.Age: 5.
 
 ················································································

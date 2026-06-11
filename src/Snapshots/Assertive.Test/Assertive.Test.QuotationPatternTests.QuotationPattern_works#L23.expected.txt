@@ -1,11 +1,11 @@
 
 list[0].Contains("foo")
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 `list[0]` should contain the substring "foo".
- ✗ ACTUAL                                                                       
+[ACTUAL]
 `list[0]`: "a"
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ "a", "b", "c" ]
 ················································································

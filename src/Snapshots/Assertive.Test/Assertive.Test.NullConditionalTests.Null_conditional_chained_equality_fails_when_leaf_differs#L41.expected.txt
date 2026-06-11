@@ -1,11 +1,11 @@
 
 user?.Address?.City == "NYC"
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 user?.Address?.City: "NYC"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 user?.Address?.City: "London"
 
- ℹ LOCALS                                                                       
+[LOCALS]
 user: NcUser { Name = Bob, Address = NcAddress { City = London, Zip =  } }
 ················································································

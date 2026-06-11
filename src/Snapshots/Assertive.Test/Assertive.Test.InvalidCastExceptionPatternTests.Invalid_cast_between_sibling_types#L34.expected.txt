@@ -2,12 +2,12 @@
 ((Cat)animal) != null
 
 InvalidCastException caused by casting animal to Cat. Actual type was Dog.
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 (Cat)animal
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Unable to cast object of type 'Dog' to type 'Cat'.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at Assertive.Test.InvalidCastExceptionPatternTests.<>c__DisplayClass5_0.<Invalid_cast_between_sibling_types>b__0() in InvalidCastExceptionPatternTests.cs:line 34
- ℹ LOCALS                                                                       
+[LOCALS]
 animal: Assertive.Test.InvalidCastExceptionPatternTests+Dog
 ················································································

@@ -1,9 +1,9 @@
 
 n is < 50
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 n should be less than 50.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 n: 100.
 
 ················································································

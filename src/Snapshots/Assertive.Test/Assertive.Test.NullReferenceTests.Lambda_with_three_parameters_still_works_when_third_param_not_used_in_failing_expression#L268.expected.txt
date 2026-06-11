@@ -5,14 +5,14 @@ NullReferenceException caused by accessing ID on s.Category which was null.
 
 On item [0] of surveys:
 { Name = "foo" }
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 s.Category.ID
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Object reference not set to an instance of an object.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at Assertive.Test.NullReferenceTests.<>c.<Lambda_with_three_parameters_still_works_when_third_param_not_used_in_failing_expression>b__23_1(Survey s, Int32 i, String extra) in NullReferenceTests.cs:line 268
    at Assertive.Test.ThreeParamLambdaExtensions.CustomAnyWithThreeParams[T](IEnumerable`1 source, Func`4 predicate) in NullReferenceTests.cs:line 299
    at Assertive.Test.NullReferenceTests.<>c__DisplayClass23_0.<Lambda_with_three_parameters_still_works_when_third_param_not_used_in_failing_expression>b__0() in NullReferenceTests.cs:line 268
- ℹ LOCALS                                                                       
+[LOCALS]
 surveys: [ { Name = "foo" }, { Name = "foo", Category = { ID = 1 } } ]
 ················································································

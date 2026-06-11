@@ -1,6 +1,6 @@
 
 counter.Run("one", false)
- ℹ LOCALS                                                                       
+[LOCALS]
 counter: Assertive.Test.LogicalSplitTests+Counter
 ················································································
 

@@ -1,9 +1,9 @@
 
 !list.Contains(2)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 list should not contain 2.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 list: [ 1, 2, 3 ]
 
 ················································································

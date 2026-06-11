@@ -1,9 +1,9 @@
 
 o is int
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 o should be of type int.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Type: string.
 
 ················································································

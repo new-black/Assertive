@@ -1,11 +1,11 @@
 
 arr.Length == 3
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 arr.Length: 3
- ✗ ACTUAL                                                                       
+[ACTUAL]
 arr.Length: 2
 
- ℹ LOCALS                                                                       
+[LOCALS]
 arr: [ 1, 2 ]
 ················································································

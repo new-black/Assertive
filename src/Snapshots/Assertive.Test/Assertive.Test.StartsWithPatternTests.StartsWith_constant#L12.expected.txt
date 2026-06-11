@@ -1,9 +1,9 @@
 
 myString.StartsWith("cba")
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 myString: should start with "cba".
- ✗ ACTUAL                                                                       
+[ACTUAL]
 myString: "abcdefghijklmnop"
 
 ················································································

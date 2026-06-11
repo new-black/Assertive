@@ -1,16 +1,16 @@
 
 value.Contains("The quick brown cat jumps over the lazy dog")
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 value should contain the substring "The quick brown cat jumps over the lazy dog".
- ✗ ACTUAL                                                                       
+[ACTUAL]
 value: "The quick brown fox jumps over the lazy dog"
 Closest match at position 0 (3 character differences)
 
 String diff (expected vs actual):
 Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
-- [E1] The quick brown fox jumps over the lazy...
-+ [A1] The quick brown cat jumps over the lazy...
+- [E1] The quick brown [-fox-] jumps over the lazy...
++ [A1] The quick brown [+cat+] jumps over the lazy...
 
 
 ················································································

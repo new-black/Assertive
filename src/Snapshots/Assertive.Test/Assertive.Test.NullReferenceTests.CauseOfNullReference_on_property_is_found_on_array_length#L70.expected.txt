@@ -2,12 +2,12 @@
 array.Length == 1
 
 NullReferenceException caused by accessing array length on array which was null.
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 array.Length
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Object reference not set to an instance of an object.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at Assertive.Test.NullReferenceTests.<>c__DisplayClass4_0.<CauseOfNullReference_on_property_is_found_on_array_length>b__0() in NullReferenceTests.cs:line 70
- ℹ LOCALS                                                                       
+[LOCALS]
 array: null
 ················································································

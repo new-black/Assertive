@@ -5,16 +5,16 @@ FormatException caused by calling int.Parse("abc"). "abc" is not a valid int.
 
 On item [1] of items:
 { Value = "abc" }
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 int.Parse(i.Value)
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 The input string 'abc' was not in a correct format.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
    at System.Int32.Parse(String s)
    at Assertive.Test.FormatExceptionPatternTests.<>c.<Parse_inside_lambda>b__6_1(Item i) in FormatExceptionPatternTests.cs:line 62
    at System.Linq.Enumerable.All[TSource](IEnumerable`1 source, Func`2 predicate)
    at Assertive.Test.FormatExceptionPatternTests.<>c__DisplayClass6_0.<Parse_inside_lambda>b__0() in FormatExceptionPatternTests.cs:line 62
- ℹ LOCALS                                                                       
+[LOCALS]
 items: [ { Value = "123" }, { Value = "abc" } ]
 ················································································

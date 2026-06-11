@@ -1,11 +1,11 @@
 
 s.a == s.b
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 s.a: "bar"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 s.a: "foo"
 
- ℹ LOCALS                                                                       
+[LOCALS]
 s: (foo, bar)
 ················································································

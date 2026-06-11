@@ -1,9 +1,9 @@
 
 value.Contains("hello world")
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 value should contain the substring "hello world".
- ✗ ACTUAL                                                                       
+[ACTUAL]
 value: "Hello World"
 The strings differ only in casing
 

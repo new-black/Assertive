@@ -1,9 +1,9 @@
 
 ReferenceEquals(instance1, instance2)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 instance1 and instance2 should be the same instance.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 instance1: System.Object
 instance2: System.Object
 

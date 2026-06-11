@@ -1,9 +1,9 @@
 
 nullString != default(string)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 nullString should not be null.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 null
 
 ················································································

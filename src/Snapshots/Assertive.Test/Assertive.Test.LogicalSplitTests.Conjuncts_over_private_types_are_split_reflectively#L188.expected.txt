@@ -1,15 +1,15 @@
 
 counter.Run("one", false)
- ℹ LOCALS                                                                       
+[LOCALS]
 counter: Assertive.Test.LogicalSplitTests+Counter
 ················································································
 
 
 a == 1
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 a: 1
- ✗ ACTUAL                                                                       
+[ACTUAL]
 a: 5
 
 ················································································

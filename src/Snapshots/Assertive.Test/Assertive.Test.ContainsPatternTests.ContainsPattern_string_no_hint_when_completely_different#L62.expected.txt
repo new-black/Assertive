@@ -1,9 +1,9 @@
 
 value.Contains("xyz")
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 value should contain the substring "xyz".
- ✗ ACTUAL                                                                       
+[ACTUAL]
 value: "abcdefg"
 
 ················································································

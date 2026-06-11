@@ -1,9 +1,9 @@
 
 seq1.SequenceEqual(seq2)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 seq1 should equal seq2
- ✗ ACTUAL                                                                       
+[ACTUAL]
 There were 100 differences (first 10):
 
 [0]: 100 <> 0,

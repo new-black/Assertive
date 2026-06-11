@@ -1,9 +1,9 @@
 
 !a.HasValue
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 a should not have a value.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Value: 1.
 
 ················································································

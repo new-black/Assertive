@@ -1,9 +1,9 @@
 
 list.All(l => l.Length > 10)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 All items of `list` should match the filter `l.Length > 10`
- ✗ ACTUAL                                                                       
+[ACTUAL]
 These 3 items did not:
 
 [0]: "a",
@@ -13,24 +13,24 @@ These 3 items did not:
 Messages per item:
 
 list[0]
- ✓ EXPECTED                                                                     
+[EXPECTED]
 `item` should have a Length greater than 10.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Length: 1.
 
 list[1]
- ✓ EXPECTED                                                                     
+[EXPECTED]
 `item` should have a Length greater than 10.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Length: 1.
 
 list[2]
- ✓ EXPECTED                                                                     
+[EXPECTED]
 `item` should have a Length greater than 10.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Length: 1.
 
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ "a", "b", "c" ]
 ················································································

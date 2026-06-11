@@ -1,11 +1,11 @@
 
 !myString.StartsWith(prefix)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 myString: should not start with prefix.
 
 prefix: "abc"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 myString: "abcdefghijklmnop"
 
 ················································································

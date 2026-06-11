@@ -1,9 +1,9 @@
 
 a.HasValue
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 a should have a value.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 It was null.
 
 ················································································

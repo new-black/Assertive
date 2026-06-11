@@ -2,14 +2,14 @@
 int.Parse(input) == 123
 
 FormatException caused by calling int.Parse("abc"). "abc" is not a valid int.
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 int.Parse(input)
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 The input string 'abc' was not in a correct format.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
    at System.Int32.Parse(String s)
    at Assertive.Test.FormatExceptionPatternTests.<>c__DisplayClass0_0.<Int_Parse_with_invalid_string>b__0() in FormatExceptionPatternTests.cs:line 15
- ℹ LOCALS                                                                       
+[LOCALS]
 input: "abc"
 ················································································

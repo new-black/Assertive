@@ -1,9 +1,9 @@
 
 s is null
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 s should be null.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 "hello"
 
 ················································································

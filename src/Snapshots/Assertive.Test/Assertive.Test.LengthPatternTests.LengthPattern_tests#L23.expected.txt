@@ -1,11 +1,11 @@
 
 list.Count() <= 1
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 list should have a Count less than or equal to 1.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Count: 2.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ "a", "b" ]
 ················································································

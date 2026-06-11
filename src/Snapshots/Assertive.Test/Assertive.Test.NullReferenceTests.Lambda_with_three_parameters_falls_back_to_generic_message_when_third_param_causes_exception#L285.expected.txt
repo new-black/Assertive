@@ -2,12 +2,12 @@
 surveys.CustomAnyWithNullThirdParam((s, i, extra) => extra!.Length > 0)
 
 Assertion threw System.NullReferenceException: Object reference not set to an instance of an object.
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Object reference not set to an instance of an object.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at Assertive.Test.NullReferenceTests.<>c.<Lambda_with_three_parameters_falls_back_to_generic_message_when_third_param_causes_exception>b__24_2(Survey s, Int32 i, String extra) in NullReferenceTests.cs:line 283
    at Assertive.Test.ThreeParamLambdaExtensions.CustomAnyWithNullThirdParam[T](IEnumerable`1 source, Func`4 predicate) in NullReferenceTests.cs:line 316
    at Assertive.Test.NullReferenceTests.<>c__DisplayClass24_0.<Lambda_with_three_parameters_falls_back_to_generic_message_when_third_param_causes_exception>b__1() in NullReferenceTests.cs:line 283
- ℹ LOCALS                                                                       
+[LOCALS]
 surveys: [ { Name = "foo", Category = { ID = 1 } } ]
 ················································································

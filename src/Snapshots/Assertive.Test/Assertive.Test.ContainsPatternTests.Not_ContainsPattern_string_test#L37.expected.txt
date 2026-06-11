@@ -1,9 +1,9 @@
 
 !value.Contains("abc")
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 value should not contain the substring "abc".
- ✗ ACTUAL                                                                       
+[ACTUAL]
 value: "abcdefg"
 
 ················································································

@@ -1,9 +1,9 @@
 
 list1.SequenceEqual(list2)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 list1 should equal list2.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Sequences differ.
 
 ················································································

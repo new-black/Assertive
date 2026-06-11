@@ -1,9 +1,9 @@
 
 nullString is object
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 nullString should not be null.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 null
 
 ················································································

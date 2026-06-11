@@ -1,11 +1,11 @@
 
 list[1] is 2
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 list[1]: 2
- ✗ ACTUAL                                                                       
+[ACTUAL]
 list[1]: 9
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ 1, 9, 3 ]
 ················································································

@@ -1,9 +1,9 @@
 
 s.StartsWith("x")
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 s: should start with "x".
- ✗ ACTUAL                                                                       
+[ACTUAL]
 s: "hello"
 
 ················································································
@@ -11,9 +11,9 @@ s: "hello"
 
 n > 5
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 n should be greater than 5.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 n: 3.
 
 ················································································

@@ -1,9 +1,9 @@
 
 a.Equals(b)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 a: { A = "this is a string" }
- ✗ ACTUAL                                                                       
+[ACTUAL]
 a: { }
 
 ················································································

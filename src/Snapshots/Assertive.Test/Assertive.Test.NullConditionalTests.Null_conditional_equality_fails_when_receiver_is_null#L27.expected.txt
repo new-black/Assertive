@@ -1,11 +1,11 @@
 
 user?.Name == "Bob"
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 user?.Name: "Bob"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 user?.Name: null
 
- ℹ LOCALS                                                                       
+[LOCALS]
 user: null
 ················································································

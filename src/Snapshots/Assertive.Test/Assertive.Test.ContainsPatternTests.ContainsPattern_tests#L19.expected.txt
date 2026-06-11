@@ -1,9 +1,9 @@
 
 list.Contains("d")
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 list should contain "d".
- ✗ ACTUAL                                                                       
+[ACTUAL]
 list: [ "a", "b", "c" ]
 
 ················································································

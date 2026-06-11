@@ -1,9 +1,9 @@
 
 dict1.SequenceEqual(dict2)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 dict1 should equal dict2
- ✗ ACTUAL                                                                       
+[ACTUAL]
 There were 2 differences:
 
 [0]: [1] = "a" <> [2] = "c",

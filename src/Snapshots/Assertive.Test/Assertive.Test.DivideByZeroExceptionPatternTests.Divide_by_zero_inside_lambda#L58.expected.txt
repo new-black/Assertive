@@ -5,14 +5,14 @@ DivideByZeroException caused by dividing i.Numerator by i.Denominator (value: 0)
 
 On item [1] of items:
 { Numerator = 20, Denominator = 0 }
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 i.Numerator / i.Denominator
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Attempted to divide by zero.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at Assertive.Test.DivideByZeroExceptionPatternTests.<>c.<Divide_by_zero_inside_lambda>b__5_1(Item i) in DivideByZeroExceptionPatternTests.cs:line 58
    at System.Linq.Enumerable.All[TSource](IEnumerable`1 source, Func`2 predicate)
    at Assertive.Test.DivideByZeroExceptionPatternTests.<>c__DisplayClass5_0.<Divide_by_zero_inside_lambda>b__0() in DivideByZeroExceptionPatternTests.cs:line 58
- ℹ LOCALS                                                                       
+[LOCALS]
 items: [ { Numerator = 10, Denominator = 2 }, { Numerator = 20, Denominator = 0 } ]
 ················································································

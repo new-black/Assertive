@@ -1,1 +1,0 @@
-Expected DontThrowAsync() to throw an exception, but it did not.

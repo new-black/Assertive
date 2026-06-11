@@ -1,11 +1,11 @@
 
 arr[0] is not null
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 arr[0] should not be null.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 null
 
- ℹ LOCALS                                                                       
+[LOCALS]
 arr: [ null, "world" ]
 ················································································

@@ -1,11 +1,11 @@
 
 person.Name is "Bob"
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 person.Name: "Bob"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 person.Name: "Alice"
 
- ℹ LOCALS                                                                       
+[LOCALS]
 person: NppPerson { Name = Alice, Address = NppAddress { City = NYC, Country = US }, Contact =  }
 ················································································

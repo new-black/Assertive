@@ -1,9 +1,9 @@
 
 person.Address.Country is "US"
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 person.Address.Country: "US"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 person.Address.Country: "Germany"
 
 ················································································

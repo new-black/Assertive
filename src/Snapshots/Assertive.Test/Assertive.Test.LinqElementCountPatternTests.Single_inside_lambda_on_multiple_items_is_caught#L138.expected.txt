@@ -7,17 +7,17 @@ Value of c.Items: [ "a", "b", "c" ]
 
 On item [1] of containers:
 { Items = [ "a", "b", "c" ] }
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 c.Items.Single()
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Sequence contains more than one element
-   STACKTRACE                                                                   
+[STACKTRACE]
    at System.Linq.ThrowHelper.ThrowMoreThanOneElementException()
    at System.Linq.Enumerable.TryGetSingle[TSource](IEnumerable`1 source, Boolean& found)
    at System.Linq.Enumerable.Single[TSource](IEnumerable`1 source)
    at Assertive.Test.LinqElementCountPatternTests.<>c.<Single_inside_lambda_on_multiple_items_is_caught>b__12_1(Something c) in LinqElementCountPatternTests.cs:line 138
    at System.Linq.Enumerable.Any[TSource](IEnumerable`1 source, Func`2 predicate)
    at Assertive.Test.LinqElementCountPatternTests.<>c__DisplayClass12_0.<Single_inside_lambda_on_multiple_items_is_caught>b__0() in LinqElementCountPatternTests.cs:line 138
- ℹ LOCALS                                                                       
+[LOCALS]
 containers: [ { Items = [ "only-one" ] }, { Items = [ "a", "b", "c" ] } ]
 ················································································

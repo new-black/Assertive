@@ -2,12 +2,12 @@
 foo.ReturnsNull().Length == 1
 
 NullReferenceException caused by accessing Length on foo.ReturnsNull() which was null.
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 foo.ReturnsNull().Length
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Object reference not set to an instance of an object.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at Assertive.Test.NullReferenceTests.<>c__DisplayClass7_0.<CauseOfNullReference_on_method_is_found_two_levels>b__2() in NullReferenceTests.cs:line 98
- ℹ LOCALS                                                                       
+[LOCALS]
 foo: { }
 ················································································

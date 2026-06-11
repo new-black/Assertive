@@ -1,11 +1,11 @@
 
 list.None()
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 List list of type List<String> should be empty.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 It had 1 items.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ "a" ]
 ················································································

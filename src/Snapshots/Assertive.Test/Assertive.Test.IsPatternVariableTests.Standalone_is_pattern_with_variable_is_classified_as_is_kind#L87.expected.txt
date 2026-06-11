@@ -1,9 +1,9 @@
 
 obj is PatternUser u
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 obj should be of type PatternUser.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Type: PatternAdmin.
 
 ················································································

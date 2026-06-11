@@ -1,9 +1,9 @@
 
 n is <= 100
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 n should be less than or equal to 100.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 n: 150.
 
 ················································································

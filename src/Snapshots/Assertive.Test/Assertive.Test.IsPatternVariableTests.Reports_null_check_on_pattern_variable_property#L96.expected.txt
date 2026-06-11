@@ -1,9 +1,9 @@
 
 u.Name != null
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 u.Name should not be null.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 null
 
 ················································································

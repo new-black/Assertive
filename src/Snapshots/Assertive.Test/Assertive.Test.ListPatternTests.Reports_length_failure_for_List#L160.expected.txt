@@ -1,11 +1,11 @@
 
 list.Count == 3
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 list.Count: 3
- ✗ ACTUAL                                                                       
+[ACTUAL]
 list.Count: 2
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ 1, 2 ]
 ················································································

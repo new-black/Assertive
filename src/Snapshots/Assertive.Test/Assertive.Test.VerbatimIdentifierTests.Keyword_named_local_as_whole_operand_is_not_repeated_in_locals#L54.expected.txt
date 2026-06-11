@@ -1,9 +1,9 @@
 
 @lock == other
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 @lock: null
- ✗ ACTUAL                                                                       
+[ACTUAL]
 @lock: { LockAcquired = False }
 
 ················································································

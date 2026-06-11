@@ -1,9 +1,9 @@
 
 ReferenceEquals(obj1, obj2)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 obj1 and obj2 should be the same instance.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 They were different instances.
 
 ················································································

@@ -1,11 +1,11 @@
 
 list.All(x => x < 5)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 All items in list should match x => x < 5.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Items: [1, 2, 3, 10, 20]
 
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ 1, 2, 3, 10, 20 ]
 ················································································

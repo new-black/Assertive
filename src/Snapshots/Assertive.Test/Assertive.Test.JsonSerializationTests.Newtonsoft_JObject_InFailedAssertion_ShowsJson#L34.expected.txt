@@ -1,9 +1,9 @@
 
 obj == null
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 obj should be null.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 {
   "name": "John",
   "age": 30

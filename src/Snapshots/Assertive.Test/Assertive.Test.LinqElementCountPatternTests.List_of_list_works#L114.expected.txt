@@ -4,15 +4,15 @@ list.Single().Items.Single() != null
 InvalidOperationException caused by calling Single() on list which contains more than one element. Actual element count: 2.
 
 Value of list: [ { }, { } ]
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 list.Single()
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 Sequence contains more than one element
-   STACKTRACE                                                                   
+[STACKTRACE]
    at System.Linq.ThrowHelper.ThrowMoreThanOneElementException()
    at System.Linq.Enumerable.TryGetSingle[TSource](IEnumerable`1 source, Boolean& found)
    at System.Linq.Enumerable.Single[TSource](IEnumerable`1 source)
    at Assertive.Test.LinqElementCountPatternTests.<>c__DisplayClass10_0.<List_of_list_works>b__0() in LinqElementCountPatternTests.cs:line 114
- ℹ LOCALS                                                                       
+[LOCALS]
 list: [ { }, { } ]
 ················································································

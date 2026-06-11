@@ -1,11 +1,11 @@
 
 items.Length >= 1
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 items.Length should be greater than or equal to 1.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 items.Length: 0.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 items: [ ]
 ················································································

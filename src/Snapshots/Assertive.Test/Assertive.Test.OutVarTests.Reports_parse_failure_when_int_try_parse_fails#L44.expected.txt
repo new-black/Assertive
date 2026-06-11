@@ -1,5 +1,5 @@
 
 int.TryParse(input, out var n)
- ℹ LOCALS                                                                       
+[LOCALS]
 input: "notanumber"
 ················································································

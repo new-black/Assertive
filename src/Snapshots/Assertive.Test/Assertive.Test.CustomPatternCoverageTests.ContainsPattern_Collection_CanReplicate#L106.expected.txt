@@ -1,9 +1,9 @@
 
 list.Contains("z")
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 list should contain "z".
- ✗ ACTUAL                                                                       
+[ACTUAL]
 It did not. Contents: System.Collections.Generic.List`1[System.String]
 
 ················································································

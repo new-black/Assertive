@@ -1,9 +1,9 @@
 
 !(o is string)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 o should not be of type string.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Type: string.
 
 ················································································

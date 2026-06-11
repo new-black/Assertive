@@ -2,11 +2,11 @@
 int.Parse("not-a-number") == 123
 
 FormatException caused by calling int.Parse("not-a-number"). "not-a-number" is not a valid int.
-   CAUSE OF EXCEPTION                                                           
+[CAUSE OF EXCEPTION]
 int.Parse("not-a-number")
- ⚠ EXCEPTION                                                                    
+[EXCEPTION]
 The input string 'not-a-number' was not in a correct format.
-   STACKTRACE                                                                   
+[STACKTRACE]
    at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
    at System.Int32.Parse(String s)
    at Assertive.Test.FormatExceptionPatternTests.<>c.<Int_Parse_with_literal_invalid_string>b__1_0() in FormatExceptionPatternTests.cs:line 21

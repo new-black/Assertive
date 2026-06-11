@@ -1,9 +1,9 @@
 
 nullableInt == 1
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 nullableInt: 1
- ✗ ACTUAL                                                                       
+[ACTUAL]
 nullableInt: null
 
 ················································································

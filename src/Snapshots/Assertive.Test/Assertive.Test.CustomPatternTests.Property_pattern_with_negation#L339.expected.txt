@@ -1,11 +1,11 @@
 
 !obj.IsValid
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 obj should not be valid.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 IsValid was True.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 obj: { IsValid = True }
 ················································································

@@ -1,9 +1,9 @@
 
 obj.Name is "Bob"
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 obj.Name: "Bob"
- ✗ ACTUAL                                                                       
+[ACTUAL]
 obj.Name: "Alice"
 
 ················································································

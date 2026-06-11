@@ -1,9 +1,9 @@
 
 seq1.SequenceEqual(seq2)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 seq1 should equal seq2
- ✗ ACTUAL                                                                       
+[ACTUAL]
 There was 1 difference:
 
 [0]: 99 <> 13

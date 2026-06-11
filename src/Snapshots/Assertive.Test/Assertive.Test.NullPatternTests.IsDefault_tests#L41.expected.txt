@@ -1,9 +1,9 @@
 
 notNullString == default(string)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 notNullString should be null.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 "a string"
 
 ················································································

@@ -1,12 +1,12 @@
 
 value.IsGreaterThan(threshold)
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 value should be greater than 5.5.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 It was 3.1.
 
- ℹ LOCALS                                                                       
+[LOCALS]
 value: 3.1
 threshold: 5.5
 ················································································

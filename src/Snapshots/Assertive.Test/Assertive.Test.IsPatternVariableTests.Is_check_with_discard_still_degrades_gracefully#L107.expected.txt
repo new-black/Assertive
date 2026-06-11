@@ -1,9 +1,9 @@
 
 (object)"foo" is PatternUser _
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 (object)"foo" should be of type PatternUser.
- ✗ ACTUAL                                                                       
+[ACTUAL]
 Type: string.
 
 ················································································

@@ -1,9 +1,9 @@
 
 value == expected
 
- ✓ EXPECTED                                                                     
+[EXPECTED]
 value: 7
- ✗ ACTUAL                                                                       
+[ACTUAL]
 value: 3
 
 ················································································
