@@ -866,13 +866,26 @@ namespace Assertive.Generators
               return call.AllFilterFunc != null;
             }
 
-            case "SequenceEqual" when IsLinqEnumerableMethod(calledMethod)
+            // On newer TFMs (first-class spans + OverloadResolutionPriority), array
+            // receivers bind to MemoryExtensions.SequenceEqual instead of
+            // Enumerable.SequenceEqual; the semantics (element-wise equality, optional
+            // comparer) are identical and the runtime diff enumerates the captured
+            // values, so both bindings classify the same.
+            case "SequenceEqual" when (IsLinqEnumerableMethod(calledMethod) || IsMemoryExtensionsMethod(calledMethod))
                                       && !outerNegated
                                       && methodCall.ArgumentList.Arguments.Count is 1 or 2:
             {
-              call.Kind = InterceptionKind.SequenceEqual;
-
               var arg = methodCall.ArgumentList.Arguments[0].Expression;
+
+              // A genuinely span-typed receiver/argument (not an array converted at the
+              // call) is a ref struct: it cannot be captured or enumerated as a value.
+              if (ctx.SemanticModel.GetTypeInfo(methodAccess.Expression, ct).Type is { IsRefLikeType: true }
+                  || ctx.SemanticModel.GetTypeInfo(arg, ct).Type is { IsRefLikeType: true })
+              {
+                return false;
+              }
+
+              call.Kind = InterceptionKind.SequenceEqual;
 
               if (!SetLeft(call, compiler, methodAccess.Expression, bindings, display) || !SetRight(call, compiler, arg, StripParens(arg), bindings, display))
               {
@@ -2169,6 +2182,11 @@ namespace Assertive.Generators
     private static bool IsLinqEnumerableMethod(IMethodSymbol method)
     {
       return method is { ReducedFrom: not null, ContainingType: { Name: "Enumerable", ContainingNamespace: { Name: "Linq", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } } } };
+    }
+
+    private static bool IsMemoryExtensionsMethod(IMethodSymbol method)
+    {
+      return method is { ReducedFrom: not null, ContainingType: { Name: "MemoryExtensions", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } } };
     }
 
     private static bool IsNullableValueType(ITypeSymbol? type)
