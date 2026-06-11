@@ -1502,7 +1502,8 @@ namespace Assertive.Generators
             if (method.IsStatic || method.ReducedFrom != null)
             {
               return CompileReflectiveStaticCall(invocation, method, captures, bindings)
-                     ?? CompileReflectiveLinqCall(invocation, method, captures, bindings);
+                     ?? CompileReflectiveLinqCall(invocation, method, captures, bindings)
+                     ?? CompileReflectiveUntypedStaticCall(invocation, method, captures, bindings);
             }
 
             if (method.IsGenericMethod
@@ -1633,6 +1634,69 @@ namespace Assertive.Generators
         var containingType = method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
         return $"{containingType}.{method.Name}{typeArguments}({string.Join(", ", rendered)})";
+      }
+
+      /// <summary>
+      /// A static call the typed strategies rejected (private helper methods, unnameable
+      /// parameter types): the containing type is anchored via TypeAccessor and the method
+      /// resolved by name + argument count at runtime — the static counterpart of the
+      /// InvokeInstance path for private instance members. Reduced extension calls and
+      /// generic methods stay out (type arguments cannot be reconstructed reflectively).
+      /// </summary>
+      private string? CompileReflectiveUntypedStaticCall(InvocationExpressionSyntax invocation, IMethodSymbol method,
+        List<(string Name, string? Type)> captures, IReadOnlyDictionary<string, LambdaBinding>? bindings)
+      {
+        if (method.ReducedFrom != null
+            || method.IsGenericMethod
+            || method.Parameters.Any(p => p.RefKind != RefKind.None || p.IsParams)
+            || invocation.ArgumentList.Arguments.Count != method.Parameters.Length
+            || invocation.ArgumentList.Arguments.Any(a => a.NameColon != null)
+            || !HasSingleStaticOverload(method)
+            || TypeAccessor(method.ContainingType) is not { } typeAccessor)
+        {
+          return null;
+        }
+
+        var arguments = new List<string>();
+
+        foreach (var argument in invocation.ArgumentList.Arguments)
+        {
+          if (CompileReflective(argument.Expression, captures, bindings) is not { } compiled)
+          {
+            return null;
+          }
+
+          arguments.Add(compiled);
+        }
+
+        var argumentArray = arguments.Count == 0
+          ? "[]"
+          : $"[{string.Join(", ", arguments)}]";
+
+        return $"{Runtime}.InvokeStatic({typeAccessor}, {Quote(method.Name)}, {argumentArray})";
+      }
+
+      /// <summary>
+      /// Runtime resolution is by name + parameter count: the combination must be
+      /// unambiguous across the hierarchy InvokeStatic searches.
+      /// </summary>
+      private static bool HasSingleStaticOverload(IMethodSymbol method)
+      {
+        var count = 0;
+
+        for (var type = method.ContainingType; type != null; type = type.BaseType)
+        {
+          foreach (var member in type.GetMembers(method.Name))
+          {
+            if (member is IMethodSymbol { IsStatic: true } candidate
+                && candidate.Parameters.Length == method.Parameters.Length)
+            {
+              count++;
+            }
+          }
+        }
+
+        return count == 1;
       }
 
       /// <summary>

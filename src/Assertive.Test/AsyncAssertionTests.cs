@@ -15,14 +15,14 @@ namespace Assertive.Test
   /// </summary>
   public class AsyncAssertionTests : AssertionTestBase
   {
-    // Internal rather than private: generated reporting re-evaluates the awaited calls,
-    // and reflective re-invocation of static methods requires assembly-level access (the
-    // same rule the synchronous reflective strategy applies).
-    internal static Task<int> ValueAsync(int value) => Task.FromResult(value);
+    // Private helpers work: generated reporting re-invokes them through
+    // GeneratedAssert.InvokeStatic, the static counterpart of the InvokeInstance path
+    // used for private instance members.
+    private static Task<int> ValueAsync(int value) => Task.FromResult(value);
 
-    internal static Task<string?> NullStringAsync() => Task.FromResult<string?>(null);
+    private static Task<string?> NullStringAsync() => Task.FromResult<string?>(null);
 
-    internal static Task<List<int>> ListAsync() => Task.FromResult(new List<int> { 1, 2, 3 });
+    private static Task<List<int>> ListAsync() => Task.FromResult(new List<int> { 1, 2, 3 });
 
     private static async Task<int> ThrowingAsync()
     {

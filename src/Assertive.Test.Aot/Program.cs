@@ -286,9 +286,9 @@ namespace Assertive.Test.Aot
     {
       var expectedValue = 5;
 
-      // A simple-name static call fails the typed strategy, so the operand re-evaluates
-      // reflectively; the await itself stays a typed cast (Task<int> is nameable), which
-      // keeps it AOT-safe — Task<T>.Result metadata is trimmed even in rooted publishes.
+      // A private static call re-invokes through InvokeStatic; the await itself stays a
+      // typed cast (Task<int> is nameable), which keeps it AOT-safe — Task<T>.Result
+      // metadata is trimmed even in rooted publishes.
       var exception = await CaptureAsync(() => Assert(async () => await ValueAsync(3) == expectedValue));
 
       ExpectFailure(exception, "await ValueAsync(3) == expectedValue", () =>
@@ -318,7 +318,7 @@ namespace Assertive.Test.Aot
       Expect(exception == null, $"passing async assertion threw: {exception?.Message}");
     }
 
-    internal static Task<int> ValueAsync(int value) => Task.FromResult(value);
+    private static Task<int> ValueAsync(int value) => Task.FromResult(value);
 
     public sealed class AsyncFetcher
     {

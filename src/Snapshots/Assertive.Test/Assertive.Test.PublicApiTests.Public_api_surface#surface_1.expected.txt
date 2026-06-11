@@ -260,6 +260,7 @@ static class GeneratedAssert
   static Exception HasValueFailure(string assertionExpression, string source, object value, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static object InvokeInstance(object target, string methodName, object[] arguments)
   static object InvokeLinq(object source, string methodName)
+  static object InvokeStatic(Type type, string methodName, object[] arguments)
   static bool IsAssertionFailure(Exception exception)
   static Exception IsTypeFailure(string assertionExpression, string source, object value, Type expectedType, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception LengthFailure(string assertionExpression, string operandSource, string filterSource, string countLabel, string comparisonLabel, object actualLength, string rightSource, object rightValue, bool rightIsConstant, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)

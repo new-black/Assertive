@@ -268,6 +268,48 @@ namespace Assertive.Runtime
       throw new InvalidOperationException($"Assertive: could not resolve method '{methodName}' with {arguments.Length} parameter(s) on {target.GetType()}.");
     }
 
+    /// <summary>
+    /// Invokes a static method by name, ignoring accessibility. The static counterpart of
+    /// <see cref="InvokeInstance"/>, for methods generated code cannot call directly
+    /// (private helpers); the generator guarantees the name + argument count resolve to a
+    /// single method. Exceptions thrown by the method are rethrown unwrapped.
+    /// </summary>
+    public static object? InvokeStatic(Type type, string methodName, object?[] arguments)
+    {
+      for (var current = type; current != null; current = current.BaseType)
+      {
+        MethodInfo? match = null;
+
+        foreach (var method in current.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.DeclaredOnly))
+        {
+          if (method.Name == methodName && method.GetParameters().Length == arguments.Length)
+          {
+            if (match != null)
+            {
+              throw new InvalidOperationException($"Assertive: static method '{methodName}' with {arguments.Length} parameter(s) is ambiguous on {current}.");
+            }
+
+            match = method;
+          }
+        }
+
+        if (match != null)
+        {
+          try
+          {
+            return match.Invoke(null, arguments);
+          }
+          catch (TargetInvocationException ex) when (ex.InnerException != null)
+          {
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
+          }
+        }
+      }
+
+      throw new InvalidOperationException($"Assertive: could not resolve static method '{methodName}' with {arguments.Length} parameter(s) on {type}.");
+    }
+
     /// <summary>Reads an instance field or property by name, ignoring accessibility.</summary>
     public static object? GetMemberValue(object target, string memberName)
     {

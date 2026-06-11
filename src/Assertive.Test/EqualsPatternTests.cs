@@ -39,6 +39,16 @@ namespace Assertive.Test
       ShouldFail(() => a.Equals(b), @"a: ""B""", @"a: ""A""");
     }
 
+    private static int Triple(int value) => value * 3;
+
+    [Fact]
+    public void Private_static_method_operands_are_reinvoked_reflectively()
+    {
+      // Inaccessible to generated code, so re-evaluation goes through
+      // GeneratedAssert.InvokeStatic (name + argument count resolution).
+      ShouldFail(() => Triple(2) == 7, "Triple(2): 7", "Triple(2): 6");
+    }
+
     [Fact]
     public void Not_equals_works()
     {
