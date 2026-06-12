@@ -14,7 +14,7 @@ namespace Assertive.Test
     {
       originalColors = Configuration.Colors.Enabled;
     }
-    
+
     public void Dispose()
     {
       Configuration.Colors.Enabled = originalColors;
@@ -26,9 +26,8 @@ namespace Assertive.Test
       StringBuilder? sb = null;
       var array = new int[0];
 
-      ShouldFail(() => sb!.Append("a") != null,
-        "NullReferenceException caused by calling Append on sb which was null.");
-      ShouldFail(() => array[1] == 1, "IndexOutOfRangeException caused by accessing index 1 on array, actual length was 0.");
+      ShouldFail(() => sb!.Append("a") != null);
+      ShouldFail(() => array[1] == 1);
     }
 
     [Fact]
@@ -41,7 +40,7 @@ namespace Assertive.Test
       Assert.Throws(() => array[1]);
       Assert.Throws(() => int.Parse("abc"));
       await Assert.Throws(() => ThrowAsyncException());
-      
+
       Assert.Throws<NullReferenceException>(() => sb!.Append("A"));
       Assert.Throws<IndexOutOfRangeException>(() => array[1]);
       Assert.Throws<FormatException>(() => int.Parse("abc"));
@@ -64,57 +63,17 @@ namespace Assertive.Test
     [Fact]
     public void Throws_additional_assertion_failure_is_reported_sync()
     {
-      var originalColorSetting = Configuration.Colors.Enabled;
-      try
-      {
-        Configuration.Colors.Enabled = false;
-        Assert.Throws<InvalidOperationException>(() => ThrowInvalidOperation("boom"), e => e.Message == "wrong");
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        Assert.That(() => StripAnsi(ex.Message).Contains("""
-                                                         e.Message == "wrong"
-                                                         
-                                                         [EXPECTED]
-                                                         e.Message: "wrong"
-                                                         [ACTUAL]
-                                                         e.Message: "boom"
-                                                         """));
-      }
-      finally
-      {
-        Configuration.Colors.Enabled = originalColorSetting;
-      }
+      var ex = CaptureFailure(() =>
+        Assert.Throws<InvalidOperationException>(() => ThrowInvalidOperation("boom"), e => e.Message == "wrong"));
+      SnapshotMessage(ex);
     }
 
     [Fact]
     public async Task Throws_additional_assertion_failure_is_reported_async()
     {
-      var originalColorSetting = Configuration.Colors.Enabled;
-      try
-      {
-        Configuration.Colors.Enabled = false;
-        await Assert.Throws<InvalidOperationException>(() => ThrowAsyncException(), e => e.Message == "wrong");
-        Xunit.Assert.Fail("Expected assertion to fail.");
-      }
-      catch (Exception ex)
-      {
-        Assert.That(() => StripAnsi(ex.Message).Contains("""
-                                                         [EXPECTED]
-                                                         e.Message: "wrong"
-                                                         [ACTUAL]
-                                                         e.Message: "an exception"
-                                                         String diff (expected vs actual):
-                                                         Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
-                                                         - [E1] [-wr-]on[-g-]
-                                                         + [A1] [+an excepti+]on
-                                                         """));
-      }
-      finally
-      {
-        Configuration.Colors.Enabled = originalColorSetting;
-      }
+      var ex = await CaptureFailureAsync(() =>
+        Assert.Throws<InvalidOperationException>(() => ThrowAsyncException(), e => e.Message == "wrong"));
+      SnapshotMessage(ex);
     }
 
     [Fact]
@@ -123,15 +82,15 @@ namespace Assertive.Test
       StringBuilder sb = new StringBuilder();
       var array = new int[10];
 
-      ShouldThrow(() => sb.Append("A"), @"Expected sb.Append(""A"") to throw an exception, but it did not.");
-      ShouldThrow(() => array[1], @"Expected array[1] to throw an exception, but it did not.");
-      ShouldThrow(() => int.Parse("123"), @"Expected int.Parse(""123"") to throw an exception, but it did not.");
-      await ShouldThrow(() => DontThrowAsync(), @"Expected DontThrowAsync() to throw an exception, but it did not.");
+      ShouldThrow(() => sb.Append("A"));
+      ShouldThrow(() => array[1]);
+      ShouldThrow(() => int.Parse("123"));
+      await ShouldThrow(() => DontThrowAsync());
 
-      ShouldThrow<NullReferenceException>(() => sb.Append("A"), @"Expected sb.Append(""A"") to throw an exception, but it did not.");
-      ShouldThrow<IndexOutOfRangeException>(() => array[1], @"Expected array[1] to throw an exception, but it did not.");
-      ShouldThrow<FormatException>(() => int.Parse("123"), @"Expected int.Parse(""123"") to throw an exception, but it did not.");
-      await ShouldThrow<InvalidOperationException>(() => DontThrowAsync(), @"Expected DontThrowAsync() to throw an exception, but it did not.");
+      ShouldThrow<NullReferenceException>(() => sb.Append("A"));
+      ShouldThrow<IndexOutOfRangeException>(() => array[1]);
+      ShouldThrow<FormatException>(() => int.Parse("123"));
+      await ShouldThrow<InvalidOperationException>(() => DontThrowAsync());
     }
 
     [Fact]
@@ -140,19 +99,19 @@ namespace Assertive.Test
       StringBuilder? sb = null;
       var array = new int[0];
 
-      ShouldThrow<InvalidOperationException>(() => sb!.Append("A"), @"Expected sb!.Append(""A"") to throw an exception of type System.InvalidOperationException, but it threw an exception of type System.NullReferenceException instead.");
-      ShouldThrow<InvalidOperationException>(() => array[1], @"Expected array[1] to throw an exception of type System.InvalidOperationException, but it threw an exception of type System.IndexOutOfRangeException instead.");
-      ShouldThrow<InvalidOperationException>(() => int.Parse("abc"), @"Expected int.Parse(""abc"") to throw an exception of type System.InvalidOperationException, but it threw an exception of type System.FormatException instead.");
-      await ShouldThrow<NullReferenceException>(() => ThrowAsyncException(), @"Expected ThrowAsyncException() to throw an exception of type System.NullReferenceException, but it threw an exception of type System.InvalidOperationException instead.");
+      ShouldThrow<InvalidOperationException>(() => sb!.Append("A"));
+      ShouldThrow<InvalidOperationException>(() => array[1]);
+      ShouldThrow<InvalidOperationException>(() => int.Parse("abc"));
+      await ShouldThrow<NullReferenceException>(() => ThrowAsyncException());
     }
 
     private async Task ThrowAsyncException()
     {
       await Task.Yield();
-      
+
       throw new InvalidOperationException("an exception");
     }
-    
+
     private async Task DontThrowAsync()
     {
       await Task.Delay(30);

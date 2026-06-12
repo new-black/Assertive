@@ -1,0 +1,14 @@
+
+a / b == 0
+
+DivideByZeroException caused by dividing a by b (value: 0).
+[CAUSE OF EXCEPTION]
+a / b
+[EXCEPTION]
+Attempted to divide by zero.
+[STACKTRACE]
+   at Assertive.Test.DivideByZeroExceptionPatternTests.<>c__DisplayClass1_0.<Divide_by_zero_with_variable>b__0() in DivideByZeroExceptionPatternTests.cs:line 23
+[LOCALS]
+a: 10
+b: 0
+················································································

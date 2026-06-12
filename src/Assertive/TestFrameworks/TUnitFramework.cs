@@ -14,6 +14,9 @@ namespace Assertive.TestFrameworks
     public Type? ExceptionType =>
       _exceptionType ??= TestFrameworkHelper.TryGetType("TUnit.Assertions", "TUnit.Assertions.Exceptions.AssertionException", "TUnit");
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "Best-effort reflection to detect the running TUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort reflection to detect the running TUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2080", Justification = "Best-effort reflection to detect the running TUnit test; if the metadata is trimmed, detection returns null and snapshot file naming degrades gracefully.")]
     public CurrentTestInfo? GetCurrentTestInfo()
     {
       var testContextType = _testContextType ??= TestFrameworkHelper.TryGetType("TUnit.Core", "TUnit.Core.TestContext", "TUnit");
@@ -22,11 +25,12 @@ namespace Assertive.TestFrameworks
         return null;
       }
 
-      dynamic? current = testContextType.GetProperty("Current", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+      var current = testContextType.GetProperty("Current", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
 
       if (current == null) return null;
 
-      var metadata = current.Metadata;
+      // Typed reflection rather than `dynamic`: the DLR isn't available under Native AOT.
+      var metadata = current.GetType().GetProperty("Metadata", BindingFlags.Public | BindingFlags.Instance)?.GetValue(current);
       
       var testDetails = metadata?.GetType().GetProperty("TestDetails", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(metadata);
 

@@ -1,0 +1,20 @@
+
+(await task).Name == "expected"
+
+[EXPECTED]
+(await task).Name: "expected"
+[ACTUAL]
+(await task).Name: "actual"
+
+[LOCALS]
+task: {
+ Result = { Name = actual },
+ Id = 1,
+ Status = RanToCompletion,
+ IsCanceled = False,
+ IsCompleted = True,
+ IsCompletedSuccessfully = True,
+ CreationOptions = None,
+ IsFaulted = False
+}
+················································································

@@ -1,0 +1,9 @@
+
+o is int
+
+[EXPECTED]
+o should be of type int.
+[ACTUAL]
+Type: string.
+
+················································································

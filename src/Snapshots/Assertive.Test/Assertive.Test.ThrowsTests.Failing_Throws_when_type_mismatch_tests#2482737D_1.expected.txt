@@ -1,0 +1,1 @@
+Expected ThrowAsyncException() to throw an exception of type System.NullReferenceException, but it threw an exception of type System.InvalidOperationException instead.

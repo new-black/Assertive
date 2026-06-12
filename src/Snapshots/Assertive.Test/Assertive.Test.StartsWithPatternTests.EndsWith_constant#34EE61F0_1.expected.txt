@@ -1,0 +1,9 @@
+
+!myString.EndsWith("abc")
+
+[EXPECTED]
+myString: should not end with "abc".
+[ACTUAL]
+myString: "abcdefghijklmnopabc"
+
+················································································

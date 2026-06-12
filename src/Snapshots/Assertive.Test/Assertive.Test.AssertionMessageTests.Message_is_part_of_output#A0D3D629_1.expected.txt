@@ -1,0 +1,13 @@
+
+order.Amount > 20
+
+[EXPECTED]
+order.Amount should be greater than 20.
+[ACTUAL]
+order.Amount: 10.
+
+[MESSAGE]
+Expected orderID to be more than 20
+[LOCALS]
+order: { Amount = 10 }
+················································································

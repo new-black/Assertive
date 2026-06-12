@@ -1,0 +1,19 @@
+
+value.Contains(search)
+
+[EXPECTED]
+value should contain the substring search (value: "line1
+line2").
+[ACTUAL]
+value: "line1
+line2"
+The strings differ only in line endings
+
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] line1[-\r-]\n
++ [A1] line1\n
+   2: line2
+
+
+················································································

@@ -1,0 +1,12 @@
+
+foo + bar == "barfoo"
+
+[EXPECTED]
+foo + bar: "barfoo"
+[ACTUAL]
+foo + bar: "foobar"
+
+[LOCALS]
+foo: "foo"
+bar: "bar"
+················································································

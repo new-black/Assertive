@@ -1,0 +1,14 @@
+
+actual == expected
+
+[EXPECTED]
+actual: "ABXXEFGHIJK"
+[ACTUAL]
+actual: "ABCDEFGHIJK"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] AB[-XX-]EFGHIJK
++ [A1] AB[+CD+]EFGHIJK
+
+
+················································································

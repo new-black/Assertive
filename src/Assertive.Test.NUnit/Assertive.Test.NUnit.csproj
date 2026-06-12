@@ -7,6 +7,11 @@
 
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+
+        <!-- Run with the interceptor generator active (mirrors buildTransitive/Assertive.props):
+             this suite asserts decomposed messages, which need the generated path. -->
+        <InterceptorsNamespaces>$(InterceptorsNamespaces);Assertive.Generated</InterceptorsNamespaces>
+        <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Assertive.Generated</InterceptorsPreviewNamespaces>
     </PropertyGroup>
 
     <ItemGroup>
@@ -24,6 +29,9 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Assertive\Assertive.csproj" />
+      <ProjectReference Include="..\Assertive.Generators\Assertive.Generators.csproj"
+                        OutputItemType="Analyzer"
+                        ReferenceOutputAssembly="false" />
     </ItemGroup>
 
 </Project>

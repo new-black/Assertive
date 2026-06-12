@@ -1,0 +1,11 @@
+
+list.Any()
+
+[EXPECTED]
+Collection list should contain at least one item.
+[ACTUAL]
+It was empty.
+
+[LOCALS]
+list: [ ]
+················································································

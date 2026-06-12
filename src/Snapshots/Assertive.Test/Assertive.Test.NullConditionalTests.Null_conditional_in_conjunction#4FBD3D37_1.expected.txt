@@ -1,0 +1,11 @@
+
+user?.Address?.City == "NYC"
+
+[EXPECTED]
+user?.Address?.City: "NYC"
+[ACTUAL]
+user?.Address?.City: null
+
+[LOCALS]
+user: NcUser { Name = Bob, Address =  }
+················································································

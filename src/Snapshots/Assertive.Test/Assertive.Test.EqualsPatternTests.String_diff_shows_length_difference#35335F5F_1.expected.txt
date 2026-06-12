@@ -1,0 +1,14 @@
+
+actual == expected
+
+[EXPECTED]
+actual: "Short string"
+[ACTUAL]
+actual: "Short"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] Shor[-t s-]t[-ring-]
++ [A1] Short
+
+
+················································································

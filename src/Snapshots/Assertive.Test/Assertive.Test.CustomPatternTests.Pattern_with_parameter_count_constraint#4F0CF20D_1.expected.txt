@@ -1,0 +1,11 @@
+
+list.HasExactly(3)
+
+[EXPECTED]
+list should have exactly 3 items.
+[ACTUAL]
+It had 2 items.
+
+[LOCALS]
+list: [ "a", "b" ]
+················································································

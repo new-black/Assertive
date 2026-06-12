@@ -29,10 +29,7 @@ namespace Assertive.Test
         Amount = 10
       };
       
-      ShouldFail(() => order.Amount > 20, () => orderID, """
-                                                         [CONTEXT]
-                                                         orderID = 10
-                                                         """);
+      ShouldFailWith(() => Assert.That(() => order.Amount > 20, () => orderID));
     }
     
     [Fact]
@@ -44,10 +41,7 @@ namespace Assertive.Test
         Amount = 10
       };
       
-      ShouldFail(() => order.Amount > 20, () => order, """
-                                                       [CONTEXT]
-                                                       order = { ID = 99, Amount = 10 }
-                                                       """);
+      ShouldFailWith(() => Assert.That(() => order.Amount > 20, () => order));
     }
 
     [Fact]
@@ -58,11 +52,8 @@ namespace Assertive.Test
         ID = 99,
         Amount = 10
       };
-      
-      ShouldFail(() => order.Amount > 20, () => order, """
-                                                       [CONTEXT]
-                                                       order = { ID = 99, Amount = 10 }
-                                                       """);
+
+      ShouldFailWith(() => Assert.That(() => order.Amount > 20, () => order));
     }
     
     private class Order

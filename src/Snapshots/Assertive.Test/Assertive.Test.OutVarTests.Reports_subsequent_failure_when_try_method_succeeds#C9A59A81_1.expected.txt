@@ -1,0 +1,9 @@
+
+val.Length > 3
+
+[EXPECTED]
+val should have a Length greater than 3.
+[ACTUAL]
+Length: 2.
+
+················································································

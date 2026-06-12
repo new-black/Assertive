@@ -1,0 +1,9 @@
+
+e => e.Message == "wrong"
+
+[EXPECTED]
+e.Message: "wrong"
+[ACTUAL]
+e.Message: "boom"
+
+················································································

@@ -21,7 +21,30 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          # 11 preview matches global.json; 8.0 supplies the runtime the net8.0 test
+          # target executes on.
+          dotnet-version: |
+            8.0.x
+            11.0.x
+          dotnet-quality: preview
+
+      - name: Use the .NET 11 preview SDK
+        # The repo's global.json pins the stable SDK for local builds; building with
+        # the 11 preview SDK adds the net11.0 test target (escape-analysis coverage).
+        run: |
+          cat > global.json <<'EOF'
+          {
+            "sdk": {
+              "version": "11.0.100-preview.5",
+              "allowPrerelease": true,
+              "rollForward": "latestFeature"
+            }
+          }
+          EOF
+
+      - name: Install Native AOT prerequisites
+        # Native AOT publish (the AOT smoke projects) needs the clang toolchain and zlib headers.
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
       - name: Build and Test
         run: bash ./scripts/ci.sh

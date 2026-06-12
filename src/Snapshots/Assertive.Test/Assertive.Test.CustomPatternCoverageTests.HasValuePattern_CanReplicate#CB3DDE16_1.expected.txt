@@ -1,0 +1,9 @@
+
+value.HasValue
+
+[EXPECTED]
+value should have a value.
+[ACTUAL]
+It was null.
+
+················································································

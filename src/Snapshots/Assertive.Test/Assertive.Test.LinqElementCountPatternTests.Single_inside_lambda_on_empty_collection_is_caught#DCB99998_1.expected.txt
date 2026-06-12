@@ -1,0 +1,17 @@
+
+containers.Any(c => c.Items.Single() == "x")
+
+InvalidOperationException caused by calling Single() on c.Items which contains no elements.
+
+On item [1] of containers:
+{ Items = [ ] }
+[CAUSE OF EXCEPTION]
+c.Items.Single()
+[EXCEPTION]
+Sequence contains no elements
+[STACKTRACE]
+   at Assertive.Test.LinqElementCountPatternTests.<>c.<Single_inside_lambda_on_empty_collection_is_caught>b__11_1(Something c) in LinqElementCountPatternTests.cs:line 126
+   at Assertive.Test.LinqElementCountPatternTests.<>c__DisplayClass11_0.<Single_inside_lambda_on_empty_collection_is_caught>b__0() in LinqElementCountPatternTests.cs:line 126
+[LOCALS]
+containers: [ { Items = [ "only-one" ] }, { Items = [ ] } ]
+················································································

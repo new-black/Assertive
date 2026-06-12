@@ -1,0 +1,14 @@
+
+list!.Count == 0 && x == 1
+
+NullReferenceException caused by accessing Count on list which was null.
+[CAUSE OF EXCEPTION]
+list.Count
+[EXCEPTION]
+Object reference not set to an instance of an object.
+[STACKTRACE]
+   at Assertive.Test.LogicalSplitTests.<>c__DisplayClass15_0.<Throwing_conjunct_reports_the_exception_cause>b__0() in LogicalSplitTests.cs:line 178
+[LOCALS]
+list: null
+x: 1
+················································································

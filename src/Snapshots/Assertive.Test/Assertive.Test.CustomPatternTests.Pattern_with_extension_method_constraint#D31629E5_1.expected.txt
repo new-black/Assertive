@@ -1,0 +1,11 @@
+
+list.None()
+
+[EXPECTED]
+Extension method: list should be empty.
+[ACTUAL]
+It was not.
+
+[LOCALS]
+list: [ "a" ]
+················································································

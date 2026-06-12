@@ -1,0 +1,11 @@
+
+list.NoneStrict()
+
+[EXPECTED]
+Collection list should not contain any items.
+[ACTUAL]
+It contained 2 items.
+
+[LOCALS]
+list: [ "a", "b" ]
+················································································

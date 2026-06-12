@@ -1,0 +1,13 @@
+
+list.Count(l => l.Length == length && l.EndsWith(ending)) == 1
+
+[EXPECTED]
+list with filter l.Length == length && l.EndsWith(ending) should have a Count equal to 1.
+[ACTUAL]
+Count: 0.
+
+[LOCALS]
+list: [ "1", "2", "3" ]
+length: 2
+ending: "4"
+················································································

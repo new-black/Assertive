@@ -1,0 +1,9 @@
+
+@lock == other
+
+[EXPECTED]
+@lock: null
+[ACTUAL]
+@lock: { LockAcquired = False }
+
+················································································

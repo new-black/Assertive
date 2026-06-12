@@ -1,12 +1,24 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- net11.0 pins the suite against the newer JIT's escape analysis: stack-allocated
+         delegates/closures must not break reflective closure capture (GetCapturedValue).
+         The target only exists when building with a .NET 11 SDK (CI swaps in a preview
+         global.json), so local builds keep working on the stable SDK. -->
+    <TargetFrameworks>net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::VersionGreaterThanOrEquals('$(NETCoreSdkVersion)', '11.0'))">net8.0;net11.0</TargetFrameworks>
 
     <IsPackable>false</IsPackable>
 
     <Nullable>enable</Nullable>
 <!--    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>-->
+
+    <!-- Run this suite with the interceptor generator active: whitelisted equality
+         assertions take the generated path (mirrors buildTransitive/Assertive.props). -->
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Assertive.Generated</InterceptorsNamespaces>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Assertive.Generated</InterceptorsPreviewNamespaces>
+    <!-- Write generated sources to obj/.../generated for inspection. -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,6 +33,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Assertive.xUnit\Assertive.xUnit.csproj" />
     <ProjectReference Include="..\Assertive\Assertive.csproj" />
+    <ProjectReference Include="..\Assertive.Generators\Assertive.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

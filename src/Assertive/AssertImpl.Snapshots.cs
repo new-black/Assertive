@@ -47,6 +47,10 @@ internal partial class AssertImpl
     {
       if (options?.SnapshotIdentifier != null)
       {
+        if (options.Configuration.IncludeCounterForExplicitSnapshotIdentifiers)
+        {
+          return $"{options.SnapshotIdentifier}_{assertionState.GetCounter(options.SnapshotIdentifier)}";
+        }
         return options.SnapshotIdentifier;
       }
 
@@ -87,6 +91,8 @@ internal partial class AssertImpl
     }
   }
 
+  [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Snapshot testing serializes arbitrary objects with reflection-based System.Text.Json, which is not compatible with trimming.")]
+  [System.Diagnostics.CodeAnalysis.RequiresDynamicCode("Snapshot testing serializes arbitrary objects with reflection-based System.Text.Json, which may require runtime code generation under Native AOT.")]
   public static Exception? Snapshot(object actualObject, AssertSnapshotOptions options, string expression, string sourceFile)
   {
     var testFramework = ITestFramework.GetActiveTestFramework();
@@ -103,7 +109,7 @@ internal partial class AssertImpl
       return ExceptionHelper.GetException("Could not detect the currently running test.");
     }
 
-    var assertionState = UpdateState(currentTestInfo, expression);
+    var assertionState = UpdateState(currentTestInfo, options.SnapshotIdentifier ?? expression);
 
     var sourceFileInfo = new FileInfo(sourceFile);
 
@@ -136,6 +142,12 @@ internal partial class AssertImpl
     if (isStringSnapshot)
     {
       var actualString = (string)projectedActual!;
+
+      if (options.Configuration.StringTransform != null)
+      {
+        actualString = ApplyStringTransform(actualString, options.Configuration.StringTransform);
+      }
+
       var expectedString = expectedFileInfo.Exists ? File.ReadAllText(expectedFileInfo.FullName) : "";
 
       if (TryAcceptSnapshot(expectedFileInfo, options, actualString))
@@ -394,6 +406,22 @@ internal partial class AssertImpl
     return value.Replace("\r\n", "\n").Replace("\r", "\n");
   }
 
+  private static string ApplyStringTransform(string value, Func<string, string?> transform)
+  {
+    var lines = value.Split('\n');
+    var result = new List<string>(lines.Length);
+    foreach (var line in lines)
+    {
+      var transformed = transform(line);
+      // A null result means the line is dropped entirely (e.g. non-deterministic stack frames).
+      if (transformed != null)
+      {
+        result.Add(transformed);
+      }
+    }
+    return string.Join('\n', result);
+  }
+
   private static Exception BuildStringSnapshotError(string actualString, string expectedString, FileInfo expectedFileInfo,
     AssertSnapshotOptions options, CurrentTestInfo currentTestInfo, string expression, AssertionState assertionState)
   {
@@ -426,6 +454,8 @@ internal partial class AssertImpl
     return ExceptionHelper.GetException(sb.ToString());
   }
 
+  [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Snapshot testing serializes arbitrary objects with reflection-based System.Text.Json, which is not compatible with trimming.")]
+  [System.Diagnostics.CodeAnalysis.RequiresDynamicCode("Snapshot testing serializes arbitrary objects with reflection-based System.Text.Json, which may require runtime code generation under Native AOT.")]
   private static JsonNode? SerializeToNode(object actualObject, JsonSerializerOptions serializerOptions)
   {
     // System.Text.Json JsonNode types - use directly (DeepClone to detach from parent)

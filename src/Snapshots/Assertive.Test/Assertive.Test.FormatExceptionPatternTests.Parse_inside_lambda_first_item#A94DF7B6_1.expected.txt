@@ -1,0 +1,17 @@
+
+items.Any(i => int.Parse(i.Value) == 999)
+
+FormatException caused by calling int.Parse("invalid"). "invalid" is not a valid int.
+
+On item [0] of items:
+{ Value = "invalid" }
+[CAUSE OF EXCEPTION]
+int.Parse(i.Value)
+[EXCEPTION]
+The input string 'invalid' was not in a correct format.
+[STACKTRACE]
+   at Assertive.Test.FormatExceptionPatternTests.<>c.<Parse_inside_lambda_first_item>b__7_1(Item i) in FormatExceptionPatternTests.cs:line 74
+   at Assertive.Test.FormatExceptionPatternTests.<>c__DisplayClass7_0.<Parse_inside_lambda_first_item>b__0() in FormatExceptionPatternTests.cs:line 74
+[LOCALS]
+items: [ { Value = "invalid" }, { Value = "456" } ]
+················································································

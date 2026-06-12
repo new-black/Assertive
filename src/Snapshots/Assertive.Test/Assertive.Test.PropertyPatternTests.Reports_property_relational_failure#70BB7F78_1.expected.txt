@@ -1,0 +1,9 @@
+
+obj.Age is > 18
+
+[EXPECTED]
+obj.Age should be greater than 18.
+[ACTUAL]
+obj.Age: 15.
+
+················································································

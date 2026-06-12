@@ -15,7 +15,9 @@ public partial class PublicApiTests
 
     var api = assembly.GetExportedTypes()
       .OrderBy(t => t.FullName)
-      .Select(t => FormatType(t))
+      .GroupBy(t => t.Namespace)
+      .OrderBy(g => g.Key)
+      .Select(g => $"namespace {g.Key}\n\n" + string.Join("\n\n", g.Select(t => FormatType(t))))
       .ToList();
 
     var surface = string.Join("\n\n", api);

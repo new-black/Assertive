@@ -1,0 +1,15 @@
+
+dict1.SequenceEqual(dict2)
+
+[EXPECTED]
+dict1 should equal dict2
+[ACTUAL]
+There were 2 differences:
+
+[0]: [1] = "a" <> [2] = "c",
+[1]: [2] = "b" <> [3] = "d"
+
+dict1: [ [1] = "a", [2] = "b" ]
+dict2: [ [2] = "c", [3] = "d" ]
+
+················································································

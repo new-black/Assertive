@@ -1,0 +1,36 @@
+
+ids.All(i => i > 10)
+
+[EXPECTED]
+All items of ids should match the filter i > 10
+[ACTUAL]
+These 3 items did not:
+
+[0]: 1,
+[1]: 2,
+[2]: 3
+
+Messages per item:
+
+ids[0]
+[EXPECTED]
+item should be greater than 10.
+[ACTUAL]
+item: 1.
+
+ids[1]
+[EXPECTED]
+item should be greater than 10.
+[ACTUAL]
+item: 2.
+
+ids[2]
+[EXPECTED]
+item should be greater than 10.
+[ACTUAL]
+item: 3.
+
+
+[LOCALS]
+ids: [ 1, 2, 3 ]
+················································································

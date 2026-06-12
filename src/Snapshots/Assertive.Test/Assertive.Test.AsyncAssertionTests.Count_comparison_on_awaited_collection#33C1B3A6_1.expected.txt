@@ -1,0 +1,9 @@
+
+(await ListAsync()).Count == 2
+
+[EXPECTED]
+(await ListAsync()) should have a Count equal to 2.
+[ACTUAL]
+Count: 3.
+
+················································································

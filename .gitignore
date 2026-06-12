@@ -22,3 +22,10 @@ src/Assertive.Test.xUnit.v3/bin/*
 src/Assertive.Test.xUnit.v3/obj/*
 src/Assertive.xUnit.v3/bin/*
 src/Assertive.xUnit.v3/obj/*
+poc/consumer/obj/*
+poc/generator/obj/*
+poc/generator/bin/**
+poc/consumer/bin/*
+poc/consumer/generated/*
+**/bin/*
+**/obj/*

@@ -16,7 +16,7 @@ namespace Assertive.Test
     {
       List<string>? items = null;
 
-      ShouldFail(() => items.Where(i => i.StartsWith("abc")).Any(), "ArgumentNullException caused by calling Where(i => i.StartsWith(\"abc\")) on items which was null.");
+      ShouldFail(() => items.Where(i => i.StartsWith("abc")).Any());
     }
 
     [Fact]
@@ -24,7 +24,7 @@ namespace Assertive.Test
     {
       List<string>? items = null;
 
-      ShouldFail(() => items.Where(i => i.StartsWith("abc")).Count(x => x.EndsWith("123")) == 0, "ArgumentNullException caused by calling Where(i => i.StartsWith(\"abc\")) on items which was null.");
+      ShouldFail(() => items.Where(i => i.StartsWith("abc")).Count(x => x.EndsWith("123")) == 0);
     }
 
     [Fact]
@@ -36,13 +36,7 @@ namespace Assertive.Test
         new Container { Items = null },  // This one will throw ArgumentNullException
       };
 
-      ShouldFail(() => containers.Any(c => c.Items.Where(i => i.StartsWith("x")).Any()),
-        """
-        ArgumentNullException caused by calling Where(i => i.StartsWith("x")) on c.Items which was null.
-
-        On item [1] of containers:
-        { }
-        """);
+      ShouldFail(() => containers.Any(c => c.Items.Where(i => i.StartsWith("x")).Any()));
     }
   }
 }

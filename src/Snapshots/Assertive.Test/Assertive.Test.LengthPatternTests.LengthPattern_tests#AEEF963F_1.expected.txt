@@ -1,0 +1,11 @@
+
+array.Length > 3
+
+[EXPECTED]
+array should have a Length greater than 3.
+[ACTUAL]
+Length: 2.
+
+[LOCALS]
+array: [ 0, 0 ]
+················································································

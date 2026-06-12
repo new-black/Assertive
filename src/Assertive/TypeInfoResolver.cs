@@ -13,6 +13,8 @@ internal class TypeInfoResolver : IJsonTypeInfoResolver
   private readonly Configuration.SnapshotProjection? _projection;
   private readonly IJsonTypeInfoResolver _defaultResolver;
 
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Only reachable via the snapshot API, which is annotated [RequiresUnreferencedCode]/[RequiresDynamicCode]; the requirement is surfaced to callers there.")]
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Only reachable via the snapshot API, which is annotated [RequiresUnreferencedCode]/[RequiresDynamicCode]; the requirement is surfaced to callers there.")]
   public TypeInfoResolver(Configuration.CompareSnapshotsConfiguration configuration, Configuration.SnapshotProjection? projection = null)
   {
     _configuration = configuration;
@@ -20,6 +22,8 @@ internal class TypeInfoResolver : IJsonTypeInfoResolver
     _defaultResolver = new DefaultJsonTypeInfoResolver();
   }
 
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Only reachable via the snapshot API, which is annotated [RequiresUnreferencedCode]/[RequiresDynamicCode]; the requirement is surfaced to callers there.")]
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Only reachable via the snapshot API, which is annotated [RequiresUnreferencedCode]/[RequiresDynamicCode]; the requirement is surfaced to callers there.")]
   public JsonTypeInfo? GetTypeInfo(Type type, JsonSerializerOptions options)
   {
     var typeInfo = _defaultResolver.GetTypeInfo(type, options);

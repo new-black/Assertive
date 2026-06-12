@@ -1,0 +1,9 @@
+
+await ValueAsync(10) == expected
+
+[EXPECTED]
+await ValueAsync(10): 5
+[ACTUAL]
+await ValueAsync(10): 10
+
+················································································

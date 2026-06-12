@@ -1,0 +1,11 @@
+
+list.None()
+
+[EXPECTED]
+Collection list should not contain any items.
+[ACTUAL]
+It contained 3 items.
+
+[LOCALS]
+list: [ "a", "b", "c" ]
+················································································

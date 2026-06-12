@@ -1,0 +1,19 @@
+
+containers.Any(c => c.Items.Single() == "x")
+
+InvalidOperationException caused by calling Single() on c.Items which contains more than one element. Actual element count: 3.
+
+Value of c.Items: [ "a", "b", "c" ]
+
+On item [1] of containers:
+{ Items = [ "a", "b", "c" ] }
+[CAUSE OF EXCEPTION]
+c.Items.Single()
+[EXCEPTION]
+Sequence contains more than one element
+[STACKTRACE]
+   at Assertive.Test.LinqElementCountPatternTests.<>c.<Single_inside_lambda_on_multiple_items_is_caught>b__12_1(Something c) in LinqElementCountPatternTests.cs:line 138
+   at Assertive.Test.LinqElementCountPatternTests.<>c__DisplayClass12_0.<Single_inside_lambda_on_multiple_items_is_caught>b__0() in LinqElementCountPatternTests.cs:line 138
+[LOCALS]
+containers: [ { Items = [ "only-one" ] }, { Items = [ "a", "b", "c" ] } ]
+················································································

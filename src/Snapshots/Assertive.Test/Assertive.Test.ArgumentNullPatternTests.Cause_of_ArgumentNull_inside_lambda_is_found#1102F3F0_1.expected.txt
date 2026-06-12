@@ -1,0 +1,17 @@
+
+containers.Any(c => c.Items.Where(i => i.StartsWith("x")).Any())
+
+ArgumentNullException caused by calling Where(i => i.StartsWith("x")) on c.Items which was null.
+
+On item [1] of containers:
+{ }
+[CAUSE OF EXCEPTION]
+c.Items.Where(i => i.StartsWith("x"))
+[EXCEPTION]
+Value cannot be null. (Parameter 'source')
+[STACKTRACE]
+   at Assertive.Test.ArgumentNullPatternTests.<>c.<Cause_of_ArgumentNull_inside_lambda_is_found>b__3_1(Container c) in ArgumentNullPatternTests.cs:line 39
+   at Assertive.Test.ArgumentNullPatternTests.<>c__DisplayClass3_0.<Cause_of_ArgumentNull_inside_lambda_is_found>b__0() in ArgumentNullPatternTests.cs:line 39
+[LOCALS]
+containers: [ { Items = [ "abc" ] }, { } ]
+················································································

@@ -1,0 +1,20 @@
+
+numbers.Select((n, i) => new { n, i }).All(x => numbersText[x.i] == x.n.ToString())
+
+[EXPECTED]
+All items of numbers.Select((n, i) => new { n = n, i = i }) should match the filter numbersText[x.i] == x.n.ToString()
+[ACTUAL]
+This item did not: 
+{ n = 3, i = 2 }
+
+[2]
+[EXPECTED]
+numbersText[item.i]: "3"
+[ACTUAL]
+numbersText[item.i]: "4"
+
+
+[LOCALS]
+numbers: [ 1, 2, 3 ]
+numbersText: [ "1", "2", "4" ]
+················································································

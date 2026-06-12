@@ -1,10 +1,6 @@
 using System;
-using System.Linq.Expressions;
 using System.Threading.Tasks;
-using Assertive.Analyzers;
 using Assertive.Helpers;
-using Assertive.Expressions;
-using static Assertive.Expressions.ExpressionHelper;
 
 namespace Assertive
 {
@@ -22,35 +18,9 @@ namespace Assertive
       public Exception? Thrown { get; }
     }
 
-    public static Exception? That(Expression<Func<bool>> assertion, object? message, Expression<Func<object>>? context)
-    {
-      var compiledAssertion = assertion.Compile(ShouldUseInterpreter(assertion));
-
-      Exception? exceptionToThrow = null;
-
-      try
-      {
-        var result = compiledAssertion();
-
-        if (!result)
-        {
-          var exceptionProvider = new FailedAssertionExceptionProvider(new Assertion(assertion, message, context));
-
-          exceptionToThrow = exceptionProvider.GetException();
-        }
-      }
-      catch (Exception ex)
-      {
-        var exceptionProvider = new FailedAssertionExceptionProvider(new Assertion(assertion, message, context));
-
-        exceptionToThrow = exceptionProvider.GetException(ex);
-      }
-
-      return exceptionToThrow;
-    }
-
     public static async Task<ThrowsResult> Throws(Func<Task> action, string actionExpression,
-      Type? expectedExceptionType = null, LambdaExpression? exceptionAssertion = null)
+      Type? expectedExceptionType = null, Func<Exception, bool>? exceptionAssertion = null, string? exceptionExpression = null,
+      Func<object?, int, Exception>? predicateFailure = null)
     {
       var threw = false;
       var expressionBody = GetLambdaBody(actionExpression);
@@ -78,13 +48,14 @@ namespace Assertive
         return new ThrowsResult(ExceptionHelper.GetException($"Expected {expressionBody} to throw an exception, but it did not."), null);
       }
 
-      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, thrownException!);
+      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, exceptionExpression, thrownException!, predicateFailure);
 
       return new ThrowsResult(assertionFailure, thrownException);
     }
 
     public static ThrowsResult Throws(Action action, string actionExpression,
-      Type? expectedExceptionType = null, LambdaExpression? exceptionAssertion = null)
+      Type? expectedExceptionType = null, Func<Exception, bool>? exceptionAssertion = null, string? exceptionExpression = null,
+      Func<object?, int, Exception>? predicateFailure = null)
     {
       var threw = false;
       var expressionBody = GetLambdaBody(actionExpression);
@@ -111,7 +82,7 @@ namespace Assertive
         return new ThrowsResult(ExceptionHelper.GetException($"Expected {expressionBody} to throw an exception, but it did not."), null);
       }
 
-      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, thrownException!);
+      var assertionFailure = EvaluateExceptionAssertion(exceptionAssertion, exceptionExpression, thrownException!, predicateFailure);
 
       return new ThrowsResult(assertionFailure, thrownException);
     }
@@ -128,53 +99,55 @@ namespace Assertive
       return expression;
     }
 
-    private static Exception? EvaluateExceptionAssertion(LambdaExpression? exceptionAssertion, Exception exception)
+    private static Exception? EvaluateExceptionAssertion(Func<Exception, bool>? exceptionAssertion, string? exceptionExpression, Exception exception,
+      Func<object?, int, Exception>? predicateFailure = null)
     {
       if (exceptionAssertion == null)
       {
         return null;
       }
 
-      if (exceptionAssertion.Parameters.Count != 1)
+      var assertionText = exceptionExpression ?? "the exception assertion";
+
+      bool matched;
+
+      try
       {
-        throw new ArgumentException("Exception assertion must take exactly one parameter.");
+        matched = exceptionAssertion(exception);
       }
-
-      var parameterType = exceptionAssertion.Parameters[0].Type;
-      if (!parameterType.IsInstanceOfType(exception))
+      catch (Exception evaluationException)
       {
-        throw new ArgumentException($"Exception assertion parameter type {parameterType.FullName} is not assignable from thrown exception type {exception.GetType().FullName}.");
-      }
-
-      var replacedBody = new ParameterReplacer(exceptionAssertion.Parameters[0],
-        new NamedConstantExpression(exceptionAssertion.Parameters[0].Name ?? "exception", exception))
-        .Visit(exceptionAssertion.Body)!;
-
-      var wrapper = Expression.Lambda<Func<bool>>(replacedBody);
-
-      return That(wrapper, null, null);
-    }
-
-    private sealed class ParameterReplacer : ExpressionVisitor
-    {
-      private readonly ParameterExpression _parameter;
-      private readonly Expression _replacement;
-
-      public ParameterReplacer(ParameterExpression parameter, Expression replacement)
-      {
-        _parameter = parameter;
-        _replacement = replacement;
-      }
-
-      protected override Expression VisitParameter(ParameterExpression node)
-      {
-        if (node == _parameter)
+        return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails
         {
-          return _replacement;
-        }
-
-        return base.VisitParameter(node);
+          AssertionText = assertionText,
+          Exception = evaluationException,
+        });
       }
+
+      if (matched)
+      {
+        return null;
+      }
+
+      // The generated path supplies a factory that decomposes the predicate body with the
+      // thrown exception bound to its parameter.
+      if (predicateFailure != null)
+      {
+        try
+        {
+          return predicateFailure(exception, 0);
+        }
+        catch
+        {
+          // Fall through to the plain report.
+        }
+      }
+
+      return AssertionFailureBuilder.Build(new AssertionFailureBuilder.FailureDetails
+      {
+        AssertionText = assertionText,
+        Exception = exception,
+      });
     }
   }
 }

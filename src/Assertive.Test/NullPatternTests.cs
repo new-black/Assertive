@@ -1,7 +1,4 @@
 using System;
-using System.Linq.Expressions;
-using Assertive.Analyzers;
-using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;
 
@@ -16,8 +13,8 @@ namespace Assertive.Test
 
       string notNullString = "a string";
       
-      ShouldFail(() => nullString != null, "nullString should not be null.", "null");
-      ShouldFail(() => notNullString == null, "notNullString should be null.", @"""a string""");
+      ShouldFail(() => nullString != null);
+      ShouldFail(() => notNullString == null);
     }
     
     [Fact]
@@ -27,8 +24,8 @@ namespace Assertive.Test
 
       string notNullString = "a string";
       
-      ShouldFail(() => nullString is object, "nullString should not be null.", "null");
-      ShouldFail(() => !(notNullString is object), "notNullString should be null.", @"""a string""");
+      ShouldFail(() => nullString is object);
+      ShouldFail(() => !(notNullString is object));
     }
     
     [Fact]
@@ -38,33 +35,18 @@ namespace Assertive.Test
 
       string notNullString = "a string";
       
-      ShouldFail(() => nullString != default, "nullString should not be null.", "null");
-      ShouldFail(() => nullString != default(string), "nullString should not be null.", "null");
-      ShouldFail(() => notNullString == default, "notNullString should be null.", @"""a string""");
-      ShouldFail(() => notNullString == default(string), "notNullString should be null.", @"""a string""");
+      ShouldFail(() => nullString != default);
+      ShouldFail(() => nullString != default(string));
+      ShouldFail(() => notNullString == default);
+      ShouldFail(() => notNullString == default(string));
     }
 
-    private static AssertionFailureContext CreateContext(Expression<Func<bool>> assertion)
-    {
-      return new AssertionFailureContext(new Assertion(assertion, null, null), null);
-    }
-    
     [Fact]
-    public void NullPattern_is_not_triggered_for_default_expression_on_struct()
+    public void Null_message_is_not_used_for_default_expression_on_struct()
     {
-      DateTime a = DateTime.UtcNow;
-      
-      var failures = new AssertionFailureAnalyzer(CreateContext(() => a == default)).AnalyzeAssertionFailures();
-      Assert(() => failures.Count == 1 && !(failures[0].FriendlyMessagePattern is NullPattern));
-    }
-    
-    [Fact]
-    public void NullPattern_is_triggered()
-    {
-      string notNullString = "a string";
-      
-      var failures = new AssertionFailureAnalyzer(CreateContext(() => notNullString == null)).AnalyzeAssertionFailures();
-      Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is NullPattern);
+      DateTime a = new DateTime(2024, 6, 15, 10, 30, 0, DateTimeKind.Utc);
+
+      ShouldFail(() => a == default);
     }
   }
 }

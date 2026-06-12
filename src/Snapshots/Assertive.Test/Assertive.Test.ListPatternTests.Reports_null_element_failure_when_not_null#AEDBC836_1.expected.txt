@@ -1,0 +1,11 @@
+
+arr[0] is null
+
+[EXPECTED]
+arr[0] should be null.
+[ACTUAL]
+"hello"
+
+[LOCALS]
+arr: [ "hello", null ]
+················································································

@@ -11,8 +11,7 @@ namespace Assertive.Test
     {
       object obj = 42;
 
-      ShouldFail(() => (string)obj == "42",
-        "InvalidCastException caused by casting obj to string. Actual type was int.");
+      ShouldFail(() => (string)obj == "42");
     }
 
     [Fact]
@@ -20,8 +19,7 @@ namespace Assertive.Test
     {
       object obj = "hello";
 
-      ShouldFail(() => (int)obj == 5,
-        "InvalidCastException caused by casting obj to int. Actual type was string.");
+      ShouldFail(() => (int)obj == 5);
     }
 
     private class Animal { }
@@ -33,8 +31,7 @@ namespace Assertive.Test
     {
       Animal animal = new Dog();
 
-      ShouldFail(() => ((Cat)animal) != null,
-        "InvalidCastException caused by casting animal to Cat. Actual type was Dog.");
+      ShouldFail(() => ((Cat)animal) != null);
     }
 
     private class Container
@@ -51,13 +48,7 @@ namespace Assertive.Test
         new Container { Value = 123 },  // Will fail to cast to string
       };
 
-      ShouldFail(() => containers.All(c => (string)c.Value != null),
-        """
-        InvalidCastException caused by casting c.Value to string. Actual type was int.
-
-        On item [1] of containers:
-        { Value = 123 }
-        """);
+      ShouldFail(() => containers.All(c => (string)c.Value != null));
     }
 
     [Fact]
@@ -69,13 +60,7 @@ namespace Assertive.Test
         new Container { Value = "text" },
       };
 
-      ShouldFail(() => containers.Any(c => (string)c.Value == "42"),
-        """
-        InvalidCastException caused by casting c.Value to string. Actual type was int.
-
-        On item [0] of containers:
-        { Value = 42 }
-        """);
+      ShouldFail(() => containers.Any(c => (string)c.Value == "42"));
     }
   }
 }

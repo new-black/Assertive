@@ -1,0 +1,9 @@
+
+value.Contains("z")
+
+[EXPECTED]
+value should contain the substring "z".
+[ACTUAL]
+value: "abcdefg"
+
+················································································

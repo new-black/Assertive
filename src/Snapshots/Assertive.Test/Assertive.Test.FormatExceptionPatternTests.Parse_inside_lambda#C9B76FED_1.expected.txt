@@ -1,0 +1,17 @@
+
+items.All(i => int.Parse(i.Value) > 0)
+
+FormatException caused by calling int.Parse("abc"). "abc" is not a valid int.
+
+On item [1] of items:
+{ Value = "abc" }
+[CAUSE OF EXCEPTION]
+int.Parse(i.Value)
+[EXCEPTION]
+The input string 'abc' was not in a correct format.
+[STACKTRACE]
+   at Assertive.Test.FormatExceptionPatternTests.<>c.<Parse_inside_lambda>b__6_1(Item i) in FormatExceptionPatternTests.cs:line 62
+   at Assertive.Test.FormatExceptionPatternTests.<>c__DisplayClass6_0.<Parse_inside_lambda>b__0() in FormatExceptionPatternTests.cs:line 62
+[LOCALS]
+items: [ { Value = "123" }, { Value = "abc" } ]
+················································································

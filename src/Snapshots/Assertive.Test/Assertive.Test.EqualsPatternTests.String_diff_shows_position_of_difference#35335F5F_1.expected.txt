@@ -1,0 +1,14 @@
+
+actual == expected
+
+[EXPECTED]
+actual: "Hallo World"
+[ACTUAL]
+actual: "Hello World"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] H[-a-]llo World
++ [A1] H[+e+]llo World
+
+
+················································································

@@ -1,0 +1,12 @@
+
+foo + bar != "foobar"
+
+[EXPECTED]
+foo + bar: should not equal "foobar".
+[ACTUAL]
+foo + bar: "foobar"
+
+[LOCALS]
+foo: "foo"
+bar: "bar"
+················································································

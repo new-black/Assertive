@@ -1,0 +1,9 @@
+
+person.Address is not null
+
+[EXPECTED]
+person.Address should not be null.
+[ACTUAL]
+null
+
+················································································

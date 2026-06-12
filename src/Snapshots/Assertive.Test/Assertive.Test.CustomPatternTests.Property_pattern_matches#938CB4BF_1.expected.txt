@@ -1,0 +1,11 @@
+
+obj.IsValid
+
+[EXPECTED]
+obj should be valid.
+[ACTUAL]
+IsValid was False.
+
+[LOCALS]
+obj: { IsValid = False }
+················································································

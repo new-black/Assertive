@@ -1,0 +1,36 @@
+
+list.All(l => l.Length > 10)
+
+[EXPECTED]
+All items of `list` should match the filter `l.Length > 10`
+[ACTUAL]
+These 3 items did not:
+
+[0]: "a",
+[1]: "b",
+[2]: "c"
+
+Messages per item:
+
+list[0]
+[EXPECTED]
+`item` should have a Length greater than 10.
+[ACTUAL]
+Length: 1.
+
+list[1]
+[EXPECTED]
+`item` should have a Length greater than 10.
+[ACTUAL]
+Length: 1.
+
+list[2]
+[EXPECTED]
+`item` should have a Length greater than 10.
+[ACTUAL]
+Length: 1.
+
+
+[LOCALS]
+list: [ "a", "b", "c" ]
+················································································

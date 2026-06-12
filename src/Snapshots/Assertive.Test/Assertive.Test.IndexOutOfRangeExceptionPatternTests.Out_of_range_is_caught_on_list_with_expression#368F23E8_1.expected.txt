@@ -1,0 +1,14 @@
+
+list[myValue] == 1
+
+ArgumentOutOfRangeException caused by accessing index myValue (value: 4) on list, actual count was 3.
+[CAUSE OF EXCEPTION]
+list[myValue]
+[EXCEPTION]
+Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')
+[STACKTRACE]
+   at Assertive.Test.IndexOutOfRangeExceptionPatternTests.<>c__DisplayClass4_0.<Out_of_range_is_caught_on_list_with_expression>b__0() in IndexOutOfRangeExceptionPatternTests.cs:line 55
+[LOCALS]
+list: [ 1, 2, 3 ]
+myValue: 4
+················································································

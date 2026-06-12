@@ -1,0 +1,14 @@
+
+seq1.SequenceEqual(seq2, StringComparer.OrdinalIgnoreCase)
+
+[EXPECTED]
+seq1 should equal seq2
+[ACTUAL]
+There was 1 difference:
+
+[2]: "c" <> "D"
+
+seq1: [ "a", "B", "c" ]
+seq2: [ "A", "b", "D" ]
+
+················································································

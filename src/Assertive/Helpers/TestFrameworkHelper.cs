@@ -6,6 +6,7 @@ namespace Assertive.Helpers
 {
   internal static class TestFrameworkHelper
   {
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Best-effort lookup of an optional test-framework type by name; if it has been trimmed the method returns null and the caller degrades gracefully.")]
     public static Type? TryGetType(string assemblyName, string typeName, string? assemblyPrefix = null)
     {
       var assemblies = AppDomain.CurrentDomain.GetAssemblies();

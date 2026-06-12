@@ -12,15 +12,13 @@ namespace Assertive.Test
     {
       var input = "abc";
 
-      ShouldFail(() => int.Parse(input) == 123,
-        "FormatException caused by calling int.Parse(\"abc\"). \"abc\" is not a valid int.");
+      ShouldFail(() => int.Parse(input) == 123);
     }
 
     [Fact]
     public void Int_Parse_with_literal_invalid_string()
     {
-      ShouldFail(() => int.Parse("not-a-number") == 123,
-        "FormatException caused by calling int.Parse(\"not-a-number\"). \"not-a-number\" is not a valid int.");
+      ShouldFail(() => int.Parse("not-a-number") == 123);
     }
 
     [Fact]
@@ -28,8 +26,7 @@ namespace Assertive.Test
     {
       var input = "invalid";
 
-      ShouldFail(() => double.Parse(input) == 1.5,
-        "FormatException caused by calling double.Parse(\"invalid\"). \"invalid\" is not a valid double.");
+      ShouldFail(() => double.Parse(input) == 1.5);
     }
 
     [Fact]
@@ -37,8 +34,7 @@ namespace Assertive.Test
     {
       var input = "not-a-date";
 
-      ShouldFail(() => DateTime.Parse(input) > DateTime.MinValue,
-        "FormatException caused by calling DateTime.Parse(\"not-a-date\"). \"not-a-date\" is not a valid DateTime.");
+      ShouldFail(() => DateTime.Parse(input) > DateTime.MinValue);
     }
 
     [Fact]
@@ -46,8 +42,7 @@ namespace Assertive.Test
     {
       var input = "xyz";
 
-      ShouldFail(() => Convert.ToInt32(input) == 0,
-        "FormatException caused by calling Convert.ToInt32(\"xyz\"). \"xyz\" is not a valid int.");
+      ShouldFail(() => Convert.ToInt32(input) == 0);
     }
 
     private class Item
@@ -64,13 +59,7 @@ namespace Assertive.Test
         new Item { Value = "abc" },  // Will fail to parse
       };
 
-      ShouldFail(() => items.All(i => int.Parse(i.Value) > 0),
-        """
-        FormatException caused by calling int.Parse("abc"). "abc" is not a valid int.
-
-        On item [1] of items:
-        { Value = "abc" }
-        """);
+      ShouldFail(() => items.All(i => int.Parse(i.Value) > 0));
     }
 
     [Fact]
@@ -82,13 +71,7 @@ namespace Assertive.Test
         new Item { Value = "456" },
       };
 
-      ShouldFail(() => items.Any(i => int.Parse(i.Value) == 999),
-        """
-        FormatException caused by calling int.Parse("invalid"). "invalid" is not a valid int.
-
-        On item [0] of items:
-        { Value = "invalid" }
-        """);
+      ShouldFail(() => items.Any(i => int.Parse(i.Value) == 999));
     }
   }
 }

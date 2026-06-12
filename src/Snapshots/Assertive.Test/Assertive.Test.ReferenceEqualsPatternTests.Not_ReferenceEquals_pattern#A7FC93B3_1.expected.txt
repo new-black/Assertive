@@ -1,0 +1,7 @@
+
+!ReferenceEquals(instance1, instance2)
+
+[EXPECTED]
+instance1 and instance2 should be different instances.
+
+················································································

@@ -1,0 +1,85 @@
+
+ids.All(i => i > 1000)
+
+[EXPECTED]
+All items of ids should match the filter i > 1000
+[ACTUAL]
+These 100 items did not (first 10):
+
+[0]: 1,
+[1]: 2,
+[2]: 3,
+[3]: 4,
+[4]: 5,
+[5]: 6,
+[6]: 7,
+[7]: 8,
+[8]: 9,
+[9]: 10
+
+Messages per item:
+
+ids[0]
+[EXPECTED]
+item should be greater than 1000.
+[ACTUAL]
+item: 1.
+
+ids[1]
+[EXPECTED]
+item should be greater than 1000.
+[ACTUAL]
+item: 2.
+
+ids[2]
+[EXPECTED]
+item should be greater than 1000.
+[ACTUAL]
+item: 3.
+
+ids[3]
+[EXPECTED]
+item should be greater than 1000.
+[ACTUAL]
+item: 4.
+
+ids[4]
+[EXPECTED]
+item should be greater than 1000.
+[ACTUAL]
+item: 5.
+
+ids[5]
+[EXPECTED]
+item should be greater than 1000.
+[ACTUAL]
+item: 6.
+
+ids[6]
+[EXPECTED]
+item should be greater than 1000.
+[ACTUAL]
+item: 7.
+
+ids[7]
+[EXPECTED]
+item should be greater than 1000.
+[ACTUAL]
+item: 8.
+
+ids[8]
+[EXPECTED]
+item should be greater than 1000.
+[ACTUAL]
+item: 9.
+
+ids[9]
+[EXPECTED]
+item should be greater than 1000.
+[ACTUAL]
+item: 10.
+
+
+[LOCALS]
+ids: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ... ]
+················································································

@@ -1,0 +1,14 @@
+
+str.Substring(startIndex) == "world"
+
+ArgumentOutOfRangeException caused by calling Substring(startIndex (value: 10)) on str (length: 5).
+[CAUSE OF EXCEPTION]
+str.Substring(startIndex)
+[EXCEPTION]
+startIndex cannot be larger than length of string. (Parameter 'startIndex')
+[STACKTRACE]
+   at Assertive.Test.ArgumentOutOfRangeExceptionPatternTests.<>c__DisplayClass1_0.<Substring_with_variable_index>b__0() in ArgumentOutOfRangeExceptionPatternTests.cs:line 23
+[LOCALS]
+str: "hello"
+startIndex: 10
+················································································

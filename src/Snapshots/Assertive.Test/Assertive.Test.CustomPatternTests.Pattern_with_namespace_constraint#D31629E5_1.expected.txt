@@ -1,0 +1,11 @@
+
+list.None()
+
+[EXPECTED]
+Namespaced: list should be empty.
+[ACTUAL]
+It was not.
+
+[LOCALS]
+list: [ "a" ]
+················································································

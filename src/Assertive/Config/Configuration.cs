@@ -236,6 +236,22 @@ namespace Assertive.Config
       /// </summary>
       public bool AcceptNewSnapshots { get; set; }
 
+      /// <summary>
+      /// A transform applied to each line of string snapshots before writing or comparing.
+      /// Useful for stripping or normalizing machine-specific content (e.g. local file paths in stack traces).
+      /// The delegate receives a single line (without line terminator) and should return the transformed line,
+      /// or <c>null</c> to drop the line entirely (useful for removing non-deterministic lines such as
+      /// framework stack-trace frames that vary across operating systems or runtimes).
+      /// </summary>
+      public Func<string, string?>? StringTransform { get; set; }
+      
+      /// <summary>
+      /// When true, snapshot identifiers that are explicitly specified (via <see cref="AssertSnapshotOptions.SnapshotIdentifier"/>)
+      /// will have a counter appended to them to ensure uniqueness,
+      /// just like the default identifier generation strategy.
+      /// </summary>
+      public bool IncludeCounterForExplicitSnapshotIdentifiers { get; set; } = true;
+
       private static readonly ConcurrentDictionary<object, JsonSerializerOptions> _jsonSerializerOptionsCache = new();
 
       internal JsonSerializerOptions GetJsonSerializerOptions(SnapshotProjection? projection = null)

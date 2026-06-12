@@ -1,0 +1,9 @@
+
+text.EndsWith("xyz")
+
+[EXPECTED]
+text should end with "xyz".
+[ACTUAL]
+Value: "hello world"
+
+················································································

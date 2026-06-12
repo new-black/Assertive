@@ -1,0 +1,9 @@
+
+value is string
+
+[EXPECTED]
+value should be of type string.
+[ACTUAL]
+It was null.
+
+················································································

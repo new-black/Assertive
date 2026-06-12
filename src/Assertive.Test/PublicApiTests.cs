@@ -92,7 +92,9 @@ namespace Assertive.Test
     {
       var publicTypes = typeof(Assert).Assembly.GetTypes().Where(t => t is { IsPublic: true, Namespace: "Assertive" });
 
-      Assert(() => publicTypes.Count() == 3);
+      // Assert, DSL, AssertSnapshotOptions + the assertion-wrapper API (AssertionHandle,
+      // AssertionWrapperAttribute).
+      Assert(() => publicTypes.Count() == 5);
     }
     
     [Fact]

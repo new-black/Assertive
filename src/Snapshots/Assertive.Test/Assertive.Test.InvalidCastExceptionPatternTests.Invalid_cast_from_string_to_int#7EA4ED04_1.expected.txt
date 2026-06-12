@@ -1,0 +1,13 @@
+
+(int)obj == 5
+
+InvalidCastException caused by casting obj to int. Actual type was string.
+[CAUSE OF EXCEPTION]
+(int)obj
+[EXCEPTION]
+Unable to cast object of type 'System.String' to type 'System.Int32'.
+[STACKTRACE]
+   at Assertive.Test.InvalidCastExceptionPatternTests.<>c__DisplayClass1_0.<Invalid_cast_from_string_to_int>b__0() in InvalidCastExceptionPatternTests.cs:line 22
+[LOCALS]
+obj: "hello"
+················································································

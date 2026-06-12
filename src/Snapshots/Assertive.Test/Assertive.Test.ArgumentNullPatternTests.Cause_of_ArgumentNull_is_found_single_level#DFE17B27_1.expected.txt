@@ -1,0 +1,13 @@
+
+items.Where(i => i.StartsWith("abc")).Any()
+
+ArgumentNullException caused by calling Where(i => i.StartsWith("abc")) on items which was null.
+[CAUSE OF EXCEPTION]
+items.Where(i => i.StartsWith("abc"))
+[EXCEPTION]
+Value cannot be null. (Parameter 'source')
+[STACKTRACE]
+   at Assertive.Test.ArgumentNullPatternTests.<>c__DisplayClass1_0.<Cause_of_ArgumentNull_is_found_single_level>b__0() in ArgumentNullPatternTests.cs:line 19
+[LOCALS]
+items: null
+················································································

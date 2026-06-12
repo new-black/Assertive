@@ -1,5 +1,6 @@
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using Assertive.Config;
 using Assertive.xUnit;
 using DiffEngine;
@@ -26,6 +27,21 @@ public static class GlobalSetup
     DirectoryInfo? baseDir = null;
 
     //Configuration.Snapshots.AssumeCorrectness = true;
+    Configuration.Snapshots.AcceptNewSnapshots = true;
+
+    Configuration.Snapshots.StringTransform = line =>
+    {
+      // Drop framework stack-trace frames: their presence and exact shape varies across
+      // operating systems and runtime versions (e.g. inlined "at System.DateTime.Parse"),
+      // which would make stack-trace snapshots non-deterministic between local and CI runs.
+      // Keep the test's own frames (they are stable for a given source + compiler).
+      if (Regex.IsMatch(line, @"^\s+at ") && !line.Contains("Assertive.Test"))
+      {
+        return null;
+      }
+
+      return Regex.Replace(line, @" in .+[/\\]([^/\\]+\.cs):line (\d+)", " in $1:line $2");
+    };
 
     Configuration.Snapshots.ExpectedFileDirectoryResolver = (method, file) =>
     {

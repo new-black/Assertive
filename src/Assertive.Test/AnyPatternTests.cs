@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using Assertive.Analyzers;
-using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;
 
@@ -14,7 +12,7 @@ namespace Assertive.Test
     {
       var list = new List<string>();
       
-      ShouldFail(() => list.Any(), "Collection list should contain some items.", "It contained no items.");
+      ShouldFail(() => list.Any());
     }
     
     [Fact]
@@ -25,7 +23,7 @@ namespace Assertive.Test
         1,2,3
       };
       
-      ShouldFail(() => list.Any(l => l > 3), "Collection list should contain some items that match the filter l > 3.", "It contained no items matching the filter.");
+      ShouldFail(() => list.Any(l => l > 3));
     }
     
     [Fact]
@@ -36,19 +34,25 @@ namespace Assertive.Test
         "a"
       };
       
-      ShouldFail(() => !list.Any(), "Collection list should not contain any items.", "It contained 1 item");
+      ShouldFail(() => !list.Any());
     }
 
-    [Fact]
-    public void AnyPattern_is_triggered()
+    private class Foo
     {
-      var list = new List<string>
+      public string Name { get; set; }
+    }
+    
+    [Fact]
+    public void Any_with_filter_works_on_private_class()
+    {
+      var list = new List<Foo>()
       {
-        "a", "b", "c"
+        new Foo() { Name = "a" },
+        new Foo() { Name = "b" },
+        new Foo() { Name = "c" }
       };
-
-      var failures = new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => list.Any(l => l.Length > 1), null, null), null)).AnalyzeAssertionFailures();
-      Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is AnyPattern);
+      
+      ShouldFail(() => list.Any(l => l.Name == "d"));
     }
   }
 }

@@ -1,0 +1,17 @@
+
+surveys.Any(s => s.Category.ID == 1)
+
+NullReferenceException caused by accessing ID on s.Category which was null.
+
+On item [0] of surveys:
+{ Name = "foo" }
+[CAUSE OF EXCEPTION]
+s.Category.ID
+[EXCEPTION]
+Object reference not set to an instance of an object.
+[STACKTRACE]
+   at Assertive.Test.NullReferenceTests.<>c.<CauseOfNullReference_inside_lambda_extension_method_single_item>b__16_1(Survey s) in NullReferenceTests.cs:line 177
+   at Assertive.Test.NullReferenceTests.<>c__DisplayClass16_0.<CauseOfNullReference_inside_lambda_extension_method_single_item>b__0() in NullReferenceTests.cs:line 177
+[LOCALS]
+surveys: [ { Name = "foo" } ]
+················································································

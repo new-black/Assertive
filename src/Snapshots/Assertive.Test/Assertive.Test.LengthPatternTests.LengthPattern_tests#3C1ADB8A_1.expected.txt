@@ -1,0 +1,12 @@
+
+list.Count() > array.Length
+
+[EXPECTED]
+list should have a Count greater than array.Length (value: 2).
+[ACTUAL]
+Count: 2.
+
+[LOCALS]
+list: [ "a", "b" ]
+array: [ 0, 0 ]
+················································································

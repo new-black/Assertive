@@ -49,7 +49,7 @@ namespace Assertive.Test
       });
 
       var user = new User { IsActive = false };
-      ShouldFail(() => user.IsActive, "user.IsActive should be true.", "It was false.");
+      ShouldFail(() => user.IsActive);
     }
 
     [Fact]
@@ -72,7 +72,7 @@ namespace Assertive.Test
       });
 
       var user = new User { IsActive = true };
-      ShouldFail(() => !user.IsActive, "user.IsActive should be false.", "It was true.");
+      ShouldFail(() => !user.IsActive);
     }
 
     #endregion
@@ -103,7 +103,7 @@ namespace Assertive.Test
       });
 
       var list = new List<string> { "a", "b", "c" };
-      ShouldFail(() => list.Contains("z"), "list should contain \"z\".", "It did not.");
+      ShouldFail(() => list.Contains("z"));
     }
 
     [Fact]
@@ -129,7 +129,7 @@ namespace Assertive.Test
       });
 
       var text = "hello world";
-      ShouldFail(() => text.Contains("xyz"), "text should contain substring \"xyz\".", "Value: \"hello world\"");
+      ShouldFail(() => text.Contains("xyz"));
     }
 
     #endregion
@@ -160,7 +160,7 @@ namespace Assertive.Test
       });
 
       var list = new List<string>();
-      ShouldFail(() => list.Any(), "Collection list should contain at least one item.", "It was empty.");
+      ShouldFail(() => list.Any());
     }
 
     [Fact]
@@ -184,7 +184,7 @@ namespace Assertive.Test
       });
 
       var list = new List<int> { 1, 2, 3 };
-      ShouldFail(() => list.Any(x => x > 10), "Collection list should contain items matching x => x > 10.", "No items matched.");
+      ShouldFail(() => list.Any(x => x > 10));
     }
 
     #endregion
@@ -215,7 +215,7 @@ namespace Assertive.Test
       });
 
       var text = "hello world";
-      ShouldFail(() => text.StartsWith("xyz"), "text should start with \"xyz\".", "Value: \"hello world\"");
+      ShouldFail(() => text.StartsWith("xyz"));
     }
 
     [Fact]
@@ -238,7 +238,7 @@ namespace Assertive.Test
       });
 
       var text = "hello world";
-      ShouldFail(() => text.EndsWith("xyz"), "text should end with \"xyz\".", "Value: \"hello world\"");
+      ShouldFail(() => text.EndsWith("xyz"));
     }
 
     #endregion
@@ -271,7 +271,7 @@ namespace Assertive.Test
       var list1 = new[] { 1, 2, 3 };
       var list2 = new[] { 1, 2, 4 };
       // NOTE: Cannot show detailed diff like built-in pattern does
-      ShouldFail(() => list1.SequenceEqual(list2), "list1 should equal list2.", "Sequences differ.");
+      ShouldFail(() => list1.SequenceEqual(list2));
     }
 
     #endregion
@@ -303,7 +303,7 @@ namespace Assertive.Test
 
       var obj1 = new object();
       var obj2 = new object();
-      ShouldFail(() => ReferenceEquals(obj1, obj2), "obj1 and obj2 should be the same instance.", "They were different instances.");
+      ShouldFail(() => ReferenceEquals(obj1, obj2));
     }
 
     #endregion
@@ -335,7 +335,7 @@ namespace Assertive.Test
 
       var list = new List<int> { 1, 2, 3, 10, 20 };
       // NOTE: Cannot show which items failed like built-in pattern does
-      ShouldFail(() => list.All(x => x < 5), "All items in list should match x => x < 5.", "Some items did not match.");
+      ShouldFail(() => list.All(x => x < 5));
     }
 
     [Fact]
@@ -358,7 +358,7 @@ namespace Assertive.Test
       });
 
       var list = new List<int> { 1, 2, 3, 10, 20 };
-      ShouldFail(() => list.All(x => x < 5), "All items in list should match x => x < 5.", "Items: [1, 2, 3, 10, 20]");
+      ShouldFail(() => list.All(x => x < 5));
     }
 
     [Fact]
@@ -376,7 +376,7 @@ namespace Assertive.Test
       });
 
       var list = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
-      ShouldFail(() => list.None(), "list should be empty.", "Items: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] ...");
+      ShouldFail(() => list.None());
     }
 
     #endregion
@@ -394,7 +394,7 @@ namespace Assertive.Test
       // Current DSL only supports MethodCallExpression and MemberExpression
       var a = 5;
       var b = 10;
-      ShouldFail(() => a == b, "a should equal b.", "a was 5, b was 10.");
+      ShouldFail(() => a == b);
     }
 
     [Fact(Skip = "Binary expressions not supported in custom patterns")]
@@ -403,7 +403,7 @@ namespace Assertive.Test
       // This would require matching BinaryExpression with < operator
       var a = 10;
       var b = 5;
-      ShouldFail(() => a < b, "a should be less than b.", "a was 10, b was 5.");
+      ShouldFail(() => a < b);
     }
 
     #endregion
@@ -419,7 +419,7 @@ namespace Assertive.Test
     {
       // This would require matching TypeBinaryExpression
       object obj = "hello";
-      ShouldFail(() => obj is int, "obj should be of type int.", "Type was String.");
+      ShouldFail(() => obj is int);
     }
 
     #endregion
@@ -435,7 +435,7 @@ namespace Assertive.Test
     {
       // This would require matching BinaryExpression with null
       string? value = "not null";
-      ShouldFail(() => value == null, "value should be null.", "Value: \"not null\"");
+      ShouldFail(() => value == null);
     }
 
     [Fact(Skip = "Type binary expressions not supported in custom patterns")]
@@ -443,7 +443,7 @@ namespace Assertive.Test
     {
       // This would require matching TypeBinaryExpression with 'object'
       string? value = null;
-      ShouldFail(() => value is object, "value should not be null.", "It was null.");
+      ShouldFail(() => value is object);
     }
 
     #endregion
@@ -474,7 +474,7 @@ namespace Assertive.Test
       });
 
       int? value = null;
-      ShouldFail(() => value.HasValue, "value should have a value.", "It was null.");
+      ShouldFail(() => value.HasValue);
     }
 
     #endregion

@@ -1,0 +1,14 @@
+
+actual == expected
+
+[EXPECTED]
+actual: "This is a long string with orange inside."
+[ACTUAL]
+actual: "This is a long string with apple inside."
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] ... a long string with [-or-]a[-ng-]e inside.
++ [A1] ... a long string with a[+ppl+]e inside.
+
+
+················································································

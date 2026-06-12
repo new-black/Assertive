@@ -1,0 +1,11 @@
+
+items.Length == 5
+
+[EXPECTED]
+items should have a Length equal to 5.
+[ACTUAL]
+Length: 2.
+
+[LOCALS]
+items: [ 1, 2 ]
+················································································

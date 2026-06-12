@@ -1,0 +1,17 @@
+
+items.Any(i => i.Numerator / i.Denominator == 999)
+
+DivideByZeroException caused by dividing i.Numerator by i.Denominator (value: 0).
+
+On item [0] of items:
+{ Numerator = 10, Denominator = 0 }
+[CAUSE OF EXCEPTION]
+i.Numerator / i.Denominator
+[EXCEPTION]
+Attempted to divide by zero.
+[STACKTRACE]
+   at Assertive.Test.DivideByZeroExceptionPatternTests.<>c.<Divide_by_zero_inside_lambda_first_item>b__6_1(Item i) in DivideByZeroExceptionPatternTests.cs:line 70
+   at Assertive.Test.DivideByZeroExceptionPatternTests.<>c__DisplayClass6_0.<Divide_by_zero_inside_lambda_first_item>b__0() in DivideByZeroExceptionPatternTests.cs:line 70
+[LOCALS]
+items: [ { Numerator = 10, Denominator = 0 }, { Numerator = 20, Denominator = 5 } ]
+················································································

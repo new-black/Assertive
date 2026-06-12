@@ -5,7 +5,7 @@
     <AssemblyName>Assertive</AssemblyName>
     <PackageId>Assertive</PackageId>
     <Company>New Black</Company>
-    <PackageVersion>0.25.0</PackageVersion>
+    <PackageVersion>0.26.0</PackageVersion>
     <PackageProjectUrl>https://github.com/new-black/Assertive</PackageProjectUrl>
     <RepositoryUrl>https://github.com/new-black/Assertive</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -13,6 +13,11 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <LangVersion>12</LangVersion>
+
+    <!-- Run the trim/AOT analyzers against this assembly so its reflection is reviewed and
+         kept warning-clean. The reflective decomposition helpers are intentionally guarded
+         (they degrade to source text when metadata is trimmed) and carry [UnconditionalSuppressMessage]. -->
+    <IsAotCompatible>true</IsAotCompatible>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
 
@@ -36,6 +41,15 @@
   <ItemGroup>
     <!-- Include README in package -->
     <None Include="../../README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Source generator: built alongside, shipped inside this package as an analyzer.
+         ReferenceOutputAssembly=false: build-order dependency only, no runtime reference. -->
+    <ProjectReference Include="../Assertive.Generators/Assertive.Generators.csproj" ReferenceOutputAssembly="false" PrivateAssets="all"/>
+    <None Include="../Assertive.Generators/bin/$(Configuration)/netstandard2.0/Assertive.Generators.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+    <!-- Opts consuming projects into interceptors for our generated namespace. -->
+    <None Include="buildTransitive/Assertive.props" Pack="true" PackagePath="buildTransitive/"/>
   </ItemGroup>
 
   <ItemGroup>

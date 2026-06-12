@@ -1,6 +1,9 @@
 using System;
-using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Text;
+using Assertive.Config;
+using Assertive.Runtime;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -11,225 +14,230 @@ namespace Assertive.Test
     private static partial class AnsiHelper
     {
 
+      // Match only real ANSI/CSI escape sequences (ESC '[' … letter). The ESC prefix is
+      // load-bearing: without it the pattern also eats literal no-color labels like
+      // "[EXPECTED]" (which look like "[" + letter), corrupting the snapshot text.
       [GeneratedRegex(@"\u001b\[[0-9;]*[A-Za-z]")]
       public static partial Regex AnsiRegex();
 
     }
     protected static string StripAnsi(string input)
     {
-      // Strip ANSI codes and normalize line endings to \n for consistent test comparisons
       var stripped = AnsiHelper.AnsiRegex().Replace(input, "");
       return stripped.Replace("\r\n", "\n").Replace("\r", "\n");
     }
 
-    protected void ShouldThrow(Action action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "")
+    // Snapshotted failure messages must be byte-for-byte identical regardless of the
+    // environment. Colors are auto-enabled when running locally but disabled on CI (and
+    // under NUnit, Visual Studio, NO_COLOR, etc.), and the two modes don't just differ by
+    // ANSI escape codes — the no-color renderer emits structurally different text (plain
+    // [EXPECTED] headers, ASCII diff markers, no padding/icons). To keep snapshots stable
+    // we render every captured message with colors turned off, restoring the previous
+    // setting afterwards so colour-rendering tests are unaffected.
+    private static Exception? CaptureWithColorsDisabled(Action body)
     {
-      bool throws = false;
-
+      var original = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
       try
       {
-        Assert.Throws(action, null, actionExpression);
-        Xunit.Assert.Fail("Should have thrown");
+        body();
+        return null;
       }
       catch (Exception ex)
       {
-        throws = true;
-
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+        return ex;
       }
-
-      Xunit.Assert.True(throws);
+      finally
+      {
+        Configuration.Colors.Enabled = original;
+      }
     }
 
-    protected void ShouldThrow(Func<object?> func, string expectedMessage, [CallerArgumentExpression(nameof(func))] string funcExpression = "")
+    private static async Task<Exception?> CaptureWithColorsDisabledAsync(Func<Task> body)
     {
-      bool throws = false;
-
+      var original = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
       try
       {
-        Assert.Throws(func, null, funcExpression);
-        Xunit.Assert.Fail("Should have thrown");
+        await body();
+        return null;
       }
       catch (Exception ex)
       {
-        throws = true;
-
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+        return ex;
       }
-
-      Xunit.Assert.True(throws);
+      finally
+      {
+        Configuration.Colors.Enabled = original;
+      }
     }
 
-    protected async Task ShouldThrow(Func<Task> action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "")
+    /// <summary>
+    /// Runs an assertion that is expected to fail, with colorization disabled so the captured
+    /// message is deterministic, and returns the resulting exception. Use this instead of
+    /// <c>Xunit.Assert.ThrowsAny</c> when the exception is going to be snapshotted via
+    /// <see cref="SnapshotMessage"/>.
+    /// </summary>
+    protected static Exception CaptureFailure(Action assertion)
     {
-      bool throws = false;
-
+      var original = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
       try
       {
-        await Assert.Throws(action, null, actionExpression);
-        Xunit.Assert.Fail("Should have thrown");
+        return Xunit.Assert.ThrowsAny<Exception>(assertion);
       }
-      catch (Exception ex)
+      finally
       {
-        throws = true;
-
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+        Configuration.Colors.Enabled = original;
       }
-
-      Xunit.Assert.True(throws);
     }
 
-    protected async Task ShouldThrow<T>(Func<Task> action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "") where T : Exception
+    /// <summary>
+    /// Async counterpart to <see cref="CaptureFailure"/>.
+    /// </summary>
+    protected static async Task<Exception> CaptureFailureAsync(Func<Task> assertion)
     {
-      bool throws = false;
-
+      var original = Configuration.Colors.Enabled;
+      Configuration.Colors.Enabled = false;
       try
       {
-        await Assert.Throws<T>(action, null, actionExpression);
-        Xunit.Assert.Fail("Should have thrown");
+        return await Xunit.Assert.ThrowsAnyAsync<Exception>(assertion);
       }
-      catch (Exception ex)
+      finally
       {
-        throws = true;
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
+        Configuration.Colors.Enabled = original;
       }
-
-      Xunit.Assert.True(throws);
     }
 
-    protected void ShouldThrow<T>(Action action, string expectedMessage, [CallerArgumentExpression(nameof(action))] string actionExpression = "") where T : Exception
+    protected static string HashExpression(string expression)
     {
-      bool throws = false;
-
-      try
-      {
-        Assert.Throws<T>(action, null, actionExpression);
-        Xunit.Assert.Fail("Should have thrown");
-      }
-      catch (Exception ex)
-      {
-        throws = true;
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
-      }
-
-      Xunit.Assert.True(throws);
+      return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(expression)))[..8];
     }
 
-    protected void ShouldThrow<T>(Func<object?> func, string expectedMessage, [CallerArgumentExpression(nameof(func))] string funcExpression = "") where T : Exception
+    private void SnapshotFailure(Exception ex, string expression, string callerFilePath)
     {
-      bool throws = false;
-
-      try
-      {
-        Assert.Throws<T>(func, null, funcExpression);
-        Xunit.Assert.Fail("Should have thrown");
-      }
-      catch (Exception ex)
-      {
-        throws = true;
-        Assert.That(() => StripAnsi(ex.Message).StartsWith(expectedMessage));
-      }
-
-      Xunit.Assert.True(throws);
+      Assert.Snapshot(StripAnsi(ex.Message),
+        options: HashExpression(expression),
+        expression: expression,
+        sourceFile: callerFilePath);
     }
 
-    protected void ShouldFail(Expression<Func<bool>> assertion, string expectedMessage, string actualMessage = null, bool exactMatch = false)
+    protected void ShouldThrow(Action action,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerFilePath] string callerFilePath = "")
     {
-      bool throws = false;
+      var ex = CaptureWithColorsDisabled(() => Assert.Throws(action, null, actionExpression));
 
-      try
+      if (ex == null)
       {
-        Assert.That(assertion);
-        Xunit.Assert.Fail("Should have thrown");
-      }
-      catch (Exception ex)
-      {
-        var expected = StripAnsi(string.Join(Environment.NewLine, ex.Data["Assertive.Expected"] as string[]));
-        var actual = StripAnsi(string.Join(Environment.NewLine, ex.Data["Assertive.Actual"] as string[]));
-        var handledExceptions = StripAnsi(string.Join(Environment.NewLine, ex.Data["Assertive.HandledExceptions"] as string[]));
-
-        if (handledExceptions != "")
-        {
-          Assert.That(() => handledExceptions.Trim() == expectedMessage.Trim());
-          return;
-        }
-        else if (actualMessage == null)
-        {
-          var expectedPrefix = "";
-          var actualPrefix = "";
-
-          if (expected.Contains("\"") || expected.Contains("\n"))
-          {
-            expectedPrefix = "@";
-            expected = expected.Replace("\"", "\"\"");
-          }
-
-          if (actual.Contains("\"") || actual.Contains("\n"))
-          {
-            actualPrefix = "@";
-            actual = actual.Replace("\"", "\"\"");
-          }
-
-          var message = $"""
-                         {expectedPrefix}"{expected}", {actualPrefix}"{actual}"
-                         """;
-
-
-          throw new Exception(message);
-        }
-
-        //throw;
-        throws = true;
-
-        if (exactMatch)
-        {
-          Assert.That(() => expected == expectedMessage);
-          Assert.That(() => actual == actualMessage);
-        }
-        else
-        {
-          Assert.That(() => expected.Contains(expectedMessage));
-          Assert.That(() => actual.Contains(actualMessage));
-        }
+        Xunit.Assert.Fail($"Expected Assert.Throws({actionExpression}) to fail but it did not.");
       }
 
-      Xunit.Assert.True(throws);
+      SnapshotFailure(ex!, actionExpression, callerFilePath);
     }
 
-    protected void ShouldFail(Expression<Func<bool>> assertion, Expression<Func<object>> context, string expectedMessage)
+    protected void ShouldThrow(Func<object?> func,
+      [CallerArgumentExpression(nameof(func))] string funcExpression = "",
+      [CallerFilePath] string callerFilePath = "")
     {
-      bool throws = false;
+      var ex = CaptureWithColorsDisabled(() => Assert.Throws(func, null, funcExpression));
 
-      try
+      if (ex == null)
       {
-        Assert.That(assertion, context);
-        Xunit.Assert.Fail("Should have thrown");
-      }
-      catch (Exception ex)
-      {
-        throws = true;
-        Assert.That(() => StripAnsi(ex.Message).Contains(expectedMessage));
+        Xunit.Assert.Fail($"Expected Assert.Throws({funcExpression}) to fail but it did not.");
       }
 
-      Xunit.Assert.True(throws);
+      SnapshotFailure(ex!, funcExpression, callerFilePath);
     }
 
-    protected void ShouldFailWithMessage(Expression<Func<bool>> assertion, object message, string expectedMessage)
+    protected async Task ShouldThrow(Func<Task> action,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerFilePath] string callerFilePath = "")
     {
-      bool throws = false;
+      var ex = await CaptureWithColorsDisabledAsync(() => Assert.Throws(action, null, actionExpression));
 
-      try
+      if (ex == null)
       {
-        Assert.That(assertion, message);
-        Xunit.Assert.Fail("Should have thrown");
-      }
-      catch (Exception ex)
-      {
-        throws = true;
-        Assert.That(() => StripAnsi(ex.Message).Contains(expectedMessage));
+        Xunit.Assert.Fail($"Expected Assert.Throws({actionExpression}) to fail but it did not.");
       }
 
-      Xunit.Assert.True(throws);
+      SnapshotFailure(ex!, actionExpression, callerFilePath);
+    }
+
+    protected async Task ShouldThrow<T>(Func<Task> action,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerFilePath] string callerFilePath = "") where T : Exception
+    {
+      var ex = await CaptureWithColorsDisabledAsync(() => Assert.Throws<T>(action, null, actionExpression));
+
+      if (ex == null)
+      {
+        Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({actionExpression}) to fail but it did not.");
+      }
+
+      SnapshotFailure(ex!, actionExpression, callerFilePath);
+    }
+
+    protected void ShouldThrow<T>(Action action,
+      [CallerArgumentExpression(nameof(action))] string actionExpression = "",
+      [CallerFilePath] string callerFilePath = "") where T : Exception
+    {
+      var ex = CaptureWithColorsDisabled(() => Assert.Throws<T>(action, null, actionExpression));
+
+      if (ex == null)
+      {
+        Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({actionExpression}) to fail but it did not.");
+      }
+
+      SnapshotFailure(ex!, actionExpression, callerFilePath);
+    }
+
+    protected void ShouldThrow<T>(Func<object?> func,
+      [CallerArgumentExpression(nameof(func))] string funcExpression = "",
+      [CallerFilePath] string callerFilePath = "") where T : Exception
+    {
+      var ex = CaptureWithColorsDisabled(() => Assert.Throws<T>(func, null, funcExpression));
+
+      if (ex == null)
+      {
+        Xunit.Assert.Fail($"Expected Assert.Throws<{typeof(T).Name}>({funcExpression}) to fail but it did not.");
+      }
+
+      SnapshotFailure(ex!, funcExpression, callerFilePath);
+    }
+
+    [AssertionWrapper]
+    protected void ShouldFail(Func<bool> assertion,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
+      [CallerFilePath] string callerFilePath = "")
+      => ShouldFail(AssertionHandle.Degraded(assertion, assertionExpression), assertionExpression, callerFilePath);
+
+    internal void ShouldFail(AssertionHandle assertion, string assertionExpression = "", string callerFilePath = "")
+    {
+      var ex = CaptureWithColorsDisabled(() => assertion.Assert());
+
+      if (ex == null)
+      {
+        Xunit.Assert.Fail($"Expected assertion to fail but it passed: {assertionExpression}");
+      }
+
+      SnapshotFailure(ex!, assertionExpression, callerFilePath);
+    }
+
+    protected void ShouldFailWith(Action assertion,
+      [CallerArgumentExpression(nameof(assertion))] string assertionExpression = "",
+      [CallerFilePath] string callerFilePath = "")
+    {
+      var ex = CaptureFailure(assertion);
+      SnapshotFailure(ex, assertionExpression, callerFilePath);
+    }
+
+    protected void SnapshotMessage(Exception ex,
+      [CallerFilePath] string callerFilePath = "")
+    {
+      Assert.Snapshot(StripAnsi(ex.Message),
+        expression: "",
+        sourceFile: callerFilePath);
     }
   }
 }

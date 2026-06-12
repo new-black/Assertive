@@ -1,0 +1,13 @@
+
+sb!.Append("a") != null
+
+NullReferenceException caused by calling Append on sb which was null.
+[CAUSE OF EXCEPTION]
+sb.Append("a")
+[EXCEPTION]
+Object reference not set to an instance of an object.
+[STACKTRACE]
+   at Assertive.Test.ThrowsTests.<>c__DisplayClass3_0.<Assertion_that_throw_tests>b__0() in ThrowsTests.cs:line 29
+[LOCALS]
+sb: null
+················································································

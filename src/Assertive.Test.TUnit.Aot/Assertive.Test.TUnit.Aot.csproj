@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+
+    <!-- TUnit is the one supported framework that runs under Native AOT, so this project is
+         the realistic "Assertive + a real test framework, AOT-published" smoke test. -->
+    <PublishAot>true</PublishAot>
+
+    <!-- What buildTransitive/Assertive.props does for package consumers; needed explicitly
+         here because we reference the generator as a project, not via the package. -->
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Assertive.Generated</InterceptorsNamespaces>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Assertive.Generated</InterceptorsPreviewNamespaces>
+  </PropertyGroup>
+
+  <!-- Root the app assembly so GeneratedAssert's decomposition can read the lambda closures
+       (locals/captures) by reflection under AOT. This is the configuration the README
+       recommends for the fullest failure messages. -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="Assertive.Test.TUnit.Aot" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" Version="1.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Assertive\Assertive.csproj" />
+    <ProjectReference Include="..\Assertive.Generators\Assertive.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

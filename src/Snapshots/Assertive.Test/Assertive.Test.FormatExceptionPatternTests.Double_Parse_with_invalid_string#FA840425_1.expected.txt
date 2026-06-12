@@ -1,0 +1,13 @@
+
+double.Parse(input) == 1.5
+
+FormatException caused by calling double.Parse("invalid"). "invalid" is not a valid double.
+[CAUSE OF EXCEPTION]
+double.Parse(input)
+[EXCEPTION]
+The input string 'invalid' was not in a correct format.
+[STACKTRACE]
+   at Assertive.Test.FormatExceptionPatternTests.<>c__DisplayClass2_0.<Double_Parse_with_invalid_string>b__0() in FormatExceptionPatternTests.cs:line 29
+[LOCALS]
+input: "invalid"
+················································································

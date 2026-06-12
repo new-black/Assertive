@@ -1,0 +1,14 @@
+
+person.Contact.Email is "bob@example.com"
+
+[EXPECTED]
+person.Contact.Email: "bob@example.com"
+[ACTUAL]
+person.Contact.Email: "wrong@example.com"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] [-b-]o[-b-]@example.com
++ [A1] [+wr+]o[+ng+]@example.com
+
+
+················································································

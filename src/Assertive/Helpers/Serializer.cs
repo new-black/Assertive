@@ -72,6 +72,7 @@ namespace Assertive.Helpers
       public override string ToString() => _remaining.HasValue ? $"... ({_remaining} more items)" : "...";
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Best-effort reflective rendering of a value for failure messages; the call is wrapped so a trimmed member just yields a placeholder instead of the value.")]
     private static string SerializeImpl(object? o, int indentation, Stack<object>? recursionGuard)
     {
       if (o is null)

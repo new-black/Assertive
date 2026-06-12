@@ -1,6 +1,4 @@
 using System.Collections.Generic;
-using Assertive.Analyzers;
-using Assertive.Patterns;
 using Xunit;
 using static Assertive.DSL;
 
@@ -18,9 +16,9 @@ namespace Assertive.Test
 
       var myValue = "abc";
       
-      ShouldFail(() => list.Contains("d"), @"list should contain ""d"".", @"list: [ ""a"", ""b"", ""c"" ]");
-      ShouldFail(() => list.Contains(myValue), @"list should contain myValue (value: ""abc"").", @"list: [ ""a"", ""b"", ""c"" ]");
-      ShouldFail(() => list[0].Contains("foo"), @"list[0] should contain the substring ""foo"".", @"list[0]: ""a""");
+      ShouldFail(() => list.Contains("d"));
+      ShouldFail(() => list.Contains(myValue));
+      ShouldFail(() => list[0].Contains("foo"));
     }
 
     [Fact]
@@ -28,7 +26,7 @@ namespace Assertive.Test
     {
       var value = "abcdefg";
       
-      ShouldFail(() => value.Contains("z"), @"value should contain the substring ""z"".", @"value: ""abcdefg""");
+      ShouldFail(() => value.Contains("z"));
     }
     
     [Fact]
@@ -36,7 +34,7 @@ namespace Assertive.Test
     {
       var value = "abcdefg";
       
-      ShouldFail(() => !value.Contains("abc"), @"value should not contain the substring ""abc"".", @"value: ""abcdefg""");
+      ShouldFail(() => !value.Contains("abc"));
     }
     
     [Fact]
@@ -44,9 +42,7 @@ namespace Assertive.Test
     {
       var value = "Hello World";
 
-      ShouldFail(() => value.Contains("hello world"),
-        @"value should contain the substring ""hello world"".",
-        @"The strings differ only in casing");
+      ShouldFail(() => value.Contains("hello world"));
     }
 
     [Fact]
@@ -55,9 +51,7 @@ namespace Assertive.Test
       var value = "line1\r\nline2";
       var search = "line1\nline2";
 
-      ShouldFail(() => value.Contains(search),
-        @"value should contain the substring search",
-        @"String diff (expected vs actual):");
+      ShouldFail(() => value.Contains(search));
     }
 
     [Fact]
@@ -65,9 +59,7 @@ namespace Assertive.Test
     {
       var value = "abcdefg";
 
-      ShouldFail(() => value.Contains("xyz"),
-        @"value should contain the substring ""xyz"".",
-        @"value: ""abcdefg""");
+      ShouldFail(() => value.Contains("xyz"));
     }
 
     [Fact]
@@ -75,9 +67,7 @@ namespace Assertive.Test
     {
       var value = "The quick brown fox jumps over the lazy dog";
       
-      ShouldFail(() => value.Contains("The quick brown cat jumps over the lazy dog"),
-        @"value should contain the substring ""The quick brown cat jumps over the lazy dog"".",
-        @"Closest match at position 0 (3 character differences)");
+      ShouldFail(() => value.Contains("The quick brown cat jumps over the lazy dog"));
     }
 
     [Fact]
@@ -85,9 +75,7 @@ namespace Assertive.Test
     {
       var value = "Hello world, this is a test of the system";
 
-      ShouldFail(() => value.Contains("this is a tast of the"),
-        @"value should contain the substring ""this is a tast of the"".",
-        @"this is a test of the");
+      ShouldFail(() => value.Contains("this is a tast of the"));
     }
 
     [Fact]
@@ -95,21 +83,7 @@ namespace Assertive.Test
     {
       var value = "abcdefghij";
 
-      ShouldFail(() => value.Contains("zyxwvutsrq"),
-        @"value should contain the substring ""zyxwvutsrq"".",
-        @"value: ""abcdefghij""");
-    }
-
-    [Fact]
-    public void ContainsPattern_is_triggered()
-    {
-      var list = new List<string>
-      {
-        "a", "b", "c"
-      };
-
-      var failures = new AssertionFailureAnalyzer(new AssertionFailureContext(new Assertion(() => list.Contains("d"), null, null), null)).AnalyzeAssertionFailures();
-      Assert(() => failures.Count == 1 && failures[0].FriendlyMessagePattern is ContainsPattern);
+      ShouldFail(() => value.Contains("zyxwvutsrq"));
     }
   }
 }

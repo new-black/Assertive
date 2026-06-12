@@ -1,0 +1,11 @@
+
+list.IsEmpty()
+
+[EXPECTED]
+list should be empty.
+[ACTUAL]
+It was not empty.
+
+[LOCALS]
+list: [ "a" ]
+················································································

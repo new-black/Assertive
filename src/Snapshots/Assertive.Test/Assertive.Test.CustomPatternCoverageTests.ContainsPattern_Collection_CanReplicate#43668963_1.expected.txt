@@ -1,0 +1,9 @@
+
+list.Contains("z")
+
+[EXPECTED]
+list should contain "z".
+[ACTUAL]
+It did not. Contents: System.Collections.Generic.List`1[System.String]
+
+················································································

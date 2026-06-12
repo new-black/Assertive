@@ -1,0 +1,9 @@
+
+obj is PropPatUser
+
+[EXPECTED]
+obj should be of type PropPatUser.
+[ACTUAL]
+Type: string.
+
+················································································

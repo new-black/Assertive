@@ -1,0 +1,9 @@
+
+obj.Email is null
+
+[EXPECTED]
+obj.Email should be null.
+[ACTUAL]
+"bob@example.com"
+
+················································································

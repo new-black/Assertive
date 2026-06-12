@@ -1,0 +1,9 @@
+
+await ValueAsync(7) == 2
+
+[EXPECTED]
+await ValueAsync(7): 2
+[ACTUAL]
+await ValueAsync(7): 7
+
+················································································

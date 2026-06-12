@@ -1,0 +1,13 @@
+
+a % 0 == 0
+
+DivideByZeroException caused by modulo a by 0.
+[CAUSE OF EXCEPTION]
+a % 0
+[EXCEPTION]
+Attempted to divide by zero.
+[STACKTRACE]
+   at Assertive.Test.DivideByZeroExceptionPatternTests.<>c__DisplayClass2_0.<Modulo_by_zero_with_literal>b__0() in DivideByZeroExceptionPatternTests.cs:line 31
+[LOCALS]
+a: 10
+················································································

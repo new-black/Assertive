@@ -1,0 +1,9 @@
+
+DoIt(MyEnum.A) == MyEnum.B
+
+[EXPECTED]
+DoIt(MyEnum.A): MyEnum.B
+[ACTUAL]
+DoIt(MyEnum.A): MyEnum.A
+
+················································································

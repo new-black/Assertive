@@ -1,0 +1,11 @@
+
+list.Any(l => l.Name == "d")
+
+[EXPECTED]
+Collection list should contain some items that match the filter l.Name == "d".
+[ACTUAL]
+It contained no items matching the filter.
+
+[LOCALS]
+list: [ { Name = "a" }, { Name = "b" }, { Name = "c" } ]
+················································································

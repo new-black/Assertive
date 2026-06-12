@@ -1,0 +1,11 @@
+
+list.Count == 3
+
+[EXPECTED]
+list should have a Count equal to 3.
+[ACTUAL]
+Count: 2.
+
+[LOCALS]
+list: [ "a", "b" ]
+················································································

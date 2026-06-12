@@ -1,0 +1,14 @@
+
+foo.Bar.MethodThrows().Length == 10
+
+NullReferenceException was thrown inside MethodThrows on foo.Bar.MethodThrows().
+[CAUSE OF EXCEPTION]
+foo.Bar.MethodThrows()
+[EXCEPTION]
+Object reference not set to an instance of an object.
+[STACKTRACE]
+   at Assertive.Test.NullReferenceTests.Bar.MethodThrows() in NullReferenceTests.cs:line 39
+   at Assertive.Test.NullReferenceTests.<>c__DisplayClass12_0.<CauseOfNullReference_on_method_is_found_when_thrown_internally>b__0() in NullReferenceTests.cs:line 143
+[LOCALS]
+foo: { Bar = { Throws = <exception serializing = NullReferenceException> } }
+················································································

@@ -1,0 +1,17 @@
+
+containers.Any(c => (string)c.Value == "42")
+
+InvalidCastException caused by casting c.Value to string. Actual type was int.
+
+On item [0] of containers:
+{ Value = 42 }
+[CAUSE OF EXCEPTION]
+(string)c.Value
+[EXCEPTION]
+Unable to cast object of type 'System.Int32' to type 'System.String'.
+[STACKTRACE]
+   at Assertive.Test.InvalidCastExceptionPatternTests.<>c.<Invalid_cast_inside_lambda_first_item>b__8_1(Container c) in InvalidCastExceptionPatternTests.cs:line 63
+   at Assertive.Test.InvalidCastExceptionPatternTests.<>c__DisplayClass8_0.<Invalid_cast_inside_lambda_first_item>b__0() in InvalidCastExceptionPatternTests.cs:line 63
+[LOCALS]
+containers: [ { Value = 42 }, { Value = "text" } ]
+················································································

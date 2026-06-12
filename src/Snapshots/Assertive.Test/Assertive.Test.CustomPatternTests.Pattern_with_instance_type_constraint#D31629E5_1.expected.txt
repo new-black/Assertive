@@ -1,0 +1,11 @@
+
+list.None()
+
+[EXPECTED]
+List list of type List<String> should be empty.
+[ACTUAL]
+It had 1 items.
+
+[LOCALS]
+list: [ "a" ]
+················································································

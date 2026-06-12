@@ -1,0 +1,10 @@
+
+one >= two
+
+[EXPECTED]
+one should be greater than or equal to two.
+[ACTUAL]
+one: 1
+two: 2
+
+················································································

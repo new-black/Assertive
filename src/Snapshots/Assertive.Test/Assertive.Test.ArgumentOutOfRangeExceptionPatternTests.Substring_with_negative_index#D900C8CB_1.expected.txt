@@ -1,0 +1,14 @@
+
+str.Substring(-1) == "h"
+
+ArgumentOutOfRangeException caused by calling Substring(-1) on str (length: 5).
+[CAUSE OF EXCEPTION]
+str.Substring(-1)
+[EXCEPTION]
+startIndex ('-1') must be a non-negative value. (Parameter 'startIndex')
+Actual value was -1.
+[STACKTRACE]
+   at Assertive.Test.ArgumentOutOfRangeExceptionPatternTests.<>c__DisplayClass2_0.<Substring_with_negative_index>b__0() in ArgumentOutOfRangeExceptionPatternTests.cs:line 31
+[LOCALS]
+str: "hello"
+················································································

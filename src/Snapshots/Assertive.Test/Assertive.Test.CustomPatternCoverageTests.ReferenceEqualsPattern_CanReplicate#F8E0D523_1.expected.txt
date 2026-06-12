@@ -1,0 +1,9 @@
+
+ReferenceEquals(obj1, obj2)
+
+[EXPECTED]
+obj1 and obj2 should be the same instance.
+[ACTUAL]
+They were different instances.
+
+················································································

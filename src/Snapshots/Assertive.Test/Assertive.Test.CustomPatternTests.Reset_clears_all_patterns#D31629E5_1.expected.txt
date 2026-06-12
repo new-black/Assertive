@@ -1,0 +1,11 @@
+
+list.None()
+
+[EXPECTED]
+Custom message for None.
+[ACTUAL]
+Custom actual.
+
+[LOCALS]
+list: [ "a" ]
+················································································

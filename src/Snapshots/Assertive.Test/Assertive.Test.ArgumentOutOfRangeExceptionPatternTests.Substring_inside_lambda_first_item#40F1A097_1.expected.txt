@@ -1,0 +1,17 @@
+
+items.Any(i => i.Text.Substring(i.StartIndex) == "test")
+
+ArgumentOutOfRangeException caused by calling Substring(i.StartIndex (value: 5)) on i.Text (length: 1).
+
+On item [0] of items:
+{ Text = "x", StartIndex = 5 }
+[CAUSE OF EXCEPTION]
+i.Text.Substring(i.StartIndex)
+[EXCEPTION]
+startIndex cannot be larger than length of string. (Parameter 'startIndex')
+[STACKTRACE]
+   at Assertive.Test.ArgumentOutOfRangeExceptionPatternTests.<>c.<Substring_inside_lambda_first_item>b__6_1(Item i) in ArgumentOutOfRangeExceptionPatternTests.cs:line 69
+   at Assertive.Test.ArgumentOutOfRangeExceptionPatternTests.<>c__DisplayClass6_0.<Substring_inside_lambda_first_item>b__0() in ArgumentOutOfRangeExceptionPatternTests.cs:line 69
+[LOCALS]
+items: [ { Text = "x", StartIndex = 5 }, { Text = "hello", StartIndex = 2 } ]
+················································································

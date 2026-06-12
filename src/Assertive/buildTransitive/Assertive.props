@@ -1,0 +1,11 @@
+<Project>
+
+  <!-- Allow Assertive's source generator to emit interceptors for Assert.That call sites.
+       Both property names are set: InterceptorsNamespaces is current; the *Preview* variant
+       covers older SDKs. Harmless when the generator doesn't run. -->
+  <PropertyGroup>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Assertive.Generated</InterceptorsNamespaces>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Assertive.Generated</InterceptorsPreviewNamespaces>
+  </PropertyGroup>
+
+</Project>

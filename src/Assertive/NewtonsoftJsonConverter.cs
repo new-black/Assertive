@@ -11,6 +11,7 @@ internal sealed class NewtonsoftJsonConverterFactory : JsonConverterFactory
     return typeToConvert.Namespace == "Newtonsoft.Json.Linq";
   }
 
+  [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Only reachable via the snapshot API, which is annotated [RequiresUnreferencedCode]/[RequiresDynamicCode]; the requirement is surfaced to callers there.")]
   public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
   {
     return (JsonConverter)Activator.CreateInstance(

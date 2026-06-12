@@ -38,7 +38,7 @@ namespace Assertive.Test
 
       var list = new List<string> { "a", "b", "c" };
 
-      ShouldFail(() => list.None(), "Collection list should not contain any items.", "It contained 3 items.");
+      ShouldFail(() => list.None());
     }
 
     [Fact]
@@ -63,7 +63,7 @@ namespace Assertive.Test
       var list = new List<string>();
 
       // {instance} is replaced with "list" in the actual output
-      ShouldFail(() => !list.None(), "Collection list should contain at least one item.", "It was empty.");
+      ShouldFail(() => !list.None());
     }
 
     [Fact]
@@ -83,7 +83,7 @@ namespace Assertive.Test
       var list = new List<string> { "a", "b" };
 
       // Non-negated expression should match
-      ShouldFail(() => list.NoneStrict(), "Collection list should not contain any items.", "It contained 2 items.");
+      ShouldFail(() => list.NoneStrict());
     }
 
     [Fact]
@@ -113,9 +113,9 @@ namespace Assertive.Test
 
       var list = new List<string> { "a" };
 
-      ShouldFail(() => list.None(), "Collection list should be empty.", "It had 1 items.");
+      ShouldFail(() => list.None());
       // {instance} is replaced with "list" in the actual output
-      ShouldFail(() => list.IsEmpty(), "list should be empty.", "It was not empty.");
+      ShouldFail(() => list.IsEmpty());
     }
 
     [Fact]
@@ -138,7 +138,7 @@ namespace Assertive.Test
 
       var list = new List<string> { "a" };
 
-      ShouldFail(() => list.None(), "Custom: list should be empty.", "It had items.");
+      ShouldFail(() => list.None());
     }
 
     [Fact]
@@ -157,7 +157,7 @@ namespace Assertive.Test
       });
 
       var list = new List<string> { "a" };
-      ShouldFail(() => list.None(), "Custom message for None.", "Custom actual.");
+      ShouldFail(() => list.None());
 
       // Reset should clear patterns
       Configuration.Patterns.Clear();
@@ -174,7 +174,7 @@ namespace Assertive.Test
         }
       });
 
-      ShouldFail(() => list.None(), "Different message after reset.", "Different actual.");
+      ShouldFail(() => list.None());
     }
 
     [Fact]
@@ -197,7 +197,7 @@ namespace Assertive.Test
 
       var list = new List<string> { "a" };
 
-      ShouldFail(() => list.None(), "List list of type List<String> should be empty.", "It had 1 items.");
+      ShouldFail(() => list.None());
     }
 
     [Fact]
@@ -220,7 +220,7 @@ namespace Assertive.Test
 
       var list = new List<string> { "a" };
 
-      ShouldFail(() => list.None(), "Namespaced: list should be empty.", "It was not.");
+      ShouldFail(() => list.None());
     }
 
     [Fact]
@@ -242,7 +242,7 @@ namespace Assertive.Test
 
       var list = new List<string> { "a", "b" };
 
-      ShouldFail(() => list.HasExactly(3), "list should have exactly 3 items.", "It had 2 items.");
+      ShouldFail(() => list.HasExactly(3));
     }
 
     [Fact]
@@ -264,7 +264,7 @@ namespace Assertive.Test
 
       var list = new List<string> { "a" };
 
-      ShouldFail(() => list.None(), "Extension method: list should be empty.", "It was not.");
+      ShouldFail(() => list.None());
     }
 
     [Fact]
@@ -287,7 +287,7 @@ namespace Assertive.Test
       var list = new List<string> { "a" };
       var expected = 5;
 
-      ShouldFail(() => list.HasExactly(expected), "list should have exactly 5 items.", "It had 1.");
+      ShouldFail(() => list.HasExactly(expected));
     }
 
     [Fact]
@@ -309,7 +309,7 @@ namespace Assertive.Test
 
       var obj = new TestObject { IsValid = false };
 
-      ShouldFail(() => obj.IsValid, "obj should be valid.", "IsValid was False.");
+      ShouldFail(() => obj.IsValid);
     }
 
     [Fact]
@@ -336,7 +336,7 @@ namespace Assertive.Test
 
       var obj = new TestObject { IsValid = true };
 
-      ShouldFail(() => !obj.IsValid, "obj should not be valid.", "IsValid was True.");
+      ShouldFail(() => !obj.IsValid);
     }
 
     [Fact]
@@ -359,7 +359,7 @@ namespace Assertive.Test
 
       var obj = new TestObject { IsValid = false };
 
-      ShouldFail(() => obj.IsValid, "TestObject obj should be valid.", "It was not.");
+      ShouldFail(() => obj.IsValid);
     }
 
     [Fact]
@@ -378,7 +378,7 @@ namespace Assertive.Test
       });
 
       var list = new List<string> { "a" };
-      ShouldFail(() => list.None(), "First message.", "First actual.");
+      ShouldFail(() => list.None());
 
       // Register pattern with same name - should replace
       Configuration.Patterns.Register("MyPattern", new PatternDefinition
@@ -392,7 +392,7 @@ namespace Assertive.Test
         }
       });
 
-      ShouldFail(() => list.None(), "Replaced message.", "Replaced actual.");
+      ShouldFail(() => list.None());
     }
 
     [Fact]
@@ -410,7 +410,7 @@ namespace Assertive.Test
       });
 
       var list = new List<string> { "a" };
-      ShouldFail(() => list.None(), "Custom message.", "Custom actual.");
+      ShouldFail(() => list.None());
 
       // Unregister should return true for existing pattern
       var result = Configuration.Patterns.Unregister("ToRemove");
@@ -450,10 +450,7 @@ namespace Assertive.Test
 
         // Without the InvariantCulture fix, this would show "5,5" instead of "5.5"
         ShouldFail(
-          () => value.IsGreaterThan(threshold),
-          "value should be greater than 5.5.",  // Period, not comma
-          "It was 3.1."  // Period, not comma
-        );
+          () => value.IsGreaterThan(threshold));
       }
       finally
       {

@@ -1,0 +1,11 @@
+
+list.None()
+
+[EXPECTED]
+Replaced message.
+[ACTUAL]
+Replaced actual.
+
+[LOCALS]
+list: [ "a" ]
+················································································

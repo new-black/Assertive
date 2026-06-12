@@ -1,0 +1,11 @@
+
+list[0].Contains(myValue)
+
+[EXPECTED]
+`list[0]` should contain the substring `myValue` (value: "abc").
+[ACTUAL]
+`list[0]`: "a"
+
+[LOCALS]
+list: [ "a", "b", "c" ]
+················································································
