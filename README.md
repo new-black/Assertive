@@ -162,6 +162,8 @@ When there is no matching pattern for your assertion, it will simply report the 
 
 You can also define your own [custom patterns](#custom-patterns).
 
+The set of built-in patterns is large enough that in general you shouldn't worry about trying to write your assertion in such a way that it aligns with some expected pattern, just write what you want to assert in the way you want to write it and it will almost always be covered.
+
 ## Features
 
 ### Multiple assertions
