@@ -580,11 +580,11 @@ Assert(() => names.Single() == "Bob");
 
 Message if `names` is empty:
 
-<img width="776" height="418" alt="image" src="https://github.com/user-attachments/assets/6fb7d74e-5330-4626-97dd-aef7e1cd2435" />
+<img width="718" height="339" alt="image" src="https://github.com/user-attachments/assets/98712f98-442b-476a-b5a6-07b9ee9598b1" />
 
 However if `names` has more than one element:
 
-<img width="999" height="485" alt="image" src="https://github.com/user-attachments/assets/f992f5b8-8a7a-44c3-bf23-e0038c04e69a" />
+<img width="739" height="429" alt="image" src="https://github.com/user-attachments/assets/d9efb5ae-8cec-475c-900b-4d9a82e33bf2" />
 
 #### KeyNotFoundException
 
