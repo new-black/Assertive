@@ -727,13 +727,13 @@ Assuming the 29th order (starting from zero) in this collection did not meet thi
 
 ### Contents of locals used in your assertion are rendered to the output
 
-If you have an assertion like `Assert(() => customers.Count() == expectedCustomers)` that references local variables and it fails, the contents of the locals you use in your assertion are rendered to the test output.
+If you have an assertion like `Assert(() => customers.Count() == expectedCount)` that references local variables and it fails, the contents of the locals you use in your assertion are rendered to the test output.
 
 For example:
 
 <img width="871" height="221" alt="image" src="https://github.com/user-attachments/assets/19d5f4b8-28a8-4e57-82ad-762851522cc9" />
 
-But note how only `customers` is rendered as the value of `expectedCustomers` is already displayed in the message at some other point.
+But note how only `customers` is rendered as the value of `expectedCount` is already displayed in the message at some other point.
 
 ### Custom patterns
 
