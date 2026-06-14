@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Assertive.Mocking.Generated</InterceptorsNamespaces>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Assertive.Mocking.Generated</InterceptorsPreviewNamespaces>
+  </PropertyGroup>
+</Project>
