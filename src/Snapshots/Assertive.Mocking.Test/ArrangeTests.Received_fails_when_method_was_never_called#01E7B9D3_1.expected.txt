@@ -1,0 +1,9 @@
+
+Greet("anyone")
+
+Expected the mock to have received Greet("anyone"), but it never was.
+
+Received calls:
+  [0] Log("starting up")
+  [1] Log("shutting down")
+················································································

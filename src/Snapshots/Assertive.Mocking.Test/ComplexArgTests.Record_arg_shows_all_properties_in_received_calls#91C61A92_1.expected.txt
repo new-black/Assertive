@@ -1,0 +1,14 @@
+
+Reserve(new OrderItem(99, "Gadget", 1))
+
+[EXPECTED]
+Reserve received: "Reserve(OrderItem { ProductId = 99, Name = Gadget, Quantity = 1 })"
+[ACTUAL]
+Reserve received: "Reserve(OrderItem { ProductId = 42, Name = Widget, Quantity = 3 })"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] ...rItem { ProductId = [-99-], Name = [-Ga-]dget, Quantity = [-1-] })
++ [A1] ...rItem { ProductId = [+42+], Name = [+Wi+]dget, Quantity = [+3+] })
+
+
+················································································

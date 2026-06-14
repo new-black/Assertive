@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+    <!-- Native AOT: also turns on the trim/AOT analyzers so IL2xxx/IL3xxx warnings
+         surface for Assertive.Mocking's reflection during publish. -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- What buildTransitive/Assertive.Mocking.props does for package consumers; needed explicitly
+         here because we reference the generator as a project, not via the package. -->
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Assertive.Mocking.Generated</InterceptorsNamespaces>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Assertive.Mocking.Generated</InterceptorsPreviewNamespaces>
+    <!-- Write generated sources to obj/.../generated for inspection. -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+
+  <!-- Root the app assembly to retain reflection metadata for the mock types. -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="Assertive.Mocking.Test.Aot" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Assertive.Mocking\Assertive.Mocking.csproj" />
+    <ProjectReference Include="..\Assertive.Mocking.Generators\Assertive.Mocking.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

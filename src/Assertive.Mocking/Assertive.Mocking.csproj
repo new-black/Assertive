@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>12</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>Assertive.Mocking</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Description>Source-generated, AOT-safe mocks with Assertive-grade failure messages.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Company>New Black</Company>
+    <PackageProjectUrl>https://github.com/new-black/Assertive</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/new-black/Assertive</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <IsAotCompatible>true</IsAotCompatible>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Assertive\Assertive.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Assertive.Mocking.Generators\Assertive.Mocking.Generators.csproj" ReferenceOutputAssembly="false" PrivateAssets="all"/>
+    <None Include="..\Assertive.Mocking.Generators\bin\$(Configuration)\netstandard2.0\Assertive.Mocking.Generators.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+    <None Include="buildTransitive/Assertive.Mocking.props" Pack="true" PackagePath="buildTransitive/"/>
+    <None Include="README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+  </ItemGroup>
+</Project>

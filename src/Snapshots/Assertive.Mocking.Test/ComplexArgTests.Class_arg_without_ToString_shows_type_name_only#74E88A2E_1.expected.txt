@@ -1,0 +1,9 @@
+
+Tag(new LegacyItem { Id = 2 })
+
+[EXPECTED]
+Tag received: "Tag(LegacyItem)"
+[ACTUAL]
+Tag received: "Tag(LegacyItem)"
+
+················································································

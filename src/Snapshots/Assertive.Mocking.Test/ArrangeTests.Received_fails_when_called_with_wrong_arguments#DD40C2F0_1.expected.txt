@@ -1,0 +1,14 @@
+
+Greet("Bob the Builder")
+
+[EXPECTED]
+Greet received: "Greet("Bob the Builder")"
+[ACTUAL]
+Greet received: "Greet("Adam the Magnificent")"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] Greet("[-Bob-] the [-Bu-]i[-ld-]e[-r-]")
++ [A1] Greet("[+Adam+] the [+Magn+]i[+fic+]e[+nt+]")
+
+
+················································································
