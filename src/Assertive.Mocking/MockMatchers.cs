@@ -2,16 +2,7 @@ using System.ComponentModel;
 
 namespace Assertive.Mocking
 {
-  /// <summary>
-  /// Argument matchers for arrange and verification. Usable only inside a mock call that the
-  /// source generator recognizes (an <c>A&lt;T&gt;</c>/<c>When</c>/<c>Received</c> lambda): the
-  /// generator reads each argument syntactically and emits an interceptor that binds matchers to
-  /// the exact positions, so there is no fragile positional guessing.
-  ///
-  /// <see cref="Any{T}()"/> needs no runtime state (the generator marks the position). The
-  /// predicate form enqueues its predicate so the generated interceptor can dequeue it positionally.
-  /// </summary>
-  public static class It
+  public static partial class Mock
   {
     [ThreadStatic]
     private static Queue<Func<object, bool>>? _predicates;
@@ -50,7 +41,7 @@ namespace Assertive.Mocking
     /// <summary>
     /// Matches an <c>IEnumerable&lt;T&gt;</c> argument that contains <paramref name="item"/>.
     /// The collection type is inferred from <paramref name="item"/>, so no type annotation is needed:
-    /// <c>It.Contains(42L)</c> matches any <c>IEnumerable&lt;long&gt;</c> containing 42.
+    /// <c>Contains(42L)</c> matches any <c>IEnumerable&lt;long&gt;</c> containing 42.
     /// </summary>
     public static IEnumerable<T> Contains<T>(T item) =>
       Any<IEnumerable<T>>(coll => coll != null && coll.Contains(item));
@@ -67,7 +58,7 @@ namespace Assertive.Mocking
     {
       if (_predicates is not { Count: > 0 } queue)
       {
-        throw new InvalidOperationException("Assertive.Mocking: no predicate matcher available — It.Any<T>(predicate) must appear directly inside the intercepted mock call.");
+        throw new InvalidOperationException("Assertive.Mocking: no predicate matcher available — Any<T>(predicate) must appear directly inside the intercepted mock call.");
       }
 
       return queue.Dequeue();

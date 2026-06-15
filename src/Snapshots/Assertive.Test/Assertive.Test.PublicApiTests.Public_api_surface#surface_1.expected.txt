@@ -270,6 +270,7 @@ static class GeneratedAssert
   static bool ObjectEquals(object left, object right)
   static Exception ReferenceEqualsFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception SequenceEqualFailure(string assertionExpression, string leftSource, object leftValue, string rightSource, object rightValue, object comparer, Type elementType, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
+  static string SerializeValue(object value)
   static Exception StartsEndsWithFailure(string assertionExpression, string instanceSource, object instanceValue, string argSource, object argValue, bool argIsConstant, string methodLabel, bool negated, ValueTuple<string, object>[] locals, object message, Func<object> context, string contextExpression)
   static Exception ThrowsIntercepted(Action action, Type expectedExceptionType, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression, Func<object, int, Exception> predicateFailure)
   static Task<Exception> ThrowsInterceptedAsync(Func<Task> action, Type expectedExceptionType, Func<Exception, bool> exceptionAssertion, string actionExpression, string exceptionExpression, Func<object, int, Exception> predicateFailure)

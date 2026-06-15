@@ -1,9 +1,6 @@
 
-Tag(new LegacyItem { Id = 2 })
+Expected Greet(null) to be received at least once, but was received 0 time(s).
 
-[EXPECTED]
-Tag received: "Tag(LegacyItem)"
-[ACTUAL]
-Tag received: "Tag(LegacyItem)"
-
+Received calls:
+(no calls received)
 ················································································

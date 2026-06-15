@@ -48,7 +48,7 @@ namespace Assertive.Mocking
   }
 
   /// <summary>
-  /// Collects argument values captured during matched mock calls. Use <see cref="It.Any{T}(Capture{T})"/>
+  /// Collects argument values captured during matched mock calls. Use <see cref="Mock.Any{T}(Capture{T})"/>
   /// inside an arrange or verify lambda to record the values passed to a mock member.
   /// </summary>
   public sealed class Capture<T>
@@ -98,12 +98,7 @@ namespace Assertive.Mocking
       return $"{Method}({string.Join(", ", Arguments.Select(FormatArg))})";
     }
 
-    private static string FormatArg(object? arg) => arg switch
-    {
-      null => "null",
-      string s => $"\"{s}\"",
-      _ => arg.ToString() ?? "",
-    };
+    private static string FormatArg(object? arg) => GeneratedAssert.SerializeValue(arg);
   }
 
   /// <summary>
@@ -673,25 +668,18 @@ namespace Assertive.Mocking
 
       var sameMethod = @base.Calls.Where(c => c.Method == expected.Method).ToList();
 
-      // When the method was called but with different arguments, lean on EqualityFailure so the
-      // failure shows an expected-vs-actual block (with string diffing) for the closest call.
       if (sameMethod.Count > 0)
       {
-        throw GeneratedAssert.EqualityFailure(
-          assertionText,
-          leftSource: $"{expected.Method} received",
-          leftValue: sameMethod[0].Format(),
-          rightSource: $"{expected.Method} expected",
-          rightValue: expected.Format(),
-          rightIsConstant: false,
-          negated: false,
-          locals: System.Array.Empty<(string, object?)>(),
+        // Method was called but with different arguments.
+        throw GeneratedAssert.Failure(
+          $"{assertionText}\n\nExpected: {expected.Format()}\nReceived:\n{received}",
+          System.Array.Empty<(string, object?)>(),
           message: null,
           context: null,
           contextExpression: null);
       }
 
-      // The method was never called at all: report expected call + the full received log.
+      // The method was never called at all.
       throw GeneratedAssert.Failure(
         $"{assertionText}\n\nExpected the mock to have received {expected.Format()}, but it never was.\n\nReceived calls:\n{received}",
         System.Array.Empty<(string, object?)>(),

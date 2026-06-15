@@ -329,7 +329,7 @@ namespace Assertive.Mocking.Generators
 
       // Only fire when the call has at least one matcher argument (pre-filter already checked this
       // but double-check to avoid false positives on unrelated calls with named args).
-      if (!args.Any(a => a.Expression.IsKind(SyntaxKind.DefaultLiteralExpression) || IsItMatcherCall(a.Expression)))
+      if (!args.Any(a => a.Expression.IsKind(SyntaxKind.DefaultLiteralExpression) || IsMatcherCall(a.Expression)))
       {
         return null;
       }
@@ -398,26 +398,30 @@ namespace Assertive.Mocking.Generators
       return Diagnostic.Create(Mock005, invocation.GetLocation(), verbName);
     }
 
-    /// <summary>Cheap pre-filter: a member call with at least one matcher-looking argument (bare default or an It.Any/It.IsXxx invocation).</summary>
+    private static bool IsMatcherMethodName(string name) =>
+      name is "Any" or "IsNotNull" or "IsIn" or "IsInRange" or "Contains" or "IsEmpty";
+
+    /// <summary>Cheap pre-filter: a member call with at least one matcher-looking argument (bare default or a matcher invocation).</summary>
     private static bool IsPotentialMatcherCall(SyntaxNode node)
     {
       return node is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax } inv
         && inv.ArgumentList.Arguments.Any(static a =>
           a.Expression.IsKind(SyntaxKind.DefaultLiteralExpression)
-          || IsItMatcherCall(a.Expression));
+          || IsMatcherCall(a.Expression));
     }
 
-    /// <summary>Returns true for any <c>It.Xxx(...)</c> matcher helper (Any, IsXxx, Contains, …).</summary>
-    private static bool IsItMatcherCall(ExpressionSyntax expr)
+    /// <summary>Returns true for any matcher helper invocation: unqualified (<c>Any&lt;T&gt;()</c>, <c>IsNotNull&lt;T&gt;()</c>, …) from <c>using static Mock</c>.</summary>
+    private static bool IsMatcherCall(ExpressionSyntax expr)
     {
-      return expr is InvocationExpressionSyntax
+      if (expr is not InvocationExpressionSyntax call) return false;
+
+      var name = call.Expression switch
       {
-        Expression: MemberAccessExpressionSyntax
-        {
-          Expression: IdentifierNameSyntax { Identifier.ValueText: "It" },
-          Name: var name,
-        }
-      } && name.Identifier.ValueText != "DequeueMatcher";
+        GenericNameSyntax g => g.Identifier.ValueText,
+        IdentifierNameSyntax i => i.Identifier.ValueText,
+        _ => null,
+      };
+      return name != null && IsMatcherMethodName(name);
     }
 
     private static MatcherCall? ExtractMatcherCall(GeneratorSyntaxContext ctx, System.Threading.CancellationToken ct)
@@ -473,27 +477,21 @@ namespace Assertive.Mocking.Generators
         return ArgKind.Any;
       }
 
-      // It.Any<T>()  -> any ; It.Any<T>(arg) or It.Any(arg) (inferred T) -> predicate.
-      // It.IsNotNull<T>(), It.IsIn<T>(...), It.IsInRange<T>(...) -> predicate (they enqueue internally).
-      if (expression is InvocationExpressionSyntax
-          {
-            Expression: MemberAccessExpressionSyntax
-            {
-              Expression: IdentifierNameSyntax { Identifier.ValueText: "It" },
-              Name: var itName,
-            }
-          } itCall)
+      // Unqualified matcher call from `using static Mock`: Any<T>(), IsNotNull<T>(), IsIn<T>(...), etc.
+      // Only matches plain GenericNameSyntax / IdentifierNameSyntax (not member-access expressions like
+      // list.Contains(x)) to avoid false positives.
+      if (expression is InvocationExpressionSyntax call)
       {
-        var memberName = itName.Identifier.ValueText;
-        if (memberName == "Any")
+        var name = call.Expression switch
         {
-          return itCall.ArgumentList.Arguments.Count == 0 ? ArgKind.Any : ArgKind.Predicate;
-        }
+          GenericNameSyntax g => g.Identifier.ValueText,
+          IdentifierNameSyntax i => i.Identifier.ValueText,
+          _ => null,
+        };
 
-        // Any other It.Xxx(...) helper (IsNotNull, IsIn, IsInRange, Contains, IsEmpty, …) enqueues a predicate.
-        if (memberName != "DequeueMatcher")
+        if (name != null && IsMatcherMethodName(name))
         {
-          return ArgKind.Predicate;
+          return name == "Any" && call.ArgumentList.Arguments.Count == 0 ? ArgKind.Any : ArgKind.Predicate;
         }
       }
 
@@ -1290,7 +1288,8 @@ namespace Assertive.Mocking.Generators
         // (Resolve reads the actual method name from the delegate at runtime).
         if (emitted.Add(overload.DelegateType))
         {
-          lines.Add($"    public static {overload.BuilderType} Any({overload.DelegateType} method) => global::Assertive.Mocking.Mock.Any(method);");
+          var typeArgs = overload.TypeArgs.Length > 0 ? $"<{overload.TypeArgs}>" : "";
+          lines.Add($"    public static {overload.BuilderType} Any({overload.DelegateType} method) => global::Assertive.Mocking.Mock.Any{typeArgs}(method);");
         }
       }
 
@@ -1335,7 +1334,7 @@ namespace Assertive.Mocking.Generators
         var matcherExprs = call.ArgumentKinds.Select((kind, i) => kind switch
         {
           ArgKind.Any => "static (object __x) => true",
-          ArgKind.Predicate => "global::Assertive.Mocking.It.DequeueMatcher()",
+          ArgKind.Predicate => "global::Assertive.Mocking.Mock.DequeueMatcher()",
           _ => $"(object __x) => global::System.Object.Equals(__x, (object)__a{i})",
         });
 
@@ -1360,8 +1359,8 @@ namespace Assertive.Mocking.Generators
       sb.AppendLine("  }");
     }
 
-    /// <summary>Maps a method to its (delegate type, builder type), or null for arities the runtime builders don't cover.</summary>
-    private static (string DelegateType, string BuilderType)? BuildOverload(MockMethod method)
+    /// <summary>Maps a method to its (delegate type, builder type, explicit type args), or null for arities the runtime builders don't cover.</summary>
+    private static (string DelegateType, string BuilderType, string TypeArgs)? BuildOverload(MockMethod method)
     {
       var ps = method.Parameters;
 
@@ -1369,11 +1368,11 @@ namespace Assertive.Mocking.Generators
       {
         return ps.Length switch
         {
-          0 => ("global::System.Action", "global::Assertive.Mocking.VoidArrange"),
-          1 => ($"global::System.Action<{ps[0].Type}>", $"global::Assertive.Mocking.VoidArrange<{ps[0].Type}>"),
-          2 => ($"global::System.Action<{ps[0].Type}, {ps[1].Type}>", $"global::Assertive.Mocking.VoidArrange<{ps[0].Type}, {ps[1].Type}>"),
-          3 => ($"global::System.Action<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}>", $"global::Assertive.Mocking.VoidArrange<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}>"),
-          _ => ((string, string)?)null,
+          0 => ("global::System.Action", "global::Assertive.Mocking.VoidArrange", ""),
+          1 => ($"global::System.Action<{ps[0].Type}>", $"global::Assertive.Mocking.VoidArrange<{ps[0].Type}>", $"{ps[0].Type}"),
+          2 => ($"global::System.Action<{ps[0].Type}, {ps[1].Type}>", $"global::Assertive.Mocking.VoidArrange<{ps[0].Type}, {ps[1].Type}>", $"{ps[0].Type}, {ps[1].Type}"),
+          3 => ($"global::System.Action<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}>", $"global::Assertive.Mocking.VoidArrange<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}>", $"{ps[0].Type}, {ps[1].Type}, {ps[2].Type}"),
+          _ => ((string, string, string)?)null,
         };
       }
 
@@ -1381,11 +1380,11 @@ namespace Assertive.Mocking.Generators
 
       return ps.Length switch
       {
-        0 => ($"global::System.Func<{ret}>", $"global::Assertive.Mocking.ValueArrange<{ret}>"),
-        1 => ($"global::System.Func<{ps[0].Type}, {ret}>", $"global::Assertive.Mocking.ValueArrange<{ps[0].Type}, {ret}>"),
-        2 => ($"global::System.Func<{ps[0].Type}, {ps[1].Type}, {ret}>", $"global::Assertive.Mocking.ValueArrange<{ps[0].Type}, {ps[1].Type}, {ret}>"),
-        3 => ($"global::System.Func<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}, {ret}>", $"global::Assertive.Mocking.ValueArrange<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}, {ret}>"),
-        4 => ($"global::System.Func<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}, {ps[3].Type}, {ret}>", $"global::Assertive.Mocking.ValueArrange<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}, {ps[3].Type}, {ret}>"),
+        0 => ($"global::System.Func<{ret}>", $"global::Assertive.Mocking.ValueArrange<{ret}>", $"{ret}"),
+        1 => ($"global::System.Func<{ps[0].Type}, {ret}>", $"global::Assertive.Mocking.ValueArrange<{ps[0].Type}, {ret}>", $"{ps[0].Type}, {ret}"),
+        2 => ($"global::System.Func<{ps[0].Type}, {ps[1].Type}, {ret}>", $"global::Assertive.Mocking.ValueArrange<{ps[0].Type}, {ps[1].Type}, {ret}>", $"{ps[0].Type}, {ps[1].Type}, {ret}"),
+        3 => ($"global::System.Func<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}, {ret}>", $"global::Assertive.Mocking.ValueArrange<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}, {ret}>", $"{ps[0].Type}, {ps[1].Type}, {ps[2].Type}, {ret}"),
+        4 => ($"global::System.Func<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}, {ps[3].Type}, {ret}>", $"global::Assertive.Mocking.ValueArrange<{ps[0].Type}, {ps[1].Type}, {ps[2].Type}, {ps[3].Type}, {ret}>", $"{ps[0].Type}, {ps[1].Type}, {ps[2].Type}, {ps[3].Type}, {ret}"),
         _ => null,
       };
     }

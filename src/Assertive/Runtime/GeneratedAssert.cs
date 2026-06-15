@@ -854,6 +854,14 @@ namespace Assertive.Runtime
       return result.Thrown!;
     }
 
+    /// <summary>
+    /// Serializes <paramref name="value"/> to a compact single-line string suitable for embedding
+    /// in failure messages (e.g. mock invocation argument display). Uses the same serializer as
+    /// Assertive's own failure rendering, giving rich output for records, collections, and plain
+    /// classes with public properties.
+    /// </summary>
+    public static string SerializeValue(object? value) => Serializer.SerializeInline(value);
+
     /// <summary>Equals-based equality for reflective filter evaluation over object-typed operands.</summary>
     public static bool ObjectEquals(object? left, object? right) => Equals(left, right);
 
