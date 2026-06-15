@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>Assertive.Mocking</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
+    <PackageVersion>0.1.4</PackageVersion>
     <Description>Source-generated, AOT-safe mocks with Assertive-grade failure messages.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Company>New Black</Company>

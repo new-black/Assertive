@@ -1810,3 +1810,89 @@ public class ComplexArgTests : MockingTestBase
     ShouldFail(() => Received(wh, w => w.Tag(new LegacyItem { Id = 2 })));
   }
 }
+
+// ---------------------------------------------------------------------------
+// Standalone arrange: var mock = A<T>(); mock.Method(args).Returns(v);
+// ---------------------------------------------------------------------------
+
+public class StandaloneArrangeTests : MockingTestBase
+{
+  [Fact]
+  public void Returns_works_without_arrange_lambda()
+  {
+    var greeter = A<IGreeter>();
+    greeter.Greet("Bob").Returns("Hello, Bob!");
+
+    Assert(() => greeter.Greet("Bob") == "Hello, Bob!");
+  }
+
+  [Fact]
+  public void Standalone_arrange_is_exact_arg_match()
+  {
+    var greeter = A<IGreeter>();
+    greeter.Greet("Bob").Returns("Hello, Bob!");
+
+    Assert(() => greeter.Greet("Bob") == "Hello, Bob!");
+    Assert(() => greeter.Greet("Alice") == null);
+  }
+
+  [Fact]
+  public void Multiple_standalone_arrangements_each_attach_correctly()
+  {
+    var greeter = A<IGreeter>();
+    greeter.Greet("Bob").Returns("Hello, Bob!");
+    greeter.Greet("Alice").Returns("Hello, Alice!");
+
+    Assert(() => greeter.Greet("Bob") == "Hello, Bob!");
+    Assert(() => greeter.Greet("Alice") == "Hello, Alice!");
+  }
+
+  [Fact]
+  public void Throws_works_without_arrange_lambda()
+  {
+    var greeter = A<IGreeter>();
+    greeter.Greet("Bad").Throws(new InvalidOperationException("nope"));
+
+    var threw = false;
+    try { greeter.Greet("Bad"); }
+    catch (InvalidOperationException) { threw = true; }
+    Assert(() => threw);
+  }
+
+  [Fact]
+  public void Does_works_without_arrange_lambda()
+  {
+    var greeter = A<IGreeter>();
+    string? captured = null;
+    greeter.Greet("Bob").Does(args =>
+    {
+      captured = (string?)args[0];
+      return "Hi!";
+    });
+
+    var result = greeter.Greet("Bob");
+
+    Assert(() => result == "Hi!");
+    Assert(() => captured == "Bob");
+  }
+
+  [Fact]
+  public void Standalone_and_lambda_arrange_can_be_mixed()
+  {
+    var greeter = A<IGreeter>(g => g.Greet("Bob").Returns("Lambda Bob"));
+    greeter.Greet("Alice").Returns("Standalone Alice");
+
+    Assert(() => greeter.Greet("Bob") == "Lambda Bob");
+    Assert(() => greeter.Greet("Alice") == "Standalone Alice");
+  }
+
+  [Fact]
+  public void Standalone_arrange_with_any_matcher()
+  {
+    var greeter = A<IGreeter>();
+    greeter.Greet(Any<string>()).Returns("Hello, anyone!");
+
+    Assert(() => greeter.Greet("Bob") == "Hello, anyone!");
+    Assert(() => greeter.Greet("Alice") == "Hello, anyone!");
+  }
+}

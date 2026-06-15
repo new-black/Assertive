@@ -227,6 +227,11 @@ namespace Assertive.Mocking
         _globalCapturingResult = this;
         _globalCapturing = false;
       }
+
+      // Support the standalone arrange form: var mock = A<T>(); mock.Method(default).Returns(v);
+      // Matcher interceptors never reach OnCall, so record the pending target here.
+      if (!Capturing)
+        _standaloneArrangeMock = this;
     }
 
     /// <summary>
@@ -235,6 +240,14 @@ namespace Assertive.Mocking
     /// </summary>
     [ThreadStatic]
     private static MockBase? _arrangingMock;
+
+    /// <summary>
+    /// Tracks the last mock that had a method called on it (via interceptor or OnCall), enabling
+    /// the standalone arrange form: <c>var m = A&lt;T&gt;(); m.Method(args).Returns(v);</c>.
+    /// Cleared after an arrange verb consumes it.
+    /// </summary>
+    [ThreadStatic]
+    private static MockBase? _standaloneArrangeMock;
 
     internal void BeginArrange()
     {
@@ -250,35 +263,42 @@ namespace Assertive.Mocking
     }
 
     /// <summary>
+    /// Resolves the mock and arg-match function for the most recent arrange call, consuming any
+    /// pending standalone target. Prefers the explicit lambda scope (<see cref="_arrangingMock"/>)
+    /// over the standalone thread-static (<see cref="_standaloneArrangeMock"/>).
+    /// </summary>
+    private static (MockBase Mock, string Method, Func<object?[], bool> Match) ResolveArrangeTarget()
+    {
+      var mock = _arrangingMock ?? _standaloneArrangeMock
+        ?? throw new InvalidOperationException(
+          "Assertive.Mocking: an arrange verb (Returns/Throws/Does) was called with no preceding mock call on this thread.");
+
+      if (_arrangingMock == null)
+        _standaloneArrangeMock = null; // consume
+
+      if (mock.CapturedMatch is { } spec)
+      {
+        mock.CapturedMatch = null;
+        return (mock, spec.Method, spec.Match);
+      }
+
+      if (mock.Captured is { } captured)
+      {
+        var args = captured.Arguments;
+        return (mock, captured.Method, a => ArgumentsEqual(args, a));
+      }
+
+      throw new InvalidOperationException("Assertive.Mocking: an arrange verb has no preceding mock call to attach to.");
+    }
+
+    /// <summary>
     /// Attaches a conditional behavior to the last call captured during the active arrange scope.
     /// The setup only fires when <paramref name="condition"/> returns true at call time; otherwise
     /// the engine falls through to the next matching setup (or the default/auto-mock value).
     /// </summary>
     public static void AttachConditionalBehaviorToLastArrangedCall(Func<object?[], object?> behavior, Func<bool> condition)
     {
-      var mock = _arrangingMock
-        ?? throw new InvalidOperationException("Assertive.Mocking: an arrange verb (Returns/Throws/Does) was called outside of an A<T>(...) arrange lambda.");
-
-      string method;
-      Func<object?[], bool> argMatch;
-
-      if (mock.CapturedMatch is { } spec)
-      {
-        method = spec.Method;
-        argMatch = spec.Match;
-        mock.CapturedMatch = null;
-      }
-      else if (mock.Captured is { } captured)
-      {
-        method = captured.Method;
-        var args = captured.Arguments;
-        argMatch = a => ArgumentsEqual(args, a);
-      }
-      else
-      {
-        throw new InvalidOperationException("Assertive.Mocking: an arrange verb has no preceding mock call to attach to.");
-      }
-
+      var (mock, method, argMatch) = ResolveArrangeTarget();
       mock.AddSetup(method, args => argMatch(args) && condition(), behavior);
     }
 
@@ -289,23 +309,8 @@ namespace Assertive.Mocking
     /// </summary>
     public static void AttachBehaviorToLastArrangedCall(Func<object?[], object?> behavior)
     {
-      var mock = _arrangingMock
-        ?? throw new InvalidOperationException("Assertive.Mocking: an arrange verb (Returns/Throws/Does) was called outside of an A<T>(...) arrange lambda.");
-
-      // A matcher interceptor captured this call → use its argument matcher; otherwise exact args.
-      if (mock.CapturedMatch is { } spec)
-      {
-        mock.AddSetup(spec.Method, spec.Match, behavior);
-        mock.CapturedMatch = null;
-        return;
-      }
-
-      if (mock.Captured is null)
-      {
-        throw new InvalidOperationException("Assertive.Mocking: an arrange verb has no preceding mock call to attach to.");
-      }
-
-      mock.AddBehavior(mock.Captured, behavior);
+      var (mock, method, argMatch) = ResolveArrangeTarget();
+      mock.AddSetup(method, argMatch, behavior);
     }
 
     /// <summary>The mock arranging on this thread, its captured call, and its argument matcher — used by <c>When(...)</c>.</summary>
@@ -400,6 +405,11 @@ namespace Assertive.Mocking
         matched = false;
         return true;
       }
+
+      // Standalone arrange: record this call so a subsequent Returns/Throws/Does can attach to it.
+      Captured = new MockInvocation(method, arguments);
+      CapturedMatch = null;
+      _standaloneArrangeMock = this;
 
       lock (_lock)
       {
