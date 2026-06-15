@@ -57,14 +57,6 @@ namespace Assertive.Mocking.Generators
       defaultSeverity: DiagnosticSeverity.Warning,
       isEnabledByDefault: true);
 
-    private static readonly DiagnosticDescriptor Mock005 = new DiagnosticDescriptor(
-      id: "MOCK005",
-      title: "Arrange verb used outside arrange scope",
-      messageFormat: "'.{0}()' was called outside of an A<T>(...) arrange lambda. This will throw at runtime.",
-      category: "Assertive.Mocking",
-      defaultSeverity: DiagnosticSeverity.Warning,
-      isEnabledByDefault: true);
-
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
       var arranged = context.SyntaxProvider.CreateSyntaxProvider(
@@ -133,17 +125,6 @@ namespace Assertive.Mocking.Generators
         .Where(static d => d is not null);
 
       context.RegisterSourceOutput(mock004Diagnostics.Collect(), static (spc, diags) =>
-      {
-        foreach (var d in diags) if (d is not null) spc.ReportDiagnostic(d);
-      });
-
-      // MOCK005: warn when an arrange verb (Returns/Throws/Does/ReturnsMany) is called outside an arrange scope.
-      var mock005Diagnostics = context.SyntaxProvider.CreateSyntaxProvider(
-          predicate: static (node, _) => IsPotentialArrangeVerb(node),
-          transform: static (ctx, ct) => ExtractMock005(ctx, ct))
-        .Where(static d => d is not null);
-
-      context.RegisterSourceOutput(mock005Diagnostics.Collect(), static (spc, diags) =>
       {
         foreach (var d in diags) if (d is not null) spc.ReportDiagnostic(d);
       });
@@ -329,73 +310,12 @@ namespace Assertive.Mocking.Generators
 
       // Only fire when the call has at least one matcher argument (pre-filter already checked this
       // but double-check to avoid false positives on unrelated calls with named args).
-      if (!args.Any(a => a.Expression.IsKind(SyntaxKind.DefaultLiteralExpression) || IsMatcherCall(a.Expression)))
+      if (!args.Any(a => UnwrapNullForgiving(a.Expression).IsKind(SyntaxKind.DefaultLiteralExpression) || IsMatcherCall(UnwrapNullForgiving(a.Expression))))
       {
         return null;
       }
 
       return Diagnostic.Create(Mock004, invocation.GetLocation());
-    }
-
-    /// <summary>Cheap pre-filter: an invocation of Returns, Throws, Does, or ReturnsMany on a member-access expression.</summary>
-    private static bool IsPotentialArrangeVerb(SyntaxNode node)
-    {
-      return node is InvocationExpressionSyntax
-      {
-        Expression: MemberAccessExpressionSyntax { Name: IdentifierNameSyntax { Identifier.ValueText: var name } }
-      } && (name is "Returns" or "Throws" or "Does" or "ReturnsMany");
-    }
-
-    /// <summary>
-    /// MOCK005: warns when an arrange verb (Returns/Throws/Does/ReturnsMany) is called outside an
-    /// arrange lambda. This will throw at runtime; catch it early at compile time.
-    /// </summary>
-    private static Diagnostic? ExtractMock005(GeneratorSyntaxContext ctx, System.Threading.CancellationToken ct)
-    {
-      var invocation = (InvocationExpressionSyntax)ctx.Node;
-
-      // If it's inside an arrange context, it's intentional — no warning.
-      if (IsInArrangeContext(invocation))
-      {
-        return null;
-      }
-
-      if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
-      {
-        return null;
-      }
-
-      var verbName = memberAccess.Name.Identifier.ValueText;
-
-      // Resolve the symbol to check it belongs to Assertive.Mocking arrange types.
-      var symbolInfo = ctx.SemanticModel.GetSymbolInfo(invocation, ct);
-      IMethodSymbol? method = symbolInfo.Symbol as IMethodSymbol;
-      if (method is null)
-      {
-        foreach (var candidate in symbolInfo.CandidateSymbols)
-        {
-          if (candidate is IMethodSymbol m) { method = m; break; }
-        }
-      }
-
-      if (method is null)
-      {
-        return null;
-      }
-
-      // Check the containing type is one of the Assertive.Mocking arrange types.
-      var containingTypeName = method.ContainingType?.Name;
-      if (containingTypeName is not ("ArrangeExtensions" or "VoidArrange" or "ValueArrange"))
-      {
-        return null;
-      }
-
-      if (method.ContainingType?.ContainingNamespace is not { Name: "Mocking", ContainingNamespace.Name: "Assertive" })
-      {
-        return null;
-      }
-
-      return Diagnostic.Create(Mock005, invocation.GetLocation(), verbName);
     }
 
     private static bool IsMatcherMethodName(string name) =>
@@ -406,9 +326,15 @@ namespace Assertive.Mocking.Generators
     {
       return node is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax } inv
         && inv.ArgumentList.Arguments.Any(static a =>
-          a.Expression.IsKind(SyntaxKind.DefaultLiteralExpression)
-          || IsMatcherCall(a.Expression));
+          UnwrapNullForgiving(a.Expression).IsKind(SyntaxKind.DefaultLiteralExpression)
+          || IsMatcherCall(UnwrapNullForgiving(a.Expression)));
     }
+
+    /// <summary>Strips a null-forgiving operator (<c>!</c>) if present, returning the inner expression.</summary>
+    private static ExpressionSyntax UnwrapNullForgiving(ExpressionSyntax expr) =>
+      expr is PostfixUnaryExpressionSyntax { RawKind: (int)SyntaxKind.SuppressNullableWarningExpression } pue
+        ? pue.Operand
+        : expr;
 
     /// <summary>Returns true for any matcher helper invocation: unqualified (<c>Any&lt;T&gt;()</c>, <c>IsNotNull&lt;T&gt;()</c>, …) from <c>using static Mock</c>.</summary>
     private static bool IsMatcherCall(ExpressionSyntax expr)
@@ -471,6 +397,8 @@ namespace Assertive.Mocking.Generators
 
     private static ArgKind Classify(ExpressionSyntax expression)
     {
+      expression = UnwrapNullForgiving(expression);
+
       // Bare `default` (not default(T)) is the "any" token.
       if (expression.IsKind(SyntaxKind.DefaultLiteralExpression))
       {
@@ -502,7 +430,15 @@ namespace Assertive.Mocking.Generators
     {
       for (var current = node.Parent; current != null; current = current.Parent)
       {
+        // Inside an A<T>(...) / When(...) / Received(...) / Setup(...) lambda.
         if (current is InvocationExpressionSyntax invocation && CalleeName(invocation) is "A" or "When" or "Received" or "Setup")
+        {
+          return true;
+        }
+
+        // Standalone arrange: mock.Method(Any<T>()).Returns(v) — the mock call (or an argument
+        // inside it) is the receiver of a trailing arrange verb.
+        if (current is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Returns" or "Throws" or "Does" or "ReturnsMany" })
         {
           return true;
         }
@@ -647,6 +583,7 @@ namespace Assertive.Mocking.Generators
       var properties = new List<MockProperty>();
       var indexers = new List<MockIndexer>();
       var events = new List<MockEvent>();
+      var genericStubs = new List<string>(); // NotImplementedException stubs for generic interface methods
 
       foreach (var member in members)
       {
@@ -665,10 +602,31 @@ namespace Assertive.Mocking.Generators
             m.Parameters.Select(p => (p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), p.Name)).ToArray(),
             kind, innerFqn, innerMock, directMock, callBase, elementFqn));
         }
+        else if (!isClass && member is IMethodSymbol { MethodKind: MethodKind.Ordinary } sm
+                 && (sm.IsGenericMethod || sm.ReturnsByRef || sm.Parameters.Any(p => p.RefKind != RefKind.None)))
+        {
+          // Interface methods that can't be intercepted (generic, ref-return, or ref/out params) must still be implemented.
+          var typeParamSuffix = sm.IsGenericMethod ? $"<{string.Join(", ", sm.TypeParameters.Select(tp => tp.Name))}>" : "";
+          var returnTypeFqn = sm.ReturnsVoid ? "void" : sm.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+          var paramList = string.Join(", ", sm.Parameters.Select(p =>
+          {
+            var modifier = p.RefKind switch { RefKind.Out => "out ", RefKind.Ref => "ref ", _ => "" };
+            return $"{modifier}{p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} {p.Name}";
+          }));
+          // Assign out params before throwing to satisfy definite-assignment; throw keeps it simple.
+          var outAssignments = sm.Parameters.Where(p => p.RefKind == RefKind.Out)
+            .Select(p => $" {p.Name} = default!;");
+          var body = outAssignments.Any()
+            ? $"{{ {string.Concat(outAssignments)} return default!; }}"
+            : (sm.ReturnsVoid ? "{ }" : "=> default!;");
+          genericStubs.Add($"    public {returnTypeFqn} {sm.Name}{typeParamSuffix}({paramList}) {body}");
+        }
         else if (member is IPropertySymbol { IsIndexer: false } p)
         {
           var propCallBase = isClass && !p.IsAbstract;
-          properties.Add(new MockProperty(p.Name, p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), propCallBase));
+          var hasSetter = p.SetMethod is not null
+            && p.SetMethod.DeclaredAccessibility is Accessibility.Public or Accessibility.Protected or Accessibility.ProtectedOrInternal;
+          properties.Add(new MockProperty(p.Name, p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), propCallBase, hasSetter));
         }
         else if (member is IPropertySymbol { IsIndexer: true } idx)
         {
@@ -703,7 +661,8 @@ namespace Assertive.Mocking.Generators
         properties.ToImmutableArray(),
         constructors,
         indexers.ToImmutableArray(),
-        events.ToImmutableArray());
+        events.ToImmutableArray(),
+        genericStubs.ToImmutableArray());
     }
 
     /// <summary>Overridable methods and properties across a class's hierarchy: virtual/abstract, not sealed, public, excluding System.Object's.</summary>
@@ -883,7 +842,7 @@ namespace Assertive.Mocking.Generators
       }
 
       var kindOk = type.TypeKind == TypeKind.Interface
-        || (type.TypeKind == TypeKind.Class && !type.IsSealed && !type.IsStatic
+        || (type.TypeKind == TypeKind.Class && !type.IsSealed && !type.IsStatic && !type.IsAbstract
             && type.InstanceConstructors.Any(c => c.Parameters.Length == 0
                 && c.DeclaredAccessibility is Accessibility.Public or Accessibility.Protected or Accessibility.ProtectedOrInternal));
 
@@ -1005,7 +964,8 @@ namespace Assertive.Mocking.Generators
         sb.AppendLine("        }");
         sb.AppendLine($"        return __wrapped.{property.Name};");
         sb.AppendLine("      }");
-        sb.AppendLine($"      set {{ if (OnCall(\"set_{property.Name}\", new object[] {{ value }}, out _, out _)) return; __wrapped.{property.Name} = value; }}");
+        if (property.HasSetter)
+          sb.AppendLine($"      set {{ if (OnCall(\"set_{property.Name}\", new object[] {{ value }}, out _, out _)) return; __wrapped.{property.Name} = value; }}");
         sb.AppendLine("    }");
       }
 
@@ -1497,7 +1457,8 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine("        }");
           sb.AppendLine("        return default;");
           sb.AppendLine("      }");
-          sb.AppendLine($"      set {{ OnCall(\"set_{property.Name}\", new object[] {{ value }}, out _, out _); }}");
+          if (property.HasSetter)
+            sb.AppendLine($"      set {{ OnCall(\"set_{property.Name}\", new object[] {{ value }}, out _, out _); }}");
           sb.AppendLine("    }");
         }
         else
@@ -1516,10 +1477,14 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine("        }");
           sb.AppendLine($"        return {unarrangedPropReturn};");
           sb.AppendLine("      }");
-          sb.AppendLine($"      set {{ {core}OnCall(\"set_{property.Name}\", new object[] {{ value }}, out _, out _); }}");
+          if (property.HasSetter)
+            sb.AppendLine($"      set {{ {core}OnCall(\"set_{property.Name}\", new object[] {{ value }}, out _, out _); }}");
           sb.AppendLine("    }");
         }
       }
+
+      foreach (var stub in target.GenericStubs)
+        sb.AppendLine(stub);
 
       foreach (var indexer in target.Indexers)
       {
@@ -1680,7 +1645,8 @@ namespace Assertive.Mocking.Generators
   {
     public MockTarget(string interfaceFqn, string className, string displayName, bool isClass,
       ImmutableArray<MockMethod> methods, ImmutableArray<MockProperty> properties, ImmutableArray<ImmutableArray<string>> constructors,
-      ImmutableArray<MockIndexer> indexers = default, ImmutableArray<MockEvent> events = default)
+      ImmutableArray<MockIndexer> indexers = default, ImmutableArray<MockEvent> events = default,
+      ImmutableArray<string> genericStubs = default)
     {
       InterfaceFqn = interfaceFqn;
       ClassName = className;
@@ -1691,6 +1657,7 @@ namespace Assertive.Mocking.Generators
       Constructors = constructors;
       Indexers = indexers.IsDefault ? ImmutableArray<MockIndexer>.Empty : indexers;
       Events = events.IsDefault ? ImmutableArray<MockEvent>.Empty : events;
+      GenericStubs = genericStubs.IsDefault ? ImmutableArray<string>.Empty : genericStubs;
     }
 
     /// <summary>FQN of the mocked type (interface or class).</summary>
@@ -1702,6 +1669,8 @@ namespace Assertive.Mocking.Generators
     public ImmutableArray<MockProperty> Properties { get; }
     public ImmutableArray<MockIndexer> Indexers { get; }
     public ImmutableArray<MockEvent> Events { get; }
+    /// <summary>Verbatim C# lines for generic interface methods that can't be intercepted but must be implemented.</summary>
+    public ImmutableArray<string> GenericStubs { get; }
 
     /// <summary>For a class: each accessible base constructor's parameter type FQNs (for forwarding ctors).</summary>
     public ImmutableArray<ImmutableArray<string>> Constructors { get; }
@@ -1717,6 +1686,7 @@ namespace Assertive.Mocking.Generators
       if (!Properties.SequenceEqual(other.Properties)) return false;
       if (!Indexers.SequenceEqual(other.Indexers)) return false;
       if (!Events.SequenceEqual(other.Events)) return false;
+      if (!GenericStubs.SequenceEqual(other.GenericStubs)) return false;
       if (Constructors.Length != other.Constructors.Length) return false;
       for (var i = 0; i < Constructors.Length; i++)
         if (!Constructors[i].SequenceEqual(other.Constructors[i]))
@@ -1737,6 +1707,7 @@ namespace Assertive.Mocking.Generators
         h = h * 31 + Properties.Length;
         h = h * 31 + Indexers.Length;
         h = h * 31 + Events.Length;
+        h = h * 31 + GenericStubs.Length;
         return h;
       }
     }
@@ -1832,21 +1803,23 @@ namespace Assertive.Mocking.Generators
 
   internal sealed class MockProperty : IEquatable<MockProperty>
   {
-    public MockProperty(string name, string typeFqn, bool callBase = false)
+    public MockProperty(string name, string typeFqn, bool callBase = false, bool hasSetter = true)
     {
       Name = name;
       TypeFqn = typeFqn;
       CallBase = callBase;
+      HasSetter = hasSetter;
     }
 
     public string Name { get; }
     public string TypeFqn { get; }
     public bool CallBase { get; }
+    public bool HasSetter { get; }
 
     public bool Equals(MockProperty? other)
     {
       if (other is null) return false;
-      return Name == other.Name && TypeFqn == other.TypeFqn && CallBase == other.CallBase;
+      return Name == other.Name && TypeFqn == other.TypeFqn && CallBase == other.CallBase && HasSetter == other.HasSetter;
     }
 
     public override bool Equals(object? obj) => Equals(obj as MockProperty);
@@ -1858,6 +1831,7 @@ namespace Assertive.Mocking.Generators
         var h = Name?.GetHashCode() ?? 0;
         h = h * 31 + (TypeFqn?.GetHashCode() ?? 0);
         h = h * 31 + CallBase.GetHashCode();
+        h = h * 31 + HasSetter.GetHashCode();
         return h;
       }
     }
