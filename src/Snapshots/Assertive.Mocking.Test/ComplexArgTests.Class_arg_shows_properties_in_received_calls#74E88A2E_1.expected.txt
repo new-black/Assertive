@@ -1,7 +1,7 @@
 
-Greet("Bob the Builder")
+Tag(new LegacyItem { Id = 2 })
 
-Expected: Greet("Bob the Builder")
+Expected: Tag({ Id = 2, Label = "" })
 Received:
-  [0] Greet("Adam the Magnificent")
+  [0] Tag({ Id = 1, Label = "foo" })
 ················································································

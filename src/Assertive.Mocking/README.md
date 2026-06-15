@@ -87,26 +87,26 @@ Any(repo.GetById).ReturnsMany(new User { Id = 1 }, new User { Id = 2 });
 
 ### Matchers
 
-When you pass `default` as an argument, or use any `It.*` matcher, the call matches any invocation where that argument satisfies the condition.
+When you pass `default` as an argument, or use any matcher, the call matches any invocation where that argument satisfies the condition. All matchers are available as static methods on `Mock` via `using static Assertive.Mocking.Mock`.
 
 ```csharp
 // default — match any value for that argument position
 repo.GetById(default).Returns(new User());
 
-// It.Any<T>() — same as default, but explicit
-repo.GetById(It.Any<int>()).Returns(new User());
+// Any<T>() — same as default, but explicit
+repo.GetById(Any<int>()).Returns(new User());
 
-// It.Any<T>(predicate) — conditional match
-repo.GetById(It.Any<int>(id => id > 0)).Returns(new User());
+// Any<T>(predicate) — conditional match
+repo.GetById(Any<int>(id => id > 0)).Returns(new User());
 
-// It.IsNotNull<T>()
-repo.Save(It.IsNotNull<User>()).Returns(true);
+// IsNotNull<T>()
+repo.Save(IsNotNull<User>()).Returns(true);
 
-// It.IsIn(...)
-repo.GetById(It.IsIn(1, 2, 3)).Returns(new User());
+// IsIn(...)
+repo.GetById(IsIn(1, 2, 3)).Returns(new User());
 
-// It.IsInRange(min, max)
-repo.GetById(It.IsInRange(1, 100)).Returns(new User());
+// IsInRange(min, max)
+repo.GetById(IsInRange(1, 100)).Returns(new User());
 ```
 
 ### Capturing arguments
@@ -114,7 +114,7 @@ repo.GetById(It.IsInRange(1, 100)).Returns(new User());
 ```csharp
 var capture = new Capture<User>();
 
-repo.Save(It.Any<User>(capture)).Returns(true);
+repo.Save(Any<User>(capture)).Returns(true);
 
 sut.CreateUser("Alice");
 
@@ -275,7 +275,7 @@ svc.ComputeHash(default!).Returns("fake-hash");
 var svc = Build<CheckoutService>();
 
 // Provide specific deps; the rest are auto-mocked
-var gateway = A<IPaymentGateway>(g => g.Charge(It.Any<decimal>()).Returns("ok"));
+var gateway = A<IPaymentGateway>(g => g.Charge(Any<decimal>()).Returns("ok"));
 var svc = Build<CheckoutService>(gateway);
 
 // Arguments matched by type, not position — order doesn't matter
@@ -372,6 +372,6 @@ When you install the package, a Roslyn incremental source generator scans your c
 
 `Build<T>` is intercepted per call site: the generator reads the declared types of each argument from Roslyn's semantic model, matches them to constructor parameters by type, and emits a typed factory that auto-mocks any unmatched parameters — no reflection at runtime.
 
-Argument matchers (`It.Any<T>()`, `default`, etc.) are recognised syntactically at the call site. The generator emits a companion interceptor for each matching call that registers the matcher predicates before the actual call is recorded, so the runtime never has to guess which positions were matchers.
+Argument matchers (`Any<T>()`, `default`, etc.) are recognised syntactically at the call site. The generator emits a companion interceptor for each matching call that registers the matcher predicates before the actual call is recorded, so the runtime never has to guess which positions were matchers.
 
 The result is a fully static, reflection-free mock implementation that the AOT compiler can see in its entirety — no `Emit`, no `Castle.DynamicProxy`, no `[DynamicallyAccessedMembers]` annotations required.

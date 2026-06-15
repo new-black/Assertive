@@ -276,7 +276,7 @@ public class MethodGroupTests
 }
 
 // ---------------------------------------------------------------------------
-// Scenario 7: Matchers — default (any), It.Any<T>(), It.Any<T>(predicate), mixed
+// Scenario 7: Matchers — default (any), Any<T>(), Any<T>(predicate), mixed
 // ---------------------------------------------------------------------------
 
 public class MatcherTests
@@ -286,7 +286,7 @@ public class MatcherTests
   {
     var greeter = A<IGreeter>(g =>
     {
-      g.Greet(It.Any<string>()).Returns("any-name");
+      g.Greet(Any<string>()).Returns("any-name");
     });
 
     Assert(() => greeter.Greet("Bob") == "any-name");
@@ -299,8 +299,8 @@ public class MatcherTests
   {
     var greeter = A<IGreeter>(g =>
     {
-      g.Greet(It.Any<string>()).Returns("any-name");
-      g.Greet(It.Any<string>(n => n.StartsWith("A"))).Returns("starts-with-A");
+      g.Greet(Any<string>()).Returns("any-name");
+      g.Greet(Any<string>(n => n.StartsWith("A"))).Returns("starts-with-A");
     });
 
     Assert(() => greeter.Greet("Alice") == "starts-with-A");
@@ -312,7 +312,7 @@ public class MatcherTests
   {
     var greeter = A<IGreeter>(g =>
     {
-      g.Complex(default, It.Any<string>()).Returns("complex-any");
+      g.Complex(default, Any<string>()).Returns("complex-any");
       g.Complex(default, "ping").Returns("pong");
     });
 
@@ -325,8 +325,8 @@ public class MatcherTests
   {
     var greeter = A<IGreeter>(g =>
     {
-      g.Greet(It.Any<string>()).Returns("general");
-      g.Greet(It.Any<string>(n => n.StartsWith("A"))).Returns("starts-with-A");
+      g.Greet(Any<string>()).Returns("general");
+      g.Greet(Any<string>(n => n.StartsWith("A"))).Returns("starts-with-A");
     });
 
     // "Alice" starts with A -> most recently configured predicate wins
@@ -347,14 +347,14 @@ public class CollectionMatcherTests
   [Fact]
   public void It_Contains_matches_when_collection_contains_item()
   {
-    var repo = A<IRepo>(r => r.FindByIds(It.Contains(42L)).Returns("found"));
+    var repo = A<IRepo>(r => r.FindByIds(Contains(42L)).Returns("found"));
     Assert(() => repo.FindByIds(new long[] { 1L, 42L, 99L }) == "found");
   }
 
   [Fact]
   public void It_Contains_does_not_match_when_item_absent()
   {
-    var repo = A<IRepo>(r => r.FindByIds(It.Contains(42L)).Returns("found"));
+    var repo = A<IRepo>(r => r.FindByIds(Contains(42L)).Returns("found"));
     Assert(() => repo.FindByIds(new long[] { 1L, 2L, 3L }) == null);
   }
 
@@ -362,22 +362,22 @@ public class CollectionMatcherTests
   public void It_Contains_works_in_Received_with_type_inference()
   {
     // Verifies that type inference works in both arrange and verify: no explicit IEnumerable<long>.
-    var repo = A<IRepo>(r => r.FindByIds(It.Contains(42L)).Returns("ok"));
+    var repo = A<IRepo>(r => r.FindByIds(Contains(42L)).Returns("ok"));
     repo.FindByIds(new long[] { 1L, 42L });
-    Received(() => repo.FindByIds(It.Contains(42L)));
+    Received(() => repo.FindByIds(Contains(42L)));
   }
 
   [Fact]
   public void It_IsEmpty_matches_empty_collection()
   {
-    var repo = A<IRepo>(r => r.FindAll(It.IsEmpty<long>()).Returns("empty"));
+    var repo = A<IRepo>(r => r.FindAll(IsEmpty<long>()).Returns("empty"));
     Assert(() => repo.FindAll(Array.Empty<long>()) == "empty");
   }
 
   [Fact]
   public void It_IsEmpty_does_not_match_non_empty_collection()
   {
-    var repo = A<IRepo>(r => r.FindAll(It.IsEmpty<long>()).Returns("empty"));
+    var repo = A<IRepo>(r => r.FindAll(IsEmpty<long>()).Returns("empty"));
     Assert(() => repo.FindAll(new long[] { 1L }) == null);
   }
 }
@@ -1026,7 +1026,7 @@ public class VerificationTests : MockingTestBase
     var cap = new Capture<string>();
     var greeter = A<IGreeter>(g =>
     {
-      g.Greet(It.Any(cap)).Returns("captured");
+      g.Greet(Any(cap)).Returns("captured");
     });
 
     greeter.Greet("Alice");
@@ -1103,14 +1103,14 @@ public class ReceivedDslTests : MockingTestBase
   {
     var greeter = A<IGreeter>();
     greeter.Greet("Alice");
-    Received(() => greeter.Greet(It.Any<string>()));
+    Received(() => greeter.Greet(Any<string>()));
   }
 
   [Fact]
   public void Received_with_matcher_throws_when_no_call_was_made()
   {
     var greeter = A<IGreeter>();
-    ShouldFail(() => Received(() => greeter.Greet(It.Any<string>())));
+    ShouldFail(() => Received(() => greeter.Greet(Any<string>())));
   }
 }
 
@@ -1308,7 +1308,7 @@ public class BehaviorTests : MockingTestBase
   {
     var greeter = A<IGreeter>(g =>
     {
-      g.Greet(It.IsNotNull<string>()).Returns("got something");
+      g.Greet(IsNotNull<string>()).Returns("got something");
     });
 
     Assert(() => greeter.Greet("Alice") == "got something");
@@ -1320,8 +1320,8 @@ public class BehaviorTests : MockingTestBase
     var greeter = A<IGreeter>(g =>
     {
       // General fallback first, then more specific — last-registered wins.
-      g.Greet(It.Any<string>()).Returns("unknown");
-      g.Greet(It.IsIn("Alice", "Bob")).Returns("known");
+      g.Greet(Any<string>()).Returns("unknown");
+      g.Greet(IsIn("Alice", "Bob")).Returns("known");
     });
 
     Assert(() => greeter.Greet("Alice") == "known");
@@ -1334,7 +1334,7 @@ public class BehaviorTests : MockingTestBase
   {
     var calc = A<ICalculator>(c =>
     {
-      c.Add(It.IsInRange(1, 5), It.Any<int>(), It.Any<int>()).Returns(99);
+      c.Add(IsInRange(1, 5), Any<int>(), Any<int>()).Returns(99);
     });
 
     Assert(() => calc.Add(3, 0, 0) == 99);
@@ -1692,7 +1692,7 @@ public class BuildTests
   [Fact]
   public void Build_with_one_arg_auto_mocks_the_rest()
   {
-    var gateway = A<IPaymentGateway>(g => g.Charge(It.Any<decimal>()).Returns("ok"));
+    var gateway = A<IPaymentGateway>(g => g.Charge(Any<decimal>()).Returns("ok"));
     var svc = Build<CheckoutService>(gateway);
 
     Assert(() => svc.ProcessPayment(99m) == "ok");
@@ -1703,7 +1703,7 @@ public class BuildTests
   {
     // Pass in reverse constructor order: logger first, gateway second
     var logger = A<IOrderLogger>();
-    var gateway = A<IPaymentGateway>(g => g.Charge(It.Any<decimal>()).Returns("charged"));
+    var gateway = A<IPaymentGateway>(g => g.Charge(Any<decimal>()).Returns("charged"));
 
     var svc = Build<CheckoutService>(logger, gateway);
 
@@ -1713,7 +1713,7 @@ public class BuildTests
   [Fact]
   public void Build_with_all_args_provided()
   {
-    var gateway = A<IPaymentGateway>(g => g.Charge(It.Any<decimal>()).Returns("full-ok"));
+    var gateway = A<IPaymentGateway>(g => g.Charge(Any<decimal>()).Returns("full-ok"));
     var logger = A<IOrderLogger>();
 
     var svc = Build<CheckoutService>(gateway, logger);
@@ -1803,13 +1803,10 @@ public class ComplexArgTests : MockingTestBase
   }
 
   [Fact]
-  public void Class_arg_without_ToString_shows_type_name_only()
+  public void Class_arg_shows_properties_in_received_calls()
   {
     var wh = A<IWarehouse>();
     wh.Tag(new LegacyItem { Id = 1, Label = "foo" });
-
-    // Plain class without ToString() override — only the type name appears in the failure.
-    // Use a record or override ToString() to get property values in the output.
     ShouldFail(() => Received(wh, w => w.Tag(new LegacyItem { Id = 2 })));
   }
 }

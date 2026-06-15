@@ -29,17 +29,6 @@ sealed class Capture<T>
 interface IMockObject
   MockBase Core { get; }
 
-static class It
-  static T Any<T>()
-  static T Any<T>(Func<T, bool> predicate)
-  static T Any<T>(Capture<T> capture)
-  static IEnumerable<T> Contains<T>(T item)
-  static Func<object, bool> DequeueMatcher()
-  static IEnumerable<T> IsEmpty<T>()
-  static T IsIn<T>(T[] values)
-  static T IsInRange<T>(T min, T max)
-  static T IsNotNull<T>()
-
 static class Mock
   static T A<T>(MockMode mode)
   static T A<T>(MockMode mode, object[] constructorArguments)
@@ -54,6 +43,9 @@ static class Mock
   static ValueArrange<T1, T2, T3, T4, TResult> Any<T1, T2, T3, T4, TResult>(Func<T1, T2, T3, T4, TResult> method)
   static VoidArrange<T1, T2> Any<T1, T2>(Action<T1, T2> method)
   static VoidArrange<T1, T2, T3> Any<T1, T2, T3>(Action<T1, T2, T3> method)
+  static T Any<T>()
+  static T Any<T>(Func<T, bool> predicate)
+  static T Any<T>(Capture<T> capture)
   static T Build<T>()
   static T Build<T>(object a0)
   static T Build<T>(object a0, object a1)
@@ -63,9 +55,15 @@ static class Mock
   static T Build<T>(object a0, object a1, object a2, object a3, object a4, object a5)
   static T Build<T>(object a0, object a1, object a2, object a3, object a4, object a5, object a6)
   static void ClearReceivedCalls<T>(T mock)
+  static IEnumerable<T> Contains<T>(T item)
+  static Func<object, bool> DequeueMatcher()
   static void DidNotReceive(Action call, string callExpression)
   static void DidNotReceive<T>(T mock, Action<T> call, string callExpression)
   static void InOrder<T>(T mock, Action<T> sequence, string sequenceExpression)
+  static IEnumerable<T> IsEmpty<T>()
+  static T IsIn<T>(T[] values)
+  static T IsInRange<T>(T min, T max)
+  static T IsNotNull<T>()
   static void Raise<T>(T mock, Action<T> attach, object[] args)
   static void Received(Action call, string callExpression)
   static void Received(Action call, Times times, string callExpression)
