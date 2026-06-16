@@ -1895,4 +1895,123 @@ public class StandaloneArrangeTests : MockingTestBase
     Assert(() => greeter.Greet("Bob") == "Hello, anyone!");
     Assert(() => greeter.Greet("Alice") == "Hello, anyone!");
   }
+
+  [Fact]
+  public void Standalone_arrange_call_is_not_counted_in_Received()
+  {
+    var greeter = A<IGreeter>();
+    greeter.Greet("Bob").Returns("Hello, Bob!");
+
+    greeter.Greet("Bob");
+
+    // The arrange call must not be counted — only the one real call above.
+    Received(greeter, Times.Once, g => g.Greet("Bob"));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Closed generic interface mocking tests
+// ---------------------------------------------------------------------------
+
+public interface IRepository<T>
+{
+  T FindById(int id);
+  void Save(T item);
+}
+
+public class DataService
+{
+  private readonly IRepository<IWidget> _repo;
+  public DataService(IRepository<IWidget> repo) => _repo = repo;
+  public IWidget GetWidget(int id) => _repo.FindById(id);
+}
+
+// Models a hierarchy where a generic interface redefines a method from a
+// non-generic base with a covariant return type. Same scenario as
+// IAsyncSideEffect<T> / IAsyncSideEffect (which triggered CS0111 before the fix).
+public interface IConflictBase
+{
+  object GetValue();
+}
+
+public interface IConflict<T> : IConflictBase
+{
+  new T GetValue();
+}
+
+public class GenericInterfaceMockTests : MockingTestBase
+{
+  [Fact]
+  public void A_of_closed_generic_interface_returns_a_non_null_mock()
+  {
+    var repo = A<IRepository<IWidget>>();
+    Assert(() => repo != null);
+  }
+
+  [Fact]
+  public void Method_on_closed_generic_interface_mock_auto_mocks_interface_return_when_unarranged()
+  {
+    var repo = A<IRepository<IWidget>>();
+    Assert(() => repo.FindById(1) != null);
+  }
+
+  [Fact]
+  public void Arrangement_on_closed_generic_interface_mock_returns_configured_value()
+  {
+    var widget = A<IWidget>();
+    var repo = A<IRepository<IWidget>>();
+    repo.FindById(42).Returns(widget);
+
+    Assert(() => repo.FindById(42) == widget);
+  }
+
+  [Fact]
+  public void Received_works_on_closed_generic_interface_mock()
+  {
+    var repo = A<IRepository<IWidget>>();
+    repo.FindById(7);
+
+    Received(repo, Times.Once, r => r.FindById(7));
+  }
+
+  [Fact]
+  public void Build_auto_mocks_closed_generic_interface_constructor_param()
+  {
+    var svc = Build<DataService>();
+
+    Assert(() => svc != null);
+    // IRepository<IWidget> is auto-mocked; FindById returns an auto-mock (not null)
+    Assert(() => svc.GetWidget(1) != null);
+  }
+
+  [Fact]
+  public void Build_with_arranged_closed_generic_interface_param_uses_arrangement()
+  {
+    var widget = A<IWidget>();
+    var repo = A<IRepository<IWidget>>(r => r.FindById(Any<int>()).Returns(widget));
+    var svc = Build<DataService>(repo);
+
+    Assert(() => svc.GetWidget(99) == widget);
+  }
+
+  [Fact]
+  public void Closed_generic_interface_that_redefines_base_method_can_be_arranged()
+  {
+    // IConflict<string> inherits IConflictBase; both declare GetValue() with different
+    // return types. The generator emits the derived version as the tracked mock method
+    // and an explicit interface stub for the base. Arrangement must work on the derived type.
+    var mock = A<IConflict<string>>();
+    mock.GetValue().Returns("hello");
+
+    Assert(() => mock.GetValue() == "hello");
+  }
+
+  [Fact]
+  public void Closed_generic_interface_that_redefines_base_method_can_be_verified()
+  {
+    var mock = A<IConflict<string>>();
+    mock.GetValue();
+
+    Received(mock, Times.Once, m => m.GetValue());
+  }
 }

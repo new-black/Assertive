@@ -98,6 +98,7 @@ class MockBase
 static class MockFactoryRegistry
   static T Create<T>(object[] constructorArguments)
   static void Register(Type type, Func<object[], object> factory)
+  static bool TryCreate(Type type, ref object mock)
 
 sealed class MockFault
   .ctor(Exception exception)

@@ -14,6 +14,17 @@ namespace Assertive.Mocking
 
     public static void Register(Type type, Func<object?[], object> factory) => Factories[type] = factory;
 
+    public static bool TryCreate(Type type, out object mock)
+    {
+      if (Factories.TryGetValue(type, out var factory))
+      {
+        mock = factory(System.Array.Empty<object?>());
+        return true;
+      }
+      mock = null!;
+      return false;
+    }
+
     public static T Create<T>(object?[] constructorArguments) where T : class
     {
       if (Factories.TryGetValue(typeof(T), out var factory))

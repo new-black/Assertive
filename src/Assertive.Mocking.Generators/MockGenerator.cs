@@ -161,8 +161,8 @@ namespace Assertive.Mocking.Generators
         reason = "it is static";
       else if (target.IsSealed)
         reason = "it is sealed";
-      else if (target.IsGenericType)
-        reason = "it is a generic type (generic mocks are not supported)";
+      else if (target.IsGenericType && target.TypeArguments.Any(HasOpenTypeArgument))
+        reason = "it is an open generic type (only closed generic interfaces are supported)";
       else
         reason = "it cannot be mocked (only non-sealed classes and interfaces are supported)";
 
@@ -316,6 +316,25 @@ namespace Assertive.Mocking.Generators
       }
 
       return Diagnostic.Create(Mock004, invocation.GetLocation());
+    }
+
+    private static string BuildConstraintClauses(System.Collections.Immutable.ImmutableArray<ITypeParameterSymbol> typeParams)
+    {
+      var sb = new System.Text.StringBuilder();
+      foreach (var tp in typeParams)
+      {
+        var constraints = new List<string>();
+        if (tp.HasReferenceTypeConstraint) constraints.Add("class");
+        if (tp.HasValueTypeConstraint) constraints.Add("struct");
+        if (tp.HasUnmanagedTypeConstraint) constraints.Add("unmanaged");
+        if (tp.HasNotNullConstraint) constraints.Add("notnull");
+        foreach (var ct in tp.ConstraintTypes)
+          constraints.Add(ct.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        if (tp.HasConstructorConstraint) constraints.Add("new()");
+        if (constraints.Count > 0)
+          sb.Append($" where {tp.Name} : {string.Join(", ", constraints)}");
+      }
+      return sb.ToString();
     }
 
     private static bool IsMatcherMethodName(string name) =>
@@ -515,10 +534,11 @@ namespace Assertive.Mocking.Generators
       return BuildClosure(target);
     }
 
-    /// <summary>A type we can mock at the top level: a non-generic interface, or a non-sealed/non-static class.</summary>
+    /// <summary>A type we can mock at the top level: a non-generic or closed-generic interface, or a non-sealed/non-static class.</summary>
     private static bool IsMockableType(INamedTypeSymbol type)
     {
-      if (type.IsGenericType)
+      // Open generics (any unbound type parameter anywhere in the argument tree) cannot be mocked.
+      if (type.IsGenericType && type.TypeArguments.Any(HasOpenTypeArgument))
       {
         return false;
       }
@@ -575,38 +595,65 @@ namespace Assertive.Mocking.Generators
       // Interface: every member (including inherited interface members). Class: only overridable
       // members declared on the class hierarchy (excluding System.Object's), since a subclass can
       // intercept only virtual/abstract members.
+      //
+      // Process the primary type first so its members take precedence. Base interface members with
+      // the same (name, paramTypes) signature but a different return type — which can happen with
+      // closed generic interfaces that redefine a method from a non-generic base — are emitted as
+      // explicit interface implementations rather than trackable mock methods.
       var members = isClass
         ? ClassOverridableMembers(type)
-        : type.AllInterfaces.Concat(new[] { type }).SelectMany(i => i.GetMembers());
+        : new[] { type }.Concat(type.AllInterfaces).SelectMany(i => i.GetMembers());
 
       var methods = new List<MockMethod>();
       var properties = new List<MockProperty>();
       var indexers = new List<MockIndexer>();
       var events = new List<MockEvent>();
       var genericStubs = new List<string>(); // NotImplementedException stubs for generic interface methods
+      // Tracks (methodName|param0Type|param1Type|...) keys already claimed by a mock method.
+      // Used to detect return-type conflicts from base interfaces and emit explicit stubs instead.
+      var seenMethodKeys = new HashSet<string>();
 
       foreach (var member in members)
       {
         if (member is IMethodSymbol { MethodKind: MethodKind.Ordinary } m && !m.IsGenericMethod
             && !m.ReturnsByRef && m.Parameters.All(p => p.RefKind == RefKind.None))
         {
-          var (kind, innerFqn, innerMock, directMock, elementFqn) = AnalyzeReturn(m, children);
+          var methodKey = m.Name + "|" + string.Join("|", m.Parameters.Select(p =>
+            p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
 
-          // Class virtual (non-abstract) members run the real base when unarranged; abstracts and
-          // interface members have no base, so they fall back to default/auto-mock.
-          var callBase = isClass && !m.IsAbstract;
+          if (!seenMethodKeys.Add(methodKey))
+          {
+            // A method with the same (name, paramTypes) was already emitted from the primary interface.
+            // This base-interface method has a different return type; emit it as an explicit interface
+            // implementation stub so the class still satisfies the base interface contract.
+            var returnFqn = m.ReturnsVoid ? "void" : m.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var paramList = string.Join(", ", m.Parameters.Select(p =>
+              $"{p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} {p.Name}"));
+            var containingFqn = m.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var body = m.ReturnsVoid ? "{ }" : "=> default!;";
+            genericStubs.Add($"    {returnFqn} {containingFqn}.{m.Name}({paramList}) {body}");
+          }
+          else
+          {
+            var (kind, innerFqn, innerMock, directMock, elementFqn) = AnalyzeReturn(m, children);
 
-          methods.Add(new MockMethod(
-            m.Name,
-            m.ReturnsVoid ? null : m.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-            m.Parameters.Select(p => (p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), p.Name)).ToArray(),
-            kind, innerFqn, innerMock, directMock, callBase, elementFqn));
+            // Class virtual (non-abstract) members run the real base when unarranged; abstracts and
+            // interface members have no base, so they fall back to default/auto-mock.
+            var callBase = isClass && !m.IsAbstract;
+
+            methods.Add(new MockMethod(
+              m.Name,
+              m.ReturnsVoid ? null : m.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+              m.Parameters.Select(p => (p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), p.Name)).ToArray(),
+              kind, innerFqn, innerMock, directMock, callBase, elementFqn));
+          }
         }
         else if (!isClass && member is IMethodSymbol { MethodKind: MethodKind.Ordinary } sm
                  && (sm.IsGenericMethod || sm.ReturnsByRef || sm.Parameters.Any(p => p.RefKind != RefKind.None)))
         {
           // Interface methods that can't be intercepted (generic, ref-return, or ref/out params) must still be implemented.
           var typeParamSuffix = sm.IsGenericMethod ? $"<{string.Join(", ", sm.TypeParameters.Select(tp => tp.Name))}>" : "";
+          var constraintClauses = sm.IsGenericMethod ? BuildConstraintClauses(sm.TypeParameters) : "";
           var returnTypeFqn = sm.ReturnsVoid ? "void" : sm.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
           var paramList = string.Join(", ", sm.Parameters.Select(p =>
           {
@@ -619,7 +666,7 @@ namespace Assertive.Mocking.Generators
           var body = outAssignments.Any()
             ? $"{{ {string.Concat(outAssignments)} return default!; }}"
             : (sm.ReturnsVoid ? "{ }" : "=> default!;");
-          genericStubs.Add($"    public {returnTypeFqn} {sm.Name}{typeParamSuffix}({paramList}) {body}");
+          genericStubs.Add($"    public {returnTypeFqn} {sm.Name}{typeParamSuffix}({paramList}){constraintClauses} {body}");
         }
         else if (member is IPropertySymbol { IsIndexer: false } p)
         {
@@ -830,13 +877,20 @@ namespace Assertive.Mocking.Generators
     }
 
     /// <summary>
-    /// A return type we can recursively auto-mock: a non-generic, public type outside System.* —
-    /// any interface, or a non-sealed class with an accessible parameterless constructor (auto-mock
-    /// can't supply constructor arguments).
+    /// A return type we can recursively auto-mock: a public, non-open-generic type outside System.* —
+    /// any interface (including closed generic interfaces), or a non-sealed class with an accessible
+    /// parameterless constructor (auto-mock can't supply constructor arguments).
     /// </summary>
     private static bool IsAutoMockable(INamedTypeSymbol type)
     {
-      if (type.IsGenericType || type.DeclaredAccessibility != Accessibility.Public)
+      if (type.DeclaredAccessibility != Accessibility.Public)
+      {
+        return false;
+      }
+
+      // Only closed generic interfaces can be auto-mocked. Generic classes are excluded because
+      // they are typically data types (potentially with required members) rather than service interfaces.
+      if (type.IsGenericType && (type.TypeKind != TypeKind.Interface || type.TypeArguments.Any(HasOpenTypeArgument)))
       {
         return false;
       }
@@ -863,6 +917,10 @@ namespace Assertive.Mocking.Generators
 
       return true;
     }
+
+    private static bool HasOpenTypeArgument(ITypeSymbol t) =>
+      t.Kind == SymbolKind.TypeParameter ||
+      (t is INamedTypeSymbol named && named.TypeArguments.Any(HasOpenTypeArgument));
 
     private static string SanitizedName(INamedTypeSymbol iface)
     {
@@ -942,7 +1000,7 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine("      if (__matched)");
           sb.AppendLine("      {");
           sb.AppendLine($"        if (__r is global::Assertive.Mocking.MockFault __f) {FaultReturn(method)}");
-          sb.AppendLine($"        return __r is {method.ReturnTypeFqn} __v ? __v : {MatchedFallback(method)};");
+          sb.AppendLine($"        return {ReturnIsExpr(method.ReturnTypeFqn!, MatchedFallback(method))};");
           sb.AppendLine("      }");
           sb.AppendLine($"      return __wrapped.{method.Name}({argNames});");
           sb.AppendLine("    }");
@@ -960,7 +1018,7 @@ namespace Assertive.Mocking.Generators
         sb.AppendLine("        if (__matched)");
         sb.AppendLine("        {");
         sb.AppendLine($"          if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception;");
-        sb.AppendLine($"          return __r is {property.TypeFqn} __v ? __v : default;");
+        sb.AppendLine($"          return {ReturnIsExpr(property.TypeFqn, "default")};");
         sb.AppendLine("        }");
         sb.AppendLine($"        return __wrapped.{property.Name};");
         sb.AppendLine("      }");
@@ -983,7 +1041,7 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine("      {");
           sb.AppendLine($"        var __args = {argsArray};");
           sb.AppendLine($"        if (OnCall(\"get_Item\", __args, out var __r, out var __matched)) return default;");
-          sb.AppendLine($"        if (__matched) {{ if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception; return __r is {indexer.ReturnTypeFqn} __v ? __v : default; }}");
+          sb.AppendLine($"        if (__matched) {{ if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception; return {ReturnIsExpr(indexer.ReturnTypeFqn, "default")}; }}");
           sb.AppendLine($"        return __wrapped[{argNames}];");
           sb.AppendLine("      }");
         }
@@ -1432,7 +1490,7 @@ namespace Assertive.Mocking.Generators
         sb.AppendLine("      if (__matched)");
         sb.AppendLine("      {");
         sb.AppendLine($"        if (__r is global::Assertive.Mocking.MockFault __f) {FaultReturn(method)}");
-        sb.AppendLine($"        return __r is {method.ReturnTypeFqn} __v ? __v : {MatchedFallback(method)};");
+        sb.AppendLine($"        return {ReturnIsExpr(method.ReturnTypeFqn!, MatchedFallback(method))};");
         sb.AppendLine("      }");
         sb.AppendLine($"      return {unarranged};");
         sb.AppendLine("    }");
@@ -1453,7 +1511,7 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine("        if (__matched)");
           sb.AppendLine("        {");
           sb.AppendLine($"          if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception;");
-          sb.AppendLine($"          return __r is {property.TypeFqn} __v ? __v : default;");
+          sb.AppendLine($"          return {ReturnIsExpr(property.TypeFqn, "default")};");
           sb.AppendLine("        }");
           sb.AppendLine("        return default;");
           sb.AppendLine("      }");
@@ -1473,7 +1531,7 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine("        if (__matched)");
           sb.AppendLine("        {");
           sb.AppendLine($"          if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception;");
-          sb.AppendLine($"          return __r is {property.TypeFqn} __v ? __v : default;");
+          sb.AppendLine($"          return {ReturnIsExpr(property.TypeFqn, "default")};");
           sb.AppendLine("        }");
           sb.AppendLine($"        return {unarrangedPropReturn};");
           sb.AppendLine("      }");
@@ -1501,7 +1559,7 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine("      {");
           sb.AppendLine($"        var __args = {argsArray};");
           sb.AppendLine($"        if ({core}OnCall(\"get_Item\", __args, out var __r, out var __matched)) return default;");
-          sb.AppendLine($"        if (__matched) {{ if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception; return __r is {indexer.ReturnTypeFqn} __v ? __v : default; }}");
+          sb.AppendLine($"        if (__matched) {{ if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception; return {ReturnIsExpr(indexer.ReturnTypeFqn, "default")}; }}");
           var unarrangedIdx = indexer.CallBase ? $"base[{argNames}]" : "default";
           sb.AppendLine($"        return {unarrangedIdx};");
           sb.AppendLine("      }");
@@ -1556,6 +1614,23 @@ namespace Assertive.Mocking.Generators
       }
 
       return $"global::System.Array.Empty<{method.ElementTypeFqn}>()";
+    }
+
+    /// <summary>
+    /// Emits the cast expression for an unboxed return value.
+    /// C# does not allow <c>is T?</c> patterns for nullable value types, so we strip the trailing <c>?</c>
+    /// from the pattern type and cast the result to the full return type (which is a no-op for reference types,
+    /// and an implicit upcast for value types like <c>double</c> → <c>double?</c>).
+    /// </summary>
+    private static string ReturnIsExpr(string returnTypeFqn, string fallback)
+    {
+      // Strip trailing '?' to get the pattern-matchable type (works for both nullable value types and
+      // nullable reference types — for NRT the cast back is a no-op widening).
+      var patternType = returnTypeFqn.EndsWith("?", StringComparison.Ordinal)
+        ? returnTypeFqn.Substring(0, returnTypeFqn.Length - 1)
+        : returnTypeFqn;
+      var cast = patternType != returnTypeFqn ? $"({returnTypeFqn})" : "";
+      return $"(__r is {patternType} __v) ? {cast}__v : {fallback}";
     }
 
     /// <summary>How an arranged <c>.Throws</c> (a MockFault) surfaces: a synchronous throw, or a faulted task for async returns.</summary>
