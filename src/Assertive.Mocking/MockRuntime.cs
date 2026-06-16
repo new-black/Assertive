@@ -273,18 +273,24 @@ namespace Assertive.Mocking
         ?? throw new InvalidOperationException(
           "Assertive.Mocking: an arrange verb (Returns/Throws/Does) was called with no preceding mock call on this thread.");
 
-      if (_arrangingMock == null)
+      var isStandalone = _arrangingMock == null;
+      if (isStandalone)
         _standaloneArrangeMock = null; // consume
 
       if (mock.CapturedMatch is { } spec)
       {
         mock.CapturedMatch = null;
+        // Matcher-bearing calls go through the interceptor (not OnCall), so nothing is in _calls.
         return (mock, spec.Method, spec.Match);
       }
 
       if (mock.Captured is { } captured)
       {
         var args = captured.Arguments;
+        // Non-matcher standalone arrange: OnCall recorded this call in _calls, remove it so arrange
+        // calls don't appear in verification.
+        if (isStandalone)
+          mock.RemoveLastCall(captured.Method, args);
         return (mock, captured.Method, a => ArgumentsEqual(args, a));
       }
 
@@ -549,6 +555,22 @@ namespace Assertive.Mocking
       {
         _eventHandlers.TryGetValue(eventName, out var handler);
         return handler;
+      }
+    }
+
+    /// <summary>Removes the most recent call matching the given method and arguments from the call history.</summary>
+    internal void RemoveLastCall(string method, object?[] args)
+    {
+      lock (_lock)
+      {
+        for (var i = _calls.Count - 1; i >= 0; i--)
+        {
+          if (_calls[i].Method == method && ArgumentsEqual(_calls[i].Arguments, args))
+          {
+            _calls.RemoveAt(i);
+            return;
+          }
+        }
       }
     }
 
