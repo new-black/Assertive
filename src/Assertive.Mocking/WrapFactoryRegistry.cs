@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace Assertive.Mocking
+namespace Assertive.Mocking.Runtime
 {
   /// <summary>
   /// Maps a wrapped interface type to a factory for its source-generated spy implementation.

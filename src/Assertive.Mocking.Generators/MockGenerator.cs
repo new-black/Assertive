@@ -270,10 +270,6 @@ namespace Assertive.Mocking.Generators
       {
         reason = "it returns by ref";
       }
-      else if (method.Parameters.Any(p => p.RefKind != RefKind.None))
-      {
-        reason = "it has ref/out parameters";
-      }
 
       if (reason is null)
       {
@@ -615,8 +611,7 @@ namespace Assertive.Mocking.Generators
 
       foreach (var member in members)
       {
-        if (member is IMethodSymbol { MethodKind: MethodKind.Ordinary } m && !m.IsGenericMethod
-            && !m.ReturnsByRef && m.Parameters.All(p => p.RefKind == RefKind.None))
+        if (member is IMethodSymbol { MethodKind: MethodKind.Ordinary } m && !m.IsGenericMethod && !m.ReturnsByRef)
         {
           var methodKey = m.Name + "|" + string.Join("|", m.Parameters.Select(p =>
             p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
@@ -644,12 +639,16 @@ namespace Assertive.Mocking.Generators
             methods.Add(new MockMethod(
               m.Name,
               m.ReturnsVoid ? null : m.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-              m.Parameters.Select(p => (p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), p.Name)).ToArray(),
+              m.Parameters.Select(p => (
+                p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                p.Name,
+                p.RefKind switch { RefKind.Out => "out ", RefKind.Ref => "ref ", _ => "" }
+              )).ToArray(),
               kind, innerFqn, innerMock, directMock, callBase, elementFqn));
           }
         }
         else if (!isClass && member is IMethodSymbol { MethodKind: MethodKind.Ordinary } sm
-                 && (sm.IsGenericMethod || sm.ReturnsByRef || sm.Parameters.Any(p => p.RefKind != RefKind.None)))
+                 && (sm.IsGenericMethod || sm.ReturnsByRef))
         {
           // Interface methods that can't be intercepted (generic, ref-return, or ref/out params) must still be implemented.
           var typeParamSuffix = sm.IsGenericMethod ? $"<{string.Join(", ", sm.TypeParameters.Select(tp => tp.Name))}>" : "";
@@ -968,7 +967,7 @@ namespace Assertive.Mocking.Generators
       var target = wrapTarget.Target;
       var wrapName = wrapTarget.WrapClassName;
 
-      sb.AppendLine($"  internal sealed class {wrapName} : global::Assertive.Mocking.MockBase, {target.InterfaceFqn}");
+      sb.AppendLine($"  internal sealed class {wrapName} : global::Assertive.Mocking.Runtime.MockBase, {target.InterfaceFqn}");
       sb.AppendLine("  {");
       sb.AppendLine($"    private readonly {target.InterfaceFqn} __wrapped;");
       sb.AppendLine($"    public {wrapName}({target.InterfaceFqn} __wrapped) : base(\"{target.DisplayName}\")");
@@ -976,19 +975,45 @@ namespace Assertive.Mocking.Generators
 
       foreach (var method in target.Methods)
       {
-        var parameters = string.Join(", ", method.Parameters.Select(p => $"{p.Type} {p.Name}"));
-        var argNames = string.Join(", ", method.Parameters.Select(p => p.Name));
-        var argsArray = method.Parameters.Length == 0
+        var parameters = string.Join(", ", method.Parameters.Select(p => $"{p.Mod}{p.Type} {p.Name}"));
+        var wrappedCallArgs = string.Join(", ", method.Parameters.Select(p => $"{p.Mod}{p.Name}"));
+        var inArgs = method.Parameters.Where(p => p.Mod != "out ").Select(p => p.Name).ToArray();
+        var argsArray = inArgs.Length == 0
           ? "global::System.Array.Empty<object>()"
-          : $"new object[] {{ {argNames} }}";
+          : $"new object[] {{ {string.Join(", ", inArgs)} }}";
+        var outParams = method.Parameters.Where(p => p.Mod == "out ").ToArray();
+        var outRefParams = method.Parameters.Where(p => p.Mod != "").ToArray();
+        var hasOutRef = outRefParams.Length > 0;
+        var outDefaults = outParams.Length > 0
+          ? string.Join(" ", outParams.Select(p => $"{p.Name} = default!;"))
+          : "";
 
         if (method.ReturnKind == ReturnKind.Void)
         {
           sb.AppendLine($"    public void {method.Name}({parameters})");
           sb.AppendLine("    {");
-          sb.AppendLine($"      if (OnCall(\"{method.Name}\", {argsArray}, out var __r, out var __matched)) return;");
-          sb.AppendLine("      if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception;");
-          sb.AppendLine($"      if (!__matched) __wrapped.{method.Name}({argNames});");
+          if (hasOutRef)
+          {
+            sb.AppendLine($"      var __args = {argsArray};");
+            var captureReturn = outDefaults.Length > 0 ? $"{{ {outDefaults} return; }}" : "return;";
+            sb.AppendLine($"      if (OnCall(\"{method.Name}\", __args, out var __r, out var __matched)) {captureReturn}");
+            sb.AppendLine("      if (__r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
+            sb.AppendLine("      if (__matched && __r is global::Assertive.Mocking.Runtime.OutResult __out)");
+            sb.AppendLine("      {");
+            for (var oi = 0; oi < outRefParams.Length; oi++)
+              sb.AppendLine($"        {outRefParams[oi].Name} = __out.OutValues.Length > {oi} ? ({outRefParams[oi].Type})__out.OutValues[{oi}]! : default!;");
+            sb.AppendLine("        return;");
+            sb.AppendLine("      }");
+            sb.AppendLine($"      if (!__matched) __wrapped.{method.Name}({wrappedCallArgs});");
+            if (outDefaults.Length > 0)
+              sb.AppendLine($"      else {{ {outDefaults} }}");
+          }
+          else
+          {
+            sb.AppendLine($"      if (OnCall(\"{method.Name}\", {argsArray}, out var __r, out var __matched)) return;");
+            sb.AppendLine("      if (__r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
+            sb.AppendLine($"      if (!__matched) __wrapped.{method.Name}({wrappedCallArgs});");
+          }
           sb.AppendLine("    }");
         }
         else
@@ -996,13 +1021,42 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine($"    public {method.ReturnTypeFqn} {method.Name}({parameters})");
           sb.AppendLine("    {");
           sb.AppendLine($"      var __args = {argsArray};");
-          sb.AppendLine($"      if (OnCall(\"{method.Name}\", __args, out var __r, out var __matched)) return default;");
-          sb.AppendLine("      if (__matched)");
-          sb.AppendLine("      {");
-          sb.AppendLine($"        if (__r is global::Assertive.Mocking.MockFault __f) {FaultReturn(method)}");
-          sb.AppendLine($"        return {ReturnIsExpr(method.ReturnTypeFqn!, MatchedFallback(method))};");
-          sb.AppendLine("      }");
-          sb.AppendLine($"      return __wrapped.{method.Name}({argNames});");
+          if (hasOutRef)
+          {
+            var captureReturn = outDefaults.Length > 0 ? $"{{ {outDefaults} return default; }}" : "return default;";
+            sb.AppendLine($"      if (OnCall(\"{method.Name}\", __args, out var __r, out var __matched)) {captureReturn}");
+            sb.AppendLine("      if (__matched)");
+            sb.AppendLine("      {");
+            var faultRetStr = FaultReturn(method);
+            if (outDefaults.Length > 0 && faultRetStr.StartsWith("return ", StringComparison.Ordinal))
+              sb.AppendLine($"        if (__r is global::Assertive.Mocking.Runtime.MockFault __f) {{ {outDefaults} {faultRetStr} }}");
+            else
+              sb.AppendLine($"        if (__r is global::Assertive.Mocking.Runtime.MockFault __f) {faultRetStr}");
+            sb.AppendLine("        if (__r is global::Assertive.Mocking.Runtime.OutResult __out)");
+            sb.AppendLine("        {");
+            for (var oi = 0; oi < outRefParams.Length; oi++)
+              sb.AppendLine($"          {outRefParams[oi].Name} = __out.OutValues.Length > {oi} ? ({outRefParams[oi].Type})__out.OutValues[{oi}]! : default!;");
+            var retTypePat = method.ReturnTypeFqn!.TrimEnd('?');
+            sb.AppendLine($"          return __out.ReturnValue is {retTypePat} __rv ? __rv : default;");
+            sb.AppendLine("        }");
+            if (outDefaults.Length > 0)
+              sb.AppendLine($"        {outDefaults}");
+            sb.AppendLine($"        return {ReturnIsExpr(method.ReturnTypeFqn!, MatchedFallback(method))};");
+            sb.AppendLine("      }");
+            if (outDefaults.Length > 0)
+              sb.AppendLine($"      {outDefaults}");
+            sb.AppendLine($"      return __wrapped.{method.Name}({wrappedCallArgs});");
+          }
+          else
+          {
+            sb.AppendLine($"      if (OnCall(\"{method.Name}\", __args, out var __r, out var __matched)) return default;");
+            sb.AppendLine("      if (__matched)");
+            sb.AppendLine("      {");
+            sb.AppendLine($"        if (__r is global::Assertive.Mocking.Runtime.MockFault __f) {FaultReturn(method)}");
+            sb.AppendLine($"        return {ReturnIsExpr(method.ReturnTypeFqn!, MatchedFallback(method))};");
+            sb.AppendLine("      }");
+            sb.AppendLine($"      return __wrapped.{method.Name}({wrappedCallArgs});");
+          }
           sb.AppendLine("    }");
         }
       }
@@ -1017,7 +1071,7 @@ namespace Assertive.Mocking.Generators
         sb.AppendLine($"        if (OnCall(\"get_{property.Name}\", __args, out var __r, out var __matched)) return default;");
         sb.AppendLine("        if (__matched)");
         sb.AppendLine("        {");
-        sb.AppendLine($"          if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception;");
+        sb.AppendLine($"          if (__r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
         sb.AppendLine($"          return {ReturnIsExpr(property.TypeFqn, "default")};");
         sb.AppendLine("        }");
         sb.AppendLine($"        return __wrapped.{property.Name};");
@@ -1041,7 +1095,7 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine("      {");
           sb.AppendLine($"        var __args = {argsArray};");
           sb.AppendLine($"        if (OnCall(\"get_Item\", __args, out var __r, out var __matched)) return default;");
-          sb.AppendLine($"        if (__matched) {{ if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception; return {ReturnIsExpr(indexer.ReturnTypeFqn, "default")}; }}");
+          sb.AppendLine($"        if (__matched) {{ if (__r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception; return {ReturnIsExpr(indexer.ReturnTypeFqn, "default")}; }}");
           sb.AppendLine($"        return __wrapped[{argNames}];");
           sb.AppendLine("      }");
         }
@@ -1179,7 +1233,7 @@ namespace Assertive.Mocking.Generators
         var ctorArgs = string.Join(", ", call.Params.Select(p =>
         {
           if (p.ArgIndex >= 0) return $"({p.TypeFqn})__a{p.ArgIndex}!";
-          if (p.MockClassName != null) return $"({p.TypeFqn})global::Assertive.Mocking.MockFactoryRegistry.Create<{p.TypeFqn}>(global::System.Array.Empty<object>())";
+          if (p.MockClassName != null) return $"({p.TypeFqn})global::Assertive.Mocking.Runtime.MockFactoryRegistry.Create<{p.TypeFqn}>(global::System.Array.Empty<object>())";
           return $"default({p.TypeFqn})";
         }));
 
@@ -1261,12 +1315,12 @@ namespace Assertive.Mocking.Generators
 
       foreach (var target in distinct)
       {
-        sb.AppendLine($"      global::Assertive.Mocking.MockFactoryRegistry.Register(typeof({target.InterfaceFqn}), {Factory(target)});");
+        sb.AppendLine($"      global::Assertive.Mocking.Runtime.MockFactoryRegistry.Register(typeof({target.InterfaceFqn}), {Factory(target)});");
       }
 
       foreach (var wrap in wraps)
       {
-        sb.AppendLine($"      global::Assertive.Mocking.WrapFactoryRegistry.Register(typeof({wrap.Target.InterfaceFqn}), __w => new {wrap.WrapClassName}(({wrap.Target.InterfaceFqn})__w));");
+        sb.AppendLine($"      global::Assertive.Mocking.Runtime.WrapFactoryRegistry.Register(typeof({wrap.Target.InterfaceFqn}), __w => new {wrap.WrapClassName}(({wrap.Target.InterfaceFqn})__w));");
       }
 
       sb.AppendLine("    }");
@@ -1362,7 +1416,7 @@ namespace Assertive.Mocking.Generators
         sb.AppendLine($"    [global::System.Runtime.CompilerServices.InterceptsLocation({call.LocationVersion}, {SymbolDisplay.FormatLiteral(call.LocationData, true)})]");
         sb.AppendLine($"    public static {returnType} Match_{index}(this {call.ReceiverFqn} __r, {parameters})");
         sb.AppendLine("    {");
-        sb.AppendLine("      var __m = ((global::Assertive.Mocking.IMockObject)(object)__r).Core;");
+        sb.AppendLine("      var __m = ((global::Assertive.Mocking.Runtime.IMockObject)(object)__r).Core;");
         sb.AppendLine($"      __m.CaptureMatchers(\"{call.Method}\", new global::System.Func<object, bool>[] {{ {string.Join(", ", matcherExprs)} }}, new object[] {{ {displayArgs} }});");
 
         if (call.ReturnTypeFqn != null)
@@ -1381,6 +1435,12 @@ namespace Assertive.Mocking.Generators
     private static (string DelegateType, string BuilderType, string TypeArgs)? BuildOverload(MockMethod method)
     {
       var ps = method.Parameters;
+
+      // out/ref params can't be expressed as Action<T>/Func<T> delegates
+      if (ps.Any(p => p.Mod != ""))
+      {
+        return null;
+      }
 
       if (method.ReturnTypeFqn is null)
       {
@@ -1435,14 +1495,14 @@ namespace Assertive.Mocking.Generators
       var modifier = target.IsClass ? "public override " : "public ";
 
       sb.AppendLine(target.IsClass
-        ? $"  internal sealed class {target.ClassName} : {target.InterfaceFqn}, global::Assertive.Mocking.IMockObject"
-        : $"  internal sealed class {target.ClassName} : global::Assertive.Mocking.MockBase, {target.InterfaceFqn}");
+        ? $"  internal sealed class {target.ClassName} : {target.InterfaceFqn}, global::Assertive.Mocking.Runtime.IMockObject"
+        : $"  internal sealed class {target.ClassName} : global::Assertive.Mocking.Runtime.MockBase, {target.InterfaceFqn}");
       sb.AppendLine("  {");
 
       if (target.IsClass)
       {
-        sb.AppendLine($"    private readonly global::Assertive.Mocking.MockBase __core = new global::Assertive.Mocking.MockBase(\"{target.DisplayName}\");");
-        sb.AppendLine("    global::Assertive.Mocking.MockBase global::Assertive.Mocking.IMockObject.Core => __core;");
+        sb.AppendLine($"    private readonly global::Assertive.Mocking.Runtime.MockBase __core = new global::Assertive.Mocking.Runtime.MockBase(\"{target.DisplayName}\");");
+        sb.AppendLine("    global::Assertive.Mocking.Runtime.MockBase global::Assertive.Mocking.Runtime.IMockObject.Core => __core;");
 
         foreach (var ctor in target.Constructors)
         {
@@ -1460,39 +1520,99 @@ namespace Assertive.Mocking.Generators
 
       foreach (var method in target.Methods)
       {
-        var parameters = string.Join(", ", method.Parameters.Select(p => $"{p.Type} {p.Name}"));
-        var argNames = string.Join(", ", method.Parameters.Select(p => p.Name));
-        var argsArray = method.Parameters.Length == 0
+        var parameters = string.Join(", ", method.Parameters.Select(p => $"{p.Mod}{p.Type} {p.Name}"));
+        var baseCallArgs = string.Join(", ", method.Parameters.Select(p => $"{p.Mod}{p.Name}"));
+
+        // Out params have no input value; exclude from __args (used for call recording and matching).
+        // Ref params do have input values and are included.
+        var inArgs = method.Parameters.Where(p => p.Mod != "out ").Select(p => p.Name).ToArray();
+        var argsArray = inArgs.Length == 0
           ? "global::System.Array.Empty<object>()"
-          : $"new object[] {{ {argNames} }}";
+          : $"new object[] {{ {string.Join(", ", inArgs)} }}";
+
+        // Out params (not ref) require definite assignment before every return path.
+        var outParams = method.Parameters.Where(p => p.Mod == "out ").ToArray();
+        // All out+ref params are assigned from OutResult when an OutResult arrangement is matched.
+        var outRefParams = method.Parameters.Where(p => p.Mod != "").ToArray();
+        var hasOutRef = outRefParams.Length > 0;
+        var outDefaults = outParams.Length > 0
+          ? string.Join(" ", outParams.Select(p => $"{p.Name} = default!;"))
+          : "";
 
         if (method.ReturnKind == ReturnKind.Void)
         {
           sb.AppendLine($"    {modifier}void {method.Name}({parameters})");
           sb.AppendLine("    {");
-          sb.AppendLine($"      if ({core}OnCall(\"{method.Name}\", {argsArray}, out var __r, out var __matched)) return;");
-          sb.AppendLine("      if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception;");
-          if (method.CallBase)
+          if (hasOutRef)
           {
-            sb.AppendLine($"      if (!__matched) base.{method.Name}({argNames});");
+            sb.AppendLine($"      var __args = {argsArray};");
+            var captureReturn = outDefaults.Length > 0 ? $"{{ {outDefaults} return; }}" : "return;";
+            sb.AppendLine($"      if ({core}OnCall(\"{method.Name}\", __args, out var __r, out var __matched)) {captureReturn}");
+            sb.AppendLine("      if (__r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
+            sb.AppendLine("      if (__matched && __r is global::Assertive.Mocking.Runtime.OutResult __out)");
+            sb.AppendLine("      {");
+            for (var oi = 0; oi < outRefParams.Length; oi++)
+              sb.AppendLine($"        {outRefParams[oi].Name} = __out.OutValues.Length > {oi} ? ({outRefParams[oi].Type})__out.OutValues[{oi}]! : default!;");
+            sb.AppendLine("        return;");
+            sb.AppendLine("      }");
+            if (method.CallBase)
+              sb.AppendLine($"      if (!__matched) base.{method.Name}({baseCallArgs});");
+            if (outDefaults.Length > 0)
+              sb.AppendLine($"      {outDefaults}");
           }
-
+          else
+          {
+            sb.AppendLine($"      if ({core}OnCall(\"{method.Name}\", {argsArray}, out var __r, out var __matched)) return;");
+            sb.AppendLine("      if (__r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
+            if (method.CallBase)
+              sb.AppendLine($"      if (!__matched) base.{method.Name}({baseCallArgs});");
+          }
           sb.AppendLine("    }");
           continue;
         }
 
-        var unarranged = method.CallBase ? $"base.{method.Name}({argNames})" : UnarrangedReturn(method, core);
+        var unarranged = method.CallBase ? $"base.{method.Name}({baseCallArgs})" : UnarrangedReturn(method, core);
 
         sb.AppendLine($"    {modifier}{method.ReturnTypeFqn} {method.Name}({parameters})");
         sb.AppendLine("    {");
         sb.AppendLine($"      var __args = {argsArray};");
-        sb.AppendLine($"      if ({core}OnCall(\"{method.Name}\", __args, out var __r, out var __matched)) return default;");
-        sb.AppendLine("      if (__matched)");
-        sb.AppendLine("      {");
-        sb.AppendLine($"        if (__r is global::Assertive.Mocking.MockFault __f) {FaultReturn(method)}");
-        sb.AppendLine($"        return {ReturnIsExpr(method.ReturnTypeFqn!, MatchedFallback(method))};");
-        sb.AppendLine("      }");
-        sb.AppendLine($"      return {unarranged};");
+        if (hasOutRef)
+        {
+          var captureReturn = outDefaults.Length > 0 ? $"{{ {outDefaults} return default; }}" : "return default;";
+          sb.AppendLine($"      if ({core}OnCall(\"{method.Name}\", __args, out var __r, out var __matched)) {captureReturn}");
+          sb.AppendLine("      if (__matched)");
+          sb.AppendLine("      {");
+          // FaultReturn may be a throw (out params don't need assignment) or a return (they do).
+          var faultRetStr = FaultReturn(method);
+          if (outDefaults.Length > 0 && faultRetStr.StartsWith("return ", StringComparison.Ordinal))
+            sb.AppendLine($"        if (__r is global::Assertive.Mocking.Runtime.MockFault __f) {{ {outDefaults} {faultRetStr} }}");
+          else
+            sb.AppendLine($"        if (__r is global::Assertive.Mocking.Runtime.MockFault __f) {faultRetStr}");
+          sb.AppendLine("        if (__r is global::Assertive.Mocking.Runtime.OutResult __out)");
+          sb.AppendLine("        {");
+          for (var oi = 0; oi < outRefParams.Length; oi++)
+            sb.AppendLine($"          {outRefParams[oi].Name} = __out.OutValues.Length > {oi} ? ({outRefParams[oi].Type})__out.OutValues[{oi}]! : default!;");
+          var retTypePat = method.ReturnTypeFqn!.TrimEnd('?');
+          sb.AppendLine($"          return __out.ReturnValue is {retTypePat} __rv ? __rv : default;");
+          sb.AppendLine("        }");
+          if (outDefaults.Length > 0)
+            sb.AppendLine($"        {outDefaults}");
+          sb.AppendLine($"        return {ReturnIsExpr(method.ReturnTypeFqn!, MatchedFallback(method))};");
+          sb.AppendLine("      }");
+          if (outDefaults.Length > 0)
+            sb.AppendLine($"      {outDefaults}");
+          sb.AppendLine($"      return {unarranged};");
+        }
+        else
+        {
+          sb.AppendLine($"      if ({core}OnCall(\"{method.Name}\", __args, out var __r, out var __matched)) return default;");
+          sb.AppendLine("      if (__matched)");
+          sb.AppendLine("      {");
+          sb.AppendLine($"        if (__r is global::Assertive.Mocking.Runtime.MockFault __f) {FaultReturn(method)}");
+          sb.AppendLine($"        return {ReturnIsExpr(method.ReturnTypeFqn!, MatchedFallback(method))};");
+          sb.AppendLine("      }");
+          sb.AppendLine($"      return {unarranged};");
+        }
         sb.AppendLine("    }");
       }
 
@@ -1510,7 +1630,7 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine($"        if (OnCall(\"get_{property.Name}\", __args, out var __r, out var __matched)) return default;");
           sb.AppendLine("        if (__matched)");
           sb.AppendLine("        {");
-          sb.AppendLine($"          if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception;");
+          sb.AppendLine($"          if (__r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
           sb.AppendLine($"          return {ReturnIsExpr(property.TypeFqn, "default")};");
           sb.AppendLine("        }");
           sb.AppendLine("        return default;");
@@ -1530,7 +1650,7 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine($"        if ({core}OnCall(\"get_{property.Name}\", __args, out var __r, out var __matched)) return default;");
           sb.AppendLine("        if (__matched)");
           sb.AppendLine("        {");
-          sb.AppendLine($"          if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception;");
+          sb.AppendLine($"          if (__r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
           sb.AppendLine($"          return {ReturnIsExpr(property.TypeFqn, "default")};");
           sb.AppendLine("        }");
           sb.AppendLine($"        return {unarrangedPropReturn};");
@@ -1559,7 +1679,7 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine("      {");
           sb.AppendLine($"        var __args = {argsArray};");
           sb.AppendLine($"        if ({core}OnCall(\"get_Item\", __args, out var __r, out var __matched)) return default;");
-          sb.AppendLine($"        if (__matched) {{ if (__r is global::Assertive.Mocking.MockFault __f) throw __f.Exception; return {ReturnIsExpr(indexer.ReturnTypeFqn, "default")}; }}");
+          sb.AppendLine($"        if (__matched) {{ if (__r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception; return {ReturnIsExpr(indexer.ReturnTypeFqn, "default")}; }}");
           var unarrangedIdx = indexer.CallBase ? $"base[{argNames}]" : "default";
           sb.AppendLine($"        return {unarrangedIdx};");
           sb.AppendLine("      }");
@@ -1802,7 +1922,7 @@ namespace Assertive.Mocking.Generators
 
   internal sealed class MockMethod : IEquatable<MockMethod>
   {
-    public MockMethod(string name, string? returnTypeFqn, (string Type, string Name)[] parameters,
+    public MockMethod(string name, string? returnTypeFqn, (string Type, string Name, string Mod)[] parameters,
       ReturnKind returnKind, string? innerTypeFqn, string? innerMockClassName, string? directMockClassName, bool callBase,
       string? elementTypeFqn = null)
     {
@@ -1822,7 +1942,8 @@ namespace Assertive.Mocking.Generators
 
     public string Name { get; }
     public string? ReturnTypeFqn { get; }
-    public (string Type, string Name)[] Parameters { get; }
+    /// <summary>Parameters: Type = FQN type, Name = parameter name, Mod = "" / "out " / "ref ".</summary>
+    public (string Type, string Name, string Mod)[] Parameters { get; }
     public ReturnKind ReturnKind { get; }
 
     /// <summary>For Task&lt;T&gt;/ValueTask&lt;T&gt;: the FQN of T.</summary>
@@ -1850,7 +1971,7 @@ namespace Assertive.Mocking.Generators
       if (CallBase != other.CallBase) return false;
       if (Parameters.Length != other.Parameters.Length) return false;
       for (var i = 0; i < Parameters.Length; i++)
-        if (Parameters[i].Type != other.Parameters[i].Type || Parameters[i].Name != other.Parameters[i].Name)
+        if (Parameters[i].Type != other.Parameters[i].Type || Parameters[i].Name != other.Parameters[i].Name || Parameters[i].Mod != other.Parameters[i].Mod)
           return false;
       return true;
     }
