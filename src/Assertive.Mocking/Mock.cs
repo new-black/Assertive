@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Assertive.Runtime;
+using Assertive.Mocking.Runtime;
 
 namespace Assertive.Mocking
 {
@@ -207,6 +208,13 @@ namespace Assertive.Mocking
         callback(args);
         return null;
       });
+
+    /// <summary>
+    /// Sets out/ref parameters to <paramref name="outValues"/> (in the order they appear in the method signature)
+    /// when the void call happens.
+    /// </summary>
+    public void SetsOuts(params object?[] outValues)
+      => _mock.AddSetup(_method, _match, _ => new OutResult(null, outValues));
   }
 
   /// <summary>Fluent arrangement verbs for value-returning members, used as <c>mock.Member(args).Verb(...)</c>.</summary>
@@ -272,6 +280,37 @@ namespace Assertive.Mocking
       _ = call;
       var condition = when;
       MockBase.AttachConditionalBehaviorToLastArrangedCall(_ => value, condition);
+    }
+
+    /// <summary>Configures the preceding mock call to invoke <paramref name="factory"/> on each call and return its result.</summary>
+    public static void Returns<TResult>(this TResult call, System.Func<TResult> factory)
+    {
+      _ = call;
+      MockBase.AttachBehaviorToLastArrangedCall(_ => factory());
+    }
+
+    /// <summary>Configures a <c>Task&lt;T&gt;</c>-returning call to invoke <paramref name="factory"/> on each call.</summary>
+    public static void Returns<T>(this System.Threading.Tasks.Task<T> call, System.Func<T> factory)
+    {
+      _ = call;
+      MockBase.AttachBehaviorToLastArrangedCall(_ => System.Threading.Tasks.Task.FromResult(factory()));
+    }
+
+    /// <summary>Configures a <c>ValueTask&lt;T&gt;</c>-returning call to invoke <paramref name="factory"/> on each call.</summary>
+    public static void Returns<T>(this System.Threading.Tasks.ValueTask<T> call, System.Func<T> factory)
+    {
+      _ = call;
+      MockBase.AttachBehaviorToLastArrangedCall(_ => new System.Threading.Tasks.ValueTask<T>(factory()));
+    }
+
+    /// <summary>
+    /// Configures the preceding mock call to return <paramref name="returnValue"/> and set
+    /// out/ref parameters to <paramref name="outValues"/> (in the order they appear in the method signature).
+    /// </summary>
+    public static void ReturnsWithOuts<TResult>(this TResult call, TResult returnValue, params object?[] outValues)
+    {
+      _ = call;
+      MockBase.AttachBehaviorToLastArrangedCall(_ => new OutResult(returnValue, outValues));
     }
   }
 }

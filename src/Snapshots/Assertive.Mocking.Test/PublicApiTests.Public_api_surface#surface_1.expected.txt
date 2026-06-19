@@ -6,7 +6,11 @@ static class ArrangeExtensions
   static void Returns<T>(Task<T> call, T value)
   static void Returns<T>(ValueTask<T> call, T value)
   static void Returns<TResult>(TResult call, TResult value, Func<bool> when)
+  static void Returns<TResult>(TResult call, Func<TResult> factory)
+  static void Returns<T>(Task<T> call, Func<T> factory)
+  static void Returns<T>(ValueTask<T> call, Func<T> factory)
   static void ReturnsMany<TResult>(TResult call, TResult[] values)
+  static void ReturnsWithOuts<TResult>(TResult call, TResult returnValue, object[] outValues)
   static void Throws<TResult>(TResult call, Exception exception)
 
 static class AsyncArrangeExtensions
@@ -25,9 +29,6 @@ sealed class Capture<T>
   .ctor()
   T Latest { get; }
   IReadOnlyList<T> Values { get; }
-
-interface IMockObject
-  MockBase Core { get; }
 
 static class Mock
   static T A<T>(MockMode mode)
@@ -74,47 +75,6 @@ static class Mock
   static void VerifyNoOtherCalls<T>(T mock)
   static WhenBuilder When(Action call)
   static T Wrap<T>(T wrapped)
-
-class MockBase
-  .ctor(string typeName)
-  IReadOnlyList<MockInvocation> Calls { get; }
-  void AddBehavior(MockInvocation expected, Func<object[], object> behavior)
-  void AddEventHandler(string eventName, Delegate handler)
-  void AddSetup(string method, Func<object[], bool> match, Func<object[], object> behavior)
-  bool ArgumentsMatchEqual(object[] a, object[] b)
-  static void AttachBehaviorToLastArrangedCall(Func<object[], object> behavior)
-  static void AttachConditionalBehaviorToLastArrangedCall(Func<object[], object> behavior, Func<bool> condition)
-  void CaptureMatchers(string method, Func<object, bool>[] matchers, object[] displayArguments)
-  List<MockInvocation> CaptureSequence(Action execute)
-  void ClearCalls()
-  Delegate GetEventHandler(string eventName)
-  object GetOrCreateAutoMock(string method, object[] arguments, Func<object> factory)
-  bool HasMatchingSetup(MockInvocation call)
-  bool OnCall(string method, object[] arguments, ref object configuredReturn, ref bool matched)
-  void RemoveEventHandler(string eventName, Delegate handler)
-  void Reset()
-  bool TryCaptureEvent(string eventName)
-
-static class MockFactoryRegistry
-  static T Create<T>(object[] constructorArguments)
-  static void Register(Type type, Func<object[], object> factory)
-  static bool TryCreate(Type type, ref object mock)
-
-sealed class MockFault
-  .ctor(Exception exception)
-  Exception Exception { get; }
-
-sealed class MockInvocation
-  .ctor(string Method, object[] Arguments)
-  object[] Arguments { get; set; }
-  string Method { get; set; }
-  MockInvocation <Clone>$()
-  void Deconstruct(ref string Method, ref object[] Arguments)
-  bool Equals(object obj)
-  bool Equals(MockInvocation other)
-  string Format()
-  int GetHashCode()
-  string ToString()
 
 enum MockMode
   Loose
@@ -187,8 +147,60 @@ struct VoidArrange<T1, T2, T3>
 
 struct WhenBuilder
   void Does(Action<object[]> callback)
+  void SetsOuts(object[] outValues)
   void Throws(Exception exception)
   void Throws<TException>()
+
+namespace Assertive.Mocking.Runtime
+
+interface IMockObject
+  MockBase Core { get; }
+
+class MockBase
+  .ctor(string typeName)
+  IReadOnlyList<MockInvocation> Calls { get; }
+  void AddBehavior(MockInvocation expected, Func<object[], object> behavior)
+  void AddEventHandler(string eventName, Delegate handler)
+  void AddSetup(string method, Func<object[], bool> match, Func<object[], object> behavior)
+  bool ArgumentsMatchEqual(object[] a, object[] b)
+  static void AttachBehaviorToLastArrangedCall(Func<object[], object> behavior)
+  static void AttachConditionalBehaviorToLastArrangedCall(Func<object[], object> behavior, Func<bool> condition)
+  void CaptureMatchers(string method, Func<object, bool>[] matchers, object[] displayArguments)
+  List<MockInvocation> CaptureSequence(Action execute)
+  void ClearCalls()
+  Delegate GetEventHandler(string eventName)
+  object GetOrCreateAutoMock(string method, object[] arguments, Func<object> factory)
+  bool HasMatchingSetup(MockInvocation call)
+  bool OnCall(string method, object[] arguments, ref object configuredReturn, ref bool matched)
+  void RemoveEventHandler(string eventName, Delegate handler)
+  void Reset()
+  bool TryCaptureEvent(string eventName)
+
+static class MockFactoryRegistry
+  static T Create<T>(object[] constructorArguments)
+  static void Register(Type type, Func<object[], object> factory)
+  static bool TryCreate(Type type, ref object mock)
+
+sealed class MockFault
+  .ctor(Exception exception)
+  Exception Exception { get; }
+
+sealed class MockInvocation
+  .ctor(string Method, object[] Arguments)
+  object[] Arguments { get; set; }
+  string Method { get; set; }
+  MockInvocation <Clone>$()
+  void Deconstruct(ref string Method, ref object[] Arguments)
+  bool Equals(object obj)
+  bool Equals(MockInvocation other)
+  string Format()
+  int GetHashCode()
+  string ToString()
+
+sealed class OutResult
+  .ctor(object returnValue, object[] outValues)
+  object[] OutValues { get; }
+  object ReturnValue { get; }
 
 static class WrapFactoryRegistry
   static T Create<T>(T wrapped)

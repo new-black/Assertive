@@ -2015,3 +2015,167 @@ public class GenericInterfaceMockTests : MockingTestBase
     Received(mock, Times.Once, m => m.GetValue());
   }
 }
+
+// ── out/ref parameter support ──────────────────────────────────────────────
+
+public interface ITryPattern
+{
+  bool TryGet(string key, out string? value);
+  bool TryGetInt(string key, out int value);
+  void GetPair(out string a, out string b);
+}
+
+public interface IRefPattern
+{
+  void Increment(ref int value);
+}
+
+public class OutRefParamTests : MockingTestBase
+{
+  [Fact]
+  public void ReturnsWithOuts_sets_out_param_and_return_value()
+  {
+    var mock = A<ITryPattern>(m =>
+    {
+      m.TryGet("hello", out _).ReturnsWithOuts(true, "world");
+    });
+
+    var found = mock.TryGet("hello", out var result);
+
+    Assert(() => found == true);
+    Assert(() => result == "world");
+  }
+
+  [Fact]
+  public void ReturnsWithOuts_out_param_defaults_when_not_provided()
+  {
+    var mock = A<ITryPattern>(m =>
+    {
+      m.TryGet("hello", out _).ReturnsWithOuts(false);
+    });
+
+    var found = mock.TryGet("hello", out var result);
+
+    Assert(() => found == false);
+    Assert(() => result == null);
+  }
+
+  [Fact]
+  public void Out_param_is_default_when_unarranged()
+  {
+    var mock = A<ITryPattern>();
+
+    mock.TryGet("missing", out var result);
+
+    Assert(() => result == null);
+  }
+
+  [Fact]
+  public void Out_param_value_type_is_set_correctly()
+  {
+    var mock = A<ITryPattern>(m =>
+    {
+      m.TryGetInt("count", out _).ReturnsWithOuts(true, 42);
+    });
+
+    var found = mock.TryGetInt("count", out var n);
+
+    Assert(() => found == true);
+    Assert(() => n == 42);
+  }
+
+  [Fact]
+  public void Void_method_with_out_params_uses_SetsOuts()
+  {
+    var mock = A<ITryPattern>(m =>
+    {
+      When(() => m.GetPair(out _, out _)).SetsOuts("first", "second");
+    });
+
+    mock.GetPair(out var a, out var b);
+
+    Assert(() => a == "first");
+    Assert(() => b == "second");
+  }
+
+  [Fact]
+  public void Void_method_with_out_params_defaults_when_unarranged()
+  {
+    var mock = A<ITryPattern>();
+
+    mock.GetPair(out var a, out var b);
+
+    Assert(() => a == null);
+    Assert(() => b == null);
+  }
+
+  [Fact]
+  public void Out_method_call_is_recorded_for_Received()
+  {
+    var mock = A<ITryPattern>(m =>
+    {
+      m.TryGet("key", out _).ReturnsWithOuts(true, "val");
+    });
+
+    mock.TryGet("key", out _);
+
+    Received(mock, Times.Once, m => m.TryGet("key", out _));
+  }
+
+  [Fact]
+  public void Ref_param_is_set_by_arrangement()
+  {
+    var mock = A<IRefPattern>(m =>
+    {
+      // Ref params participate in matching: arrangement captures x=5,
+      // so the call must also pass 5 to hit the setup.
+      When(() => { var x = 5; m.Increment(ref x); }).SetsOuts(99);
+    });
+
+    var value = 5;
+    mock.Increment(ref value);
+
+    Assert(() => value == 99);
+  }
+}
+
+// ── lazy Returns ───────────────────────────────────────────────────────────
+
+public class LazyReturnsTests : MockingTestBase
+{
+  [Fact]
+  public void Lazy_Returns_invokes_factory_on_each_call()
+  {
+    var counter = 0;
+    var mock = A<IDataService>(m =>
+    {
+      m.GetValue().Returns(() => ++counter);
+    });
+
+    var first = mock.GetValue();
+    var second = mock.GetValue();
+
+    Assert(() => first == 1);
+    Assert(() => second == 2);
+  }
+
+  [Fact]
+  public void Lazy_Returns_differs_from_eager_Returns()
+  {
+    var value = 0;
+    var mock = A<IDataService>(m =>
+    {
+      m.GetValue().Returns(() => value);
+    });
+
+    value = 42;
+    var result = mock.GetValue();
+
+    Assert(() => result == 42);
+  }
+}
+
+public interface IDataService
+{
+  int GetValue();
+}

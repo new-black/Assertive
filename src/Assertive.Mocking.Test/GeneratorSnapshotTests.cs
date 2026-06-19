@@ -119,6 +119,22 @@ class Test { void M() { var r = A<IResult<string>>(); } }
     Assert(() => output.Contains("global::IResult.Get()"));
   }
 
+  [Fact]
+  public void Generator_emits_out_param_aware_code_for_try_pattern()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public interface ITryPat { bool TryGet(string key, out string value); }
+class Test { void M() { var r = A<ITryPat>(); } }
+";
+    var output = RunGenerator(source);
+
+    Assert(() => output.Contains("out string value"));
+    Assert(() => output.Contains("OutResult"));
+    Assert(() => output.Contains("value = default!"));
+  }
+
   // ── helpers ────────────────────────────────────────────────────────────────
 
   private static string RunGenerator(string source)
