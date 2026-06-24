@@ -364,7 +364,7 @@ Any(repo.GetById).Returns(new Order());
 Any(repo.GetById).Returns((int id) => new Order { Id = id });
 
 // Sequential returns
-Any(repo.GetById).ReturnsMany(
+Any(repo.GetById).ReturnsSequentially(
     new Order { Id = 1 },
     new Order { Id = 2 });
 
@@ -375,10 +375,10 @@ Any(bus.Publish).Does((IEvent e) => log.Add(e));
 
 ## Sequential returns and conditional setups
 
-`ReturnsMany` returns values in order; the last value is repeated once the sequence is exhausted:
+`ReturnsSequentially` returns values in order; the last value is repeated once the sequence is exhausted:
 
 ```csharp
-repo.GetById(default).ReturnsMany(
+repo.GetById(default).ReturnsSequentially(
     new Order { Id = 1 },
     new Order { Id = 2 },
     new Order { Id = 3 });

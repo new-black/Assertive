@@ -1216,11 +1216,11 @@ public class BehaviorTests : MockingTestBase
 {
   // 4a: Sequential returns
   [Fact]
-  public void ReturnsMany_ConsumesOnePerCall()
+  public void ReturnsSequentially_ConsumesOnePerCall()
   {
     var src = A<ISequenceSource>(s =>
     {
-      Any(s.Next).ReturnsMany("a", "b", "c");
+      Any(s.Next).ReturnsSequentially("a", "b", "c");
     });
 
     Assert(() => src.Next() == "a");
@@ -1231,11 +1231,11 @@ public class BehaviorTests : MockingTestBase
   }
 
   [Fact]
-  public void ReturnsMany_via_ArrangeExtensions()
+  public void ReturnsSequentially_via_ArrangeExtensions()
   {
     var src = A<ISequenceSource>(s =>
     {
-      s.Next().ReturnsMany("x", "y");
+      s.Next().ReturnsSequentially("x", "y");
     });
 
     Assert(() => src.Next() == "x");

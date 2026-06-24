@@ -107,7 +107,7 @@ namespace Assertive.Mocking
     /// Arranges sequential return values: each call consumes the next value; after exhaustion
     /// the last value is returned repeatedly.
     /// </summary>
-    public void ReturnsMany(params TResult[] values)
+    public void ReturnsSequentially(params TResult[] values)
     {
       var idx = 0;
       _mock.AddSetup(_method, _ => true, _ => values[Math.Min(idx++, values.Length - 1)]);
@@ -135,7 +135,7 @@ namespace Assertive.Mocking
     /// Arranges sequential return values: each call consumes the next value; after exhaustion
     /// the last value is returned repeatedly.
     /// </summary>
-    public void ReturnsMany(params TResult[] values)
+    public void ReturnsSequentially(params TResult[] values)
     {
       var idx = 0;
       _mock.AddSetup(_method, _ => true, _ => values[Math.Min(idx++, values.Length - 1)]);
@@ -162,7 +162,7 @@ namespace Assertive.Mocking
     /// Arranges sequential return values: each call consumes the next value; after exhaustion
     /// the last value is returned repeatedly.
     /// </summary>
-    public void ReturnsMany(params TResult[] values)
+    public void ReturnsSequentially(params TResult[] values)
     {
       var idx = 0;
       _mock.AddSetup(_method, _ => true, _ => values[Math.Min(idx++, values.Length - 1)]);
@@ -189,7 +189,7 @@ namespace Assertive.Mocking
     /// Arranges sequential return values: each call consumes the next value; after exhaustion
     /// the last value is returned repeatedly.
     /// </summary>
-    public void ReturnsMany(params TResult[] values)
+    public void ReturnsSequentially(params TResult[] values)
     {
       var idx = 0;
       _mock.AddSetup(_method, _ => true, _ => values[Math.Min(idx++, values.Length - 1)]);
@@ -216,7 +216,7 @@ namespace Assertive.Mocking
     /// Arranges sequential return values: each call consumes the next value; after exhaustion
     /// the last value is returned repeatedly.
     /// </summary>
-    public void ReturnsMany(params TResult[] values)
+    public void ReturnsSequentially(params TResult[] values)
     {
       var idx = 0;
       _mock.AddSetup(_method, _ => true, _ => values[Math.Min(idx++, values.Length - 1)]);

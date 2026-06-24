@@ -292,7 +292,7 @@ namespace Assertive.Mocking
     /// Arranges sequential return values on the preceding mock call: each call consumes the next
     /// value in sequence; after exhaustion the last value is returned repeatedly.
     /// </summary>
-    public static void ReturnsMany<TResult>(this TResult call, params TResult[] values)
+    public static void ReturnsSequentially<TResult>(this TResult call, params TResult[] values)
     {
       _ = call;
       var idx = 0;

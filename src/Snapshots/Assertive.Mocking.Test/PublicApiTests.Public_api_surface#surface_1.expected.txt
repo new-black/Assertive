@@ -14,7 +14,7 @@ static class ArrangeExtensions
   static void Returns<T1, T2, T3, T4, TResult>(TResult call, Func<T1, T2, T3, T4, TResult> factory)
   static void Returns<T>(Task<T> call, Func<T> factory)
   static void Returns<T>(ValueTask<T> call, Func<T> factory)
-  static void ReturnsMany<TResult>(TResult call, TResult[] values)
+  static void ReturnsSequentially<TResult>(TResult call, TResult[] values)
   static void ReturnsWithOuts<TResult>(TResult call, TResult returnValue, object[] outValues)
   static void Throws<TResult>(TResult call, Exception exception)
 
@@ -107,31 +107,31 @@ struct Times
 struct ValueArrange<TResult>
   void Returns(TResult value)
   void Returns(Func<TResult> impl)
-  void ReturnsMany(TResult[] values)
+  void ReturnsSequentially(TResult[] values)
   void Throws(Exception exception)
 
 struct ValueArrange<T1, TResult>
   void Returns(TResult value)
   void Returns(Func<T1, TResult> impl)
-  void ReturnsMany(TResult[] values)
+  void ReturnsSequentially(TResult[] values)
   void Throws(Exception exception)
 
 struct ValueArrange<T1, T2, TResult>
   void Returns(TResult value)
   void Returns(Func<T1, T2, TResult> impl)
-  void ReturnsMany(TResult[] values)
+  void ReturnsSequentially(TResult[] values)
   void Throws(Exception exception)
 
 struct ValueArrange<T1, T2, T3, TResult>
   void Returns(TResult value)
   void Returns(Func<T1, T2, T3, TResult> impl)
-  void ReturnsMany(TResult[] values)
+  void ReturnsSequentially(TResult[] values)
   void Throws(Exception exception)
 
 struct ValueArrange<T1, T2, T3, T4, TResult>
   void Returns(TResult value)
   void Returns(Func<T1, T2, T3, T4, TResult> impl)
-  void ReturnsMany(TResult[] values)
+  void ReturnsSequentially(TResult[] values)
   void Throws(Exception exception)
 
 struct VoidArrange

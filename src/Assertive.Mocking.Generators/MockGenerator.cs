@@ -459,7 +459,7 @@ namespace Assertive.Mocking.Generators
 
         // Standalone arrange: mock.Method(Any<T>()).Returns(v) — the mock call (or an argument
         // inside it) is the receiver of a trailing arrange verb.
-        if (current is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Returns" or "Throws" or "Does" or "ReturnsMany" })
+        if (current is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Returns" or "Throws" or "Does" or "ReturnsSequentially" })
         {
           return true;
         }
