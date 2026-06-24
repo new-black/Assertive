@@ -1,0 +1,8 @@
+
+Greet("Bob")
+
+Expected the mock to have received Greet("Bob"), but it never was.
+
+Received calls:
+(no calls received)
+················································································

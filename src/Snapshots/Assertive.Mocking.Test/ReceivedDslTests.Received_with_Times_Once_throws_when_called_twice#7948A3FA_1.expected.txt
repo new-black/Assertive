@@ -1,0 +1,7 @@
+
+Expected Greet("Bob") to be received exactly once, but was received 2 time(s).
+
+Received calls:
+  [0] Greet("Bob")
+  [1] Greet("Bob")
+················································································

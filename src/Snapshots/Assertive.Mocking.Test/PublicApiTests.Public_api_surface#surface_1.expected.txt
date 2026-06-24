@@ -1,0 +1,209 @@
+namespace Assertive.Mocking
+
+static class ArrangeExtensions
+  static void Does<TResult>(TResult call, Func<object[], TResult> callback)
+  static void Returns<TResult>(TResult call, TResult value)
+  static void Returns<T>(Task<T> call, T value)
+  static void Returns<T>(ValueTask<T> call, T value)
+  static void Returns<TResult>(TResult call, TResult value, Func<bool> when)
+  static void Returns<TResult>(TResult call, Func<TResult> factory)
+  static void Returns<T>(Task<T> call, Func<T> factory)
+  static void Returns<T>(ValueTask<T> call, Func<T> factory)
+  static void ReturnsMany<TResult>(TResult call, TResult[] values)
+  static void ReturnsWithOuts<TResult>(TResult call, TResult returnValue, object[] outValues)
+  static void Throws<TResult>(TResult call, Exception exception)
+
+static class AsyncArrangeExtensions
+  static void Returns<T>(ValueArrange<Task<T>> arrange, T value)
+  static void Returns<T1, T>(ValueArrange<T1, Task<T>> arrange, T value)
+  static void Returns<T1, T2, T>(ValueArrange<T1, T2, Task<T>> arrange, T value)
+  static void Returns<T1, T2, T3, T>(ValueArrange<T1, T2, T3, Task<T>> arrange, T value)
+  static void Returns<T1, T2, T3, T4, T>(ValueArrange<T1, T2, T3, T4, Task<T>> arrange, T value)
+  static void Returns<T>(ValueArrange<ValueTask<T>> arrange, T value)
+  static void Returns<T1, T>(ValueArrange<T1, ValueTask<T>> arrange, T value)
+  static void Returns<T1, T2, T>(ValueArrange<T1, T2, ValueTask<T>> arrange, T value)
+  static void Returns<T1, T2, T3, T>(ValueArrange<T1, T2, T3, ValueTask<T>> arrange, T value)
+  static void Returns<T1, T2, T3, T4, T>(ValueArrange<T1, T2, T3, T4, ValueTask<T>> arrange, T value)
+
+sealed class Capture<T>
+  .ctor()
+  T Latest { get; }
+  IReadOnlyList<T> Values { get; }
+
+static class Mock
+  static T A<T>(MockMode mode)
+  static T A<T>(MockMode mode, object[] constructorArguments)
+  static T A<T>(object[] constructorArguments)
+  static T A<T>(Action<T> arrange, MockMode mode)
+  static Task<T> A<T>(Func<T, Task> arrangeAsync, MockMode mode)
+  static ValueArrange<TResult> Any<TResult>(Func<TResult> method)
+  static ValueArrange<T1, TResult> Any<T1, TResult>(Func<T1, TResult> method)
+  static ValueArrange<T1, T2, TResult> Any<T1, T2, TResult>(Func<T1, T2, TResult> method)
+  static VoidArrange Any(Action method)
+  static VoidArrange<T1> Any<T1>(Action<T1> method)
+  static ValueArrange<T1, T2, T3, TResult> Any<T1, T2, T3, TResult>(Func<T1, T2, T3, TResult> method)
+  static ValueArrange<T1, T2, T3, T4, TResult> Any<T1, T2, T3, T4, TResult>(Func<T1, T2, T3, T4, TResult> method)
+  static VoidArrange<T1, T2> Any<T1, T2>(Action<T1, T2> method)
+  static VoidArrange<T1, T2, T3> Any<T1, T2, T3>(Action<T1, T2, T3> method)
+  static T Any<T>()
+  static T Any<T>(Func<T, bool> predicate)
+  static T Any<T>(Capture<T> capture)
+  static T Build<T>()
+  static T Build<T>(object a0)
+  static T Build<T>(object a0, object a1)
+  static T Build<T>(object a0, object a1, object a2)
+  static T Build<T>(object a0, object a1, object a2, object a3)
+  static T Build<T>(object a0, object a1, object a2, object a3, object a4)
+  static T Build<T>(object a0, object a1, object a2, object a3, object a4, object a5)
+  static T Build<T>(object a0, object a1, object a2, object a3, object a4, object a5, object a6)
+  static T Build<T>(object a0, object a1, object a2, object a3, object a4, object a5, object a6, object a7)
+  static void ClearReceivedCalls<T>(T mock)
+  static IEnumerable<T> Contains<T>(T item)
+  static Func<object, bool> DequeueMatcher()
+  static void DidNotReceive(Action call, string callExpression)
+  static void DidNotReceive<T>(T mock, Action<T> call, string callExpression)
+  static void InOrder<T>(T mock, Action<T> sequence, string sequenceExpression)
+  static IEnumerable<T> IsEmpty<T>()
+  static T IsIn<T>(T[] values)
+  static T IsInRange<T>(T min, T max)
+  static T IsNotNull<T>()
+  static void Raise<T>(T mock, Action<T> attach, object[] args)
+  static void Received(Action call, string callExpression)
+  static void Received(Action call, Times times, string callExpression)
+  static void Received<T>(T mock, Action<T> call, string callExpression)
+  static void Received<T>(T mock, Times times, Action<T> call, string callExpression)
+  static void Reset<T>(T mock)
+  static void Setup<T>(T mock, Action<T> setup)
+  static void VerifyNoOtherCalls<T>(T mock)
+  static WhenBuilder When(Action call)
+  static T Wrap<T>(T wrapped)
+
+enum MockMode
+  Loose
+  Strict
+
+sealed class StrictMockException
+  .ctor(string message)
+
+struct Times
+  static Times AtLeastOnce { get; }
+  static Times AtMostOnce { get; }
+  static Times Never { get; }
+  static Times Once { get; }
+  static Times AtLeast(int n)
+  static Times AtMost(int n)
+  static Times Between(int min, int max)
+  string Describe()
+  static Times Exactly(int n)
+  bool Matches(int count)
+
+struct ValueArrange<TResult>
+  void Returns(TResult value)
+  void Returns(Func<TResult> impl)
+  void ReturnsMany(TResult[] values)
+  void Throws(Exception exception)
+
+struct ValueArrange<T1, TResult>
+  void Returns(TResult value)
+  void Returns(Func<T1, TResult> impl)
+  void ReturnsMany(TResult[] values)
+  void Throws(Exception exception)
+
+struct ValueArrange<T1, T2, TResult>
+  void Returns(TResult value)
+  void Returns(Func<T1, T2, TResult> impl)
+  void ReturnsMany(TResult[] values)
+  void Throws(Exception exception)
+
+struct ValueArrange<T1, T2, T3, TResult>
+  void Returns(TResult value)
+  void Returns(Func<T1, T2, T3, TResult> impl)
+  void ReturnsMany(TResult[] values)
+  void Throws(Exception exception)
+
+struct ValueArrange<T1, T2, T3, T4, TResult>
+  void Returns(TResult value)
+  void Returns(Func<T1, T2, T3, T4, TResult> impl)
+  void ReturnsMany(TResult[] values)
+  void Throws(Exception exception)
+
+struct VoidArrange
+  void Does(Action callback)
+  void Throws(Exception exception)
+  void Throws<TException>()
+
+struct VoidArrange<T1>
+  void Does(Action<T1> callback)
+  void Throws(Exception exception)
+  void Throws<TException>()
+
+struct VoidArrange<T1, T2>
+  void Does(Action<T1, T2> callback)
+  void Throws(Exception exception)
+  void Throws<TException>()
+
+struct VoidArrange<T1, T2, T3>
+  void Does(Action<T1, T2, T3> callback)
+  void Throws(Exception exception)
+  void Throws<TException>()
+
+struct WhenBuilder
+  void Does(Action<object[]> callback)
+  void SetsOuts(object[] outValues)
+  void Throws(Exception exception)
+  void Throws<TException>()
+
+namespace Assertive.Mocking.Runtime
+
+interface IMockObject
+  MockBase Core { get; }
+
+class MockBase
+  .ctor(string typeName)
+  IReadOnlyList<MockInvocation> Calls { get; }
+  void AddBehavior(MockInvocation expected, Func<object[], object> behavior)
+  void AddEventHandler(string eventName, Delegate handler)
+  void AddSetup(string method, Func<object[], bool> match, Func<object[], object> behavior)
+  bool ArgumentsMatchEqual(object[] a, object[] b)
+  static void AttachBehaviorToLastArrangedCall(Func<object[], object> behavior)
+  static void AttachConditionalBehaviorToLastArrangedCall(Func<object[], object> behavior, Func<bool> condition)
+  void CaptureMatchers(string method, Func<object, bool>[] matchers, object[] displayArguments)
+  List<MockInvocation> CaptureSequence(Action execute)
+  void ClearCalls()
+  Delegate GetEventHandler(string eventName)
+  object GetOrCreateAutoMock(string method, object[] arguments, Func<object> factory)
+  bool HasMatchingSetup(MockInvocation call)
+  bool OnCall(string method, object[] arguments, ref object configuredReturn, ref bool matched)
+  void RemoveEventHandler(string eventName, Delegate handler)
+  void Reset()
+  bool TryCaptureEvent(string eventName)
+
+static class MockFactoryRegistry
+  static T Create<T>(object[] constructorArguments)
+  static void Register(Type type, Func<object[], object> factory)
+  static bool TryCreate(Type type, ref object mock)
+
+sealed class MockFault
+  .ctor(Exception exception)
+  Exception Exception { get; }
+
+sealed class MockInvocation
+  .ctor(string Method, object[] Arguments)
+  object[] Arguments { get; set; }
+  string Method { get; set; }
+  MockInvocation <Clone>$()
+  void Deconstruct(ref string Method, ref object[] Arguments)
+  bool Equals(object obj)
+  bool Equals(MockInvocation other)
+  string Format()
+  int GetHashCode()
+  string ToString()
+
+sealed class OutResult
+  .ctor(object returnValue, object[] outValues)
+  object[] OutValues { get; }
+  object ReturnValue { get; }
+
+static class WrapFactoryRegistry
+  static T Create<T>(T wrapped)
+  static void Register(Type type, Func<object, object> factory)
