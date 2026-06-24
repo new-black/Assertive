@@ -314,6 +314,13 @@ namespace Assertive.Mocking.Generators
       return Diagnostic.Create(Mock004, invocation.GetLocation());
     }
 
+    private static string GetAccessModifier(ISymbol symbol) => symbol.DeclaredAccessibility switch
+    {
+      Accessibility.Protected => "protected ",
+      Accessibility.ProtectedOrInternal => "protected internal ",
+      _ => "public ",
+    };
+
     private static string BuildConstraintClauses(System.Collections.Immutable.ImmutableArray<ITypeParameterSymbol> typeParams)
     {
       var sb = new System.Text.StringBuilder();
@@ -376,7 +383,6 @@ namespace Assertive.Mocking.Generators
       }
 
       if (ctx.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol method
-          || method.ContainingType is not { TypeKind: TypeKind.Interface }
           || method.IsGenericMethod
           || method.Parameters.Any(p => p.RefKind != RefKind.None))
       {
@@ -445,8 +451,8 @@ namespace Assertive.Mocking.Generators
     {
       for (var current = node.Parent; current != null; current = current.Parent)
       {
-        // Inside an A<T>(...) / When(...) / Received(...) / Setup(...) lambda.
-        if (current is InvocationExpressionSyntax invocation && CalleeName(invocation) is "A" or "When" or "Received" or "Setup")
+        // Inside an A<T>(...) / When(...) / Received(...) / DidNotReceive(...) / Setup(...) lambda.
+        if (current is InvocationExpressionSyntax invocation && CalleeName(invocation) is "A" or "When" or "Received" or "DidNotReceive" or "Setup")
         {
           return true;
         }
@@ -642,9 +648,9 @@ namespace Assertive.Mocking.Generators
               m.Parameters.Select(p => (
                 p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                 p.Name,
-                p.RefKind switch { RefKind.Out => "out ", RefKind.Ref => "ref ", _ => "" }
+                p.RefKind switch { RefKind.Out => "out ", RefKind.Ref => "ref ", RefKind.In => "in ", _ => "" }
               )).ToArray(),
-              kind, innerFqn, innerMock, directMock, callBase, elementFqn));
+              kind, innerFqn, innerMock, directMock, callBase, GetAccessModifier(m), elementFqn));
           }
         }
         else if (!isClass && member is IMethodSymbol { MethodKind: MethodKind.Ordinary } sm
@@ -656,23 +662,44 @@ namespace Assertive.Mocking.Generators
           var returnTypeFqn = sm.ReturnsVoid ? "void" : sm.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
           var paramList = string.Join(", ", sm.Parameters.Select(p =>
           {
-            var modifier = p.RefKind switch { RefKind.Out => "out ", RefKind.Ref => "ref ", _ => "" };
+            var modifier = p.RefKind switch { RefKind.Out => "out ", RefKind.Ref => "ref ", RefKind.In => "in ", _ => "" };
             return $"{modifier}{p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} {p.Name}";
           }));
+          var notSupportedMsg = "Assertive.Mocking: generic and ref-return methods cannot be arranged on source-generated mocks.";
           // Assign out params before throwing to satisfy definite-assignment; throw keeps it simple.
           var outAssignments = sm.Parameters.Where(p => p.RefKind == RefKind.Out)
             .Select(p => $" {p.Name} = default!;");
           var body = outAssignments.Any()
-            ? $"{{ {string.Concat(outAssignments)} return default!; }}"
-            : (sm.ReturnsVoid ? "{ }" : "=> default!;");
+            ? $"{{ {string.Concat(outAssignments)} throw new global::System.NotSupportedException(\"{notSupportedMsg}\"); }}"
+            : $"{{ throw new global::System.NotSupportedException(\"{notSupportedMsg}\"); }}";
           genericStubs.Add($"    public {returnTypeFqn} {sm.Name}{typeParamSuffix}({paramList}){constraintClauses} {body}");
+        }
+        else if (isClass && member is IMethodSymbol { MethodKind: MethodKind.Ordinary } am && am.IsAbstract && (am.IsGenericMethod || am.ReturnsByRef))
+        {
+          // Class abstract methods that can't be intercepted (generic/ref-return) must still be
+          // overridden so the generated subclass compiles.
+          var typeParamSuffix = am.IsGenericMethod ? $"<{string.Join(", ", am.TypeParameters.Select(tp => tp.Name))}>" : "";
+          var constraintClauses = am.IsGenericMethod ? BuildConstraintClauses(am.TypeParameters) : "";
+          var refPrefix = am.ReturnsByRef ? "ref " : "";
+          var returnTypeFqn = am.ReturnsVoid ? "void" : am.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+          var paramList = string.Join(", ", am.Parameters.Select(p =>
+          {
+            var modifier = p.RefKind switch { RefKind.Out => "out ", RefKind.Ref => "ref ", RefKind.In => "in ", _ => "" };
+            return $"{modifier}{p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} {p.Name}";
+          }));
+          var outAssignments = am.Parameters.Where(p => p.RefKind == RefKind.Out)
+            .Select(p => $" {p.Name} = default!;");
+          var body = outAssignments.Any()
+            ? $"{{ {string.Concat(outAssignments)} throw new global::System.NotSupportedException(\"Assertive.Mocking: generic and ref-return methods cannot be arranged on source-generated mocks.\"); }}"
+            : "{ throw new global::System.NotSupportedException(\"Assertive.Mocking: generic and ref-return methods cannot be arranged on source-generated mocks.\"); }";
+          genericStubs.Add($"    {GetAccessModifier(am)}override {refPrefix}{returnTypeFqn} {am.Name}{typeParamSuffix}({paramList}){constraintClauses} {body}");
         }
         else if (member is IPropertySymbol { IsIndexer: false } p)
         {
           var propCallBase = isClass && !p.IsAbstract;
           var hasSetter = p.SetMethod is not null
             && p.SetMethod.DeclaredAccessibility is Accessibility.Public or Accessibility.Protected or Accessibility.ProtectedOrInternal;
-          properties.Add(new MockProperty(p.Name, p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), propCallBase, hasSetter));
+          properties.Add(new MockProperty(p.Name, p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), propCallBase, hasSetter, GetAccessModifier(p)));
         }
         else if (member is IPropertySymbol { IsIndexer: true } idx)
         {
@@ -682,12 +709,13 @@ namespace Assertive.Mocking.Generators
             idx.Parameters.Select(pp => (pp.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), pp.Name)).ToArray(),
             idx.GetMethod is not null,
             idx.SetMethod is not null,
-            idxCallBase));
+            idxCallBase,
+            GetAccessModifier(idx)));
         }
         else if (member is IEventSymbol e)
         {
           var handlerFqn = e.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-          events.Add(new MockEvent(e.Name, handlerFqn));
+          events.Add(new MockEvent(e.Name, handlerFqn, GetAccessModifier(e)));
         }
       }
 
@@ -722,21 +750,21 @@ namespace Assertive.Mocking.Generators
         {
           if (member is IMethodSymbol { MethodKind: MethodKind.Ordinary } m)
           {
-            if (!(m.IsVirtual || m.IsAbstract) || m.IsSealed || m.DeclaredAccessibility != Accessibility.Public)
+            if (!(m.IsVirtual || m.IsAbstract) || m.IsSealed || !IsOverridableAccessibility(m))
               continue;
             if (seen.Add($"{m.Name}`{m.Parameters.Length}"))
               yield return m;
           }
           else if (member is IPropertySymbol { IsIndexer: false } p)
           {
-            if (!(p.IsVirtual || p.IsAbstract) || p.IsSealed || p.DeclaredAccessibility != Accessibility.Public)
+            if (!(p.IsVirtual || p.IsAbstract) || p.IsSealed || !IsOverridableAccessibility(p))
               continue;
             if (seen.Add($"prop:{p.Name}"))
               yield return p;
           }
           else if (member is IPropertySymbol { IsIndexer: true } idx)
           {
-            if (!(idx.IsVirtual || idx.IsAbstract) || idx.IsSealed || idx.DeclaredAccessibility != Accessibility.Public)
+            if (!(idx.IsVirtual || idx.IsAbstract) || idx.IsSealed || !IsOverridableAccessibility(idx))
               continue;
             var idxKey = $"indexer:{string.Join(",", idx.Parameters.Select(pp => pp.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)))}";
             if (seen.Add(idxKey))
@@ -744,7 +772,7 @@ namespace Assertive.Mocking.Generators
           }
           else if (member is IEventSymbol e)
           {
-            if (!(e.IsVirtual || e.IsAbstract) || e.IsSealed || e.DeclaredAccessibility != Accessibility.Public)
+            if (!(e.IsVirtual || e.IsAbstract) || e.IsSealed || !IsOverridableAccessibility(e))
               continue;
             if (seen.Add($"event:{e.Name}"))
               yield return e;
@@ -752,6 +780,9 @@ namespace Assertive.Mocking.Generators
         }
       }
     }
+
+    private static bool IsOverridableAccessibility(ISymbol symbol)
+      => symbol.DeclaredAccessibility is Accessibility.Public or Accessibility.Protected or Accessibility.ProtectedOrInternal;
 
     /// <summary>
     /// Classifies a method's return type for default-value generation, adding any auto-mockable
@@ -882,7 +913,7 @@ namespace Assertive.Mocking.Generators
     /// </summary>
     private static bool IsAutoMockable(INamedTypeSymbol type)
     {
-      if (type.DeclaredAccessibility != Accessibility.Public)
+      if (type.IsSealed)
       {
         return false;
       }
@@ -982,8 +1013,8 @@ namespace Assertive.Mocking.Generators
           ? "global::System.Array.Empty<object>()"
           : $"new object[] {{ {string.Join(", ", inArgs)} }}";
         var outParams = method.Parameters.Where(p => p.Mod == "out ").ToArray();
-        var outRefParams = method.Parameters.Where(p => p.Mod != "").ToArray();
-        var hasOutRef = outRefParams.Length > 0;
+        var outRefParams = method.Parameters.Where(p => p.Mod is "out " or "ref ").ToArray();
+        var hasOutParams = outRefParams.Length > 0;
         var outDefaults = outParams.Length > 0
           ? string.Join(" ", outParams.Select(p => $"{p.Name} = default!;"))
           : "";
@@ -992,7 +1023,7 @@ namespace Assertive.Mocking.Generators
         {
           sb.AppendLine($"    public void {method.Name}({parameters})");
           sb.AppendLine("    {");
-          if (hasOutRef)
+          if (hasOutParams)
           {
             sb.AppendLine($"      var __args = {argsArray};");
             var captureReturn = outDefaults.Length > 0 ? $"{{ {outDefaults} return; }}" : "return;";
@@ -1021,7 +1052,7 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine($"    public {method.ReturnTypeFqn} {method.Name}({parameters})");
           sb.AppendLine("    {");
           sb.AppendLine($"      var __args = {argsArray};");
-          if (hasOutRef)
+          if (hasOutParams)
           {
             var captureReturn = outDefaults.Length > 0 ? $"{{ {outDefaults} return default; }}" : "return default;";
             sb.AppendLine($"      if (OnCall(\"{method.Name}\", __args, out var __r, out var __matched)) {captureReturn}");
@@ -1110,6 +1141,15 @@ namespace Assertive.Mocking.Generators
         sb.AppendLine("    }");
       }
 
+      foreach (var ev in target.Events)
+      {
+        sb.AppendLine($"    public event {ev.HandlerTypeFqn} {ev.Name}");
+        sb.AppendLine("    {");
+        sb.AppendLine($"      add {{ if (TryCaptureEvent(\"{ev.Name}\")) return; AddEventHandler(\"{ev.Name}\", value); __wrapped.{ev.Name} += value; }}");
+        sb.AppendLine($"      remove {{ RemoveEventHandler(\"{ev.Name}\", value); __wrapped.{ev.Name} -= value; }}");
+        sb.AppendLine("    }");
+      }
+
       sb.AppendLine("  }");
     }
 
@@ -1135,17 +1175,67 @@ namespace Assertive.Mocking.Generators
       // T must be a concrete, non-static class
       if (target.TypeKind != TypeKind.Class || target.IsAbstract || target.IsStatic) return null;
 
-      // Pick the richest accessible constructor
-      var ctor = target.InstanceConstructors
-        .Where(c => c.DeclaredAccessibility is Accessibility.Public or Accessibility.Protected or Accessibility.ProtectedOrInternal)
-        .OrderByDescending(c => c.Parameters.Length)
-        .FirstOrDefault();
-
-      if (ctor is null) return null;
-
       // Resolve the declared type of each provided argument at the call site
       var args = invocation.ArgumentList.Arguments;
       var argTypes = args.Select(a => ctx.SemanticModel.GetTypeInfo(a.Expression, ct).Type).ToArray();
+
+      // Pick the best accessible constructor: prefer the one that uses the most provided arguments,
+      // then the longest constructor among ties. A constructor is only viable when every unmatched
+      // parameter can be auto-mocked or defaulted.
+      var candidates = target.InstanceConstructors
+        .Where(c => c.DeclaredAccessibility is Accessibility.Public or Accessibility.Protected or Accessibility.ProtectedOrInternal)
+        .ToList();
+
+      IMethodSymbol? ctor = null;
+      var bestMatched = -1;
+      var bestLength = -1;
+
+      foreach (var candidate in candidates)
+      {
+        var used = new HashSet<int>();
+        var matched = 0;
+        var viable = true;
+
+        foreach (var param in candidate.Parameters)
+        {
+          var matchedIndex = -1;
+          for (var i = 0; i < argTypes.Length; i++)
+          {
+            if (used.Contains(i) || argTypes[i] is null) continue;
+            if (IsAssignableTo(argTypes[i]!, param.Type))
+            {
+              matchedIndex = i;
+              used.Add(i);
+              break;
+            }
+          }
+
+          if (matchedIndex >= 0)
+          {
+            matched++;
+          }
+          else if (param.Type is not INamedTypeSymbol named || !IsAutoMockable(named))
+          {
+            // Reference types with no matching argument and no auto-mock cannot be satisfied.
+            if (!param.Type.IsValueType)
+            {
+              viable = false;
+              break;
+            }
+          }
+        }
+
+        if (!viable) continue;
+
+        if (matched > bestMatched || (matched == bestMatched && candidate.Parameters.Length > bestLength))
+        {
+          ctor = candidate;
+          bestMatched = matched;
+          bestLength = candidate.Parameters.Length;
+        }
+      }
+
+      if (ctor is null) return null;
 
       // Match each constructor param to the first unmatched provided arg by type
       var usedArgIndices = new HashSet<int>();
@@ -1275,7 +1365,11 @@ namespace Assertive.Mocking.Generators
       sb.AppendLine("// <auto-generated/>");
       sb.AppendLine("#nullable disable");
       sb.AppendLine("#pragma warning disable");
-      sb.AppendLine("global using static global::Assertive.Mocking.Generated.MockArrange;");
+      var arrangeOverloadTargets = distinct.Concat(wraps.Select(w => w.Target)).ToList();
+      if (HasArrangeOverloads(arrangeOverloadTargets))
+      {
+        sb.AppendLine("global using static global::Assertive.Mocking.Generated.MockArrange;");
+      }
       sb.AppendLine();
 
       if (matchers.Count > 0 || builds.Count > 0)
@@ -1335,6 +1429,20 @@ namespace Assertive.Mocking.Generators
       sb.AppendLine("}");
 
       spc.AddSource("AssertiveMocks.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+    }
+
+    /// <summary>Returns true when at least one non-generic <c>Any(methodGroup)</c> overload would be emitted.</summary>
+    private static bool HasArrangeOverloads(List<MockTarget> targets)
+    {
+      var emitted = new HashSet<string>();
+      foreach (var method in targets.SelectMany(t => t.Methods))
+      {
+        if (BuildOverload(method) is { } overload && emitted.Add(overload.DelegateType))
+        {
+          return true;
+        }
+      }
+      return false;
     }
 
     /// <summary>
@@ -1467,7 +1575,7 @@ namespace Assertive.Mocking.Generators
       };
     }
 
-    /// <summary>The registry factory: ignores args for interfaces; dispatches on argument count to a forwarding ctor for classes.</summary>
+    /// <summary>The registry factory: ignores args for interfaces; dispatches to a base constructor whose parameter types match the provided argument runtime types for classes.</summary>
     private static string Factory(MockTarget target)
     {
       if (!target.IsClass || target.Constructors.Length == 0)
@@ -1475,16 +1583,24 @@ namespace Assertive.Mocking.Generators
         return $"static __a => new {target.ClassName}()";
       }
 
-      var arms = target.Constructors
-        .GroupBy(c => c.Length)
-        .Select(g => g.First())
-        .Select(c =>
-        {
-          var cast = string.Join(", ", c.Select((t, i) => $"({t})__a[{i}]"));
-          return $"{c.Length} => new {target.ClassName}({cast})";
-        });
+      var body = new StringBuilder();
+      body.AppendLine("static __a =>");
+      body.AppendLine("      {");
 
-      return $"static __a => __a.Length switch {{ {string.Join(", ", arms)}, _ => throw new global::System.InvalidOperationException(\"Assertive.Mocking: no {target.DisplayName} constructor takes \" + __a.Length + \" argument(s).\") }}";
+      foreach (var ctor in target.Constructors)
+      {
+        var typeChecks = ctor.Select((t, i) => $"__a[{i}] is {t}").ToArray();
+        var cast = string.Join(", ", ctor.Select((t, i) => $"({t})__a[{i}]!"));
+        var condition = typeChecks.Length == 0
+          ? $"__a.Length == {ctor.Length}"
+          : $"__a.Length == {ctor.Length} && {string.Join(" && ", typeChecks)}";
+        body.AppendLine($"        if ({condition}) return new {target.ClassName}({cast});");
+      }
+
+      body.AppendLine($"        throw new global::System.InvalidOperationException(\"Assertive.Mocking: no {target.DisplayName} constructor matches the provided argument types.\");");
+      body.Append("      }");
+
+      return body.ToString();
     }
 
     private static void EmitMockClass(StringBuilder sb, MockTarget target)
@@ -1492,7 +1608,6 @@ namespace Assertive.Mocking.Generators
       // Interface mocks inherit MockBase (the engine); class mocks must extend the mocked class,
       // so they compose a MockBase and reach it through IMockObject.
       var core = target.IsClass ? "__core." : "";
-      var modifier = target.IsClass ? "public override " : "public ";
 
       sb.AppendLine(target.IsClass
         ? $"  internal sealed class {target.ClassName} : {target.InterfaceFqn}, global::Assertive.Mocking.Runtime.IMockObject"
@@ -1532,18 +1647,19 @@ namespace Assertive.Mocking.Generators
 
         // Out params (not ref) require definite assignment before every return path.
         var outParams = method.Parameters.Where(p => p.Mod == "out ").ToArray();
-        // All out+ref params are assigned from OutResult when an OutResult arrangement is matched.
-        var outRefParams = method.Parameters.Where(p => p.Mod != "").ToArray();
-        var hasOutRef = outRefParams.Length > 0;
+        var outRefParams = method.Parameters.Where(p => p.Mod is "out " or "ref ").ToArray();
+        // All out+ref params (but not in) are assigned from OutResult when an OutResult arrangement is matched.
+        var hasOutParams = outRefParams.Length > 0;
         var outDefaults = outParams.Length > 0
           ? string.Join(" ", outParams.Select(p => $"{p.Name} = default!;"))
           : "";
 
         if (method.ReturnKind == ReturnKind.Void)
         {
-          sb.AppendLine($"    {modifier}void {method.Name}({parameters})");
+          var methodModifier = target.IsClass ? $"{method.AccessModifier}override " : method.AccessModifier;
+          sb.AppendLine($"    {methodModifier}void {method.Name}({parameters})");
           sb.AppendLine("    {");
-          if (hasOutRef)
+          if (hasOutParams)
           {
             sb.AppendLine($"      var __args = {argsArray};");
             var captureReturn = outDefaults.Length > 0 ? $"{{ {outDefaults} return; }}" : "return;";
@@ -1573,10 +1689,11 @@ namespace Assertive.Mocking.Generators
 
         var unarranged = method.CallBase ? $"base.{method.Name}({baseCallArgs})" : UnarrangedReturn(method, core);
 
-        sb.AppendLine($"    {modifier}{method.ReturnTypeFqn} {method.Name}({parameters})");
+        var returnMethodModifier = target.IsClass ? $"{method.AccessModifier}override " : method.AccessModifier;
+        sb.AppendLine($"    {returnMethodModifier}{method.ReturnTypeFqn} {method.Name}({parameters})");
         sb.AppendLine("    {");
         sb.AppendLine($"      var __args = {argsArray};");
-        if (hasOutRef)
+        if (hasOutParams)
         {
           var captureReturn = outDefaults.Length > 0 ? $"{{ {outDefaults} return default; }}" : "return default;";
           sb.AppendLine($"      if ({core}OnCall(\"{method.Name}\", __args, out var __r, out var __matched)) {captureReturn}");
@@ -1622,7 +1739,7 @@ namespace Assertive.Mocking.Generators
         {
           // Interface properties: instrument the getter so arrangements and Received() work,
           // and record setter calls. The getter returns default when unarranged (no base to call).
-          sb.AppendLine($"    public {property.TypeFqn} {property.Name}");
+          sb.AppendLine($"    {property.AccessModifier}{property.TypeFqn} {property.Name}");
           sb.AppendLine("    {");
           sb.AppendLine("      get");
           sb.AppendLine("      {");
@@ -1642,7 +1759,7 @@ namespace Assertive.Mocking.Generators
         else
         {
           var unarrangedPropReturn = property.CallBase ? $"base.{property.Name}" : "default";
-          sb.AppendLine($"    public override {property.TypeFqn} {property.Name}");
+          sb.AppendLine($"    {property.AccessModifier}override {property.TypeFqn} {property.Name}");
           sb.AppendLine("    {");
           sb.AppendLine("      get");
           sb.AppendLine("      {");
@@ -1669,7 +1786,7 @@ namespace Assertive.Mocking.Generators
         var parameters = string.Join(", ", indexer.Parameters.Select(p => $"{p.Type} {p.Name}"));
         var argNames = string.Join(", ", indexer.Parameters.Select(p => p.Name));
         var argsArray = $"new object[] {{ {argNames} }}";
-        var idxModifier = target.IsClass ? "public override " : "public ";
+        var idxModifier = target.IsClass ? $"{indexer.AccessModifier}override " : indexer.AccessModifier;
 
         sb.AppendLine($"    {idxModifier}{indexer.ReturnTypeFqn} this[{parameters}]");
         sb.AppendLine("    {");
@@ -1696,7 +1813,7 @@ namespace Assertive.Mocking.Generators
 
       foreach (var ev in target.Events)
       {
-        var evModifier = target.IsClass ? "public override " : "public ";
+        var evModifier = target.IsClass ? $"{ev.AccessModifier}override " : ev.AccessModifier;
         sb.AppendLine($"    {evModifier}event {ev.HandlerTypeFqn} {ev.Name}");
         sb.AppendLine("    {");
         sb.AppendLine($"      add    {{ if ({core}TryCaptureEvent(\"{ev.Name}\")) return; {core}AddEventHandler(\"{ev.Name}\", value); }}");
@@ -1924,7 +2041,7 @@ namespace Assertive.Mocking.Generators
   {
     public MockMethod(string name, string? returnTypeFqn, (string Type, string Name, string Mod)[] parameters,
       ReturnKind returnKind, string? innerTypeFqn, string? innerMockClassName, string? directMockClassName, bool callBase,
-      string? elementTypeFqn = null)
+      string accessModifier, string? elementTypeFqn = null)
     {
       Name = name;
       ReturnTypeFqn = returnTypeFqn;
@@ -1934,6 +2051,7 @@ namespace Assertive.Mocking.Generators
       InnerMockClassName = innerMockClassName;
       DirectMockClassName = directMockClassName;
       CallBase = callBase;
+      AccessModifier = accessModifier;
       ElementTypeFqn = elementTypeFqn;
     }
 
@@ -1942,7 +2060,8 @@ namespace Assertive.Mocking.Generators
 
     public string Name { get; }
     public string? ReturnTypeFqn { get; }
-    /// <summary>Parameters: Type = FQN type, Name = parameter name, Mod = "" / "out " / "ref ".</summary>
+    public string AccessModifier { get; }
+    /// <summary>Parameters: Type = FQN type, Name = parameter name, Mod = "" / "out " / "ref " / "in ".</summary>
     public (string Type, string Name, string Mod)[] Parameters { get; }
     public ReturnKind ReturnKind { get; }
 
@@ -1968,6 +2087,7 @@ namespace Assertive.Mocking.Generators
       if (InnerMockClassName != other.InnerMockClassName) return false;
       if (DirectMockClassName != other.DirectMockClassName) return false;
       if (ElementTypeFqn != other.ElementTypeFqn) return false;
+      if (AccessModifier != other.AccessModifier) return false;
       if (CallBase != other.CallBase) return false;
       if (Parameters.Length != other.Parameters.Length) return false;
       for (var i = 0; i < Parameters.Length; i++)
@@ -1986,6 +2106,7 @@ namespace Assertive.Mocking.Generators
         h = h * 31 + (ReturnTypeFqn?.GetHashCode() ?? 0);
         h = h * 31 + ReturnKind.GetHashCode();
         h = h * 31 + (ElementTypeFqn?.GetHashCode() ?? 0);
+        h = h * 31 + (AccessModifier?.GetHashCode() ?? 0);
         h = h * 31 + CallBase.GetHashCode();
         foreach (var p in Parameters)
         {
@@ -1999,23 +2120,25 @@ namespace Assertive.Mocking.Generators
 
   internal sealed class MockProperty : IEquatable<MockProperty>
   {
-    public MockProperty(string name, string typeFqn, bool callBase = false, bool hasSetter = true)
+    public MockProperty(string name, string typeFqn, bool callBase = false, bool hasSetter = true, string accessModifier = "public ")
     {
       Name = name;
       TypeFqn = typeFqn;
       CallBase = callBase;
       HasSetter = hasSetter;
+      AccessModifier = accessModifier;
     }
 
     public string Name { get; }
     public string TypeFqn { get; }
+    public string AccessModifier { get; }
     public bool CallBase { get; }
     public bool HasSetter { get; }
 
     public bool Equals(MockProperty? other)
     {
       if (other is null) return false;
-      return Name == other.Name && TypeFqn == other.TypeFqn && CallBase == other.CallBase && HasSetter == other.HasSetter;
+      return Name == other.Name && TypeFqn == other.TypeFqn && CallBase == other.CallBase && HasSetter == other.HasSetter && AccessModifier == other.AccessModifier;
     }
 
     public override bool Equals(object? obj) => Equals(obj as MockProperty);
@@ -2028,6 +2151,7 @@ namespace Assertive.Mocking.Generators
         h = h * 31 + (TypeFqn?.GetHashCode() ?? 0);
         h = h * 31 + CallBase.GetHashCode();
         h = h * 31 + HasSetter.GetHashCode();
+        h = h * 31 + (AccessModifier?.GetHashCode() ?? 0);
         return h;
       }
     }
@@ -2035,13 +2159,14 @@ namespace Assertive.Mocking.Generators
 
   internal sealed class MockIndexer : IEquatable<MockIndexer>
   {
-    public MockIndexer(string returnTypeFqn, (string Type, string Name)[] parameters, bool hasGetter, bool hasSetter, bool callBase)
+    public MockIndexer(string returnTypeFqn, (string Type, string Name)[] parameters, bool hasGetter, bool hasSetter, bool callBase, string accessModifier = "public ")
     {
       ReturnTypeFqn = returnTypeFqn;
       Parameters = parameters;
       HasGetter = hasGetter;
       HasSetter = hasSetter;
       CallBase = callBase;
+      AccessModifier = accessModifier;
     }
 
     public string ReturnTypeFqn { get; }
@@ -2049,6 +2174,7 @@ namespace Assertive.Mocking.Generators
     public bool HasGetter { get; }
     public bool HasSetter { get; }
     public bool CallBase { get; }
+    public string AccessModifier { get; }
 
     public bool Equals(MockIndexer? other)
     {
@@ -2057,6 +2183,7 @@ namespace Assertive.Mocking.Generators
       if (HasGetter != other.HasGetter) return false;
       if (HasSetter != other.HasSetter) return false;
       if (CallBase != other.CallBase) return false;
+      if (AccessModifier != other.AccessModifier) return false;
       if (Parameters.Length != other.Parameters.Length) return false;
       for (var i = 0; i < Parameters.Length; i++)
         if (Parameters[i].Type != other.Parameters[i].Type || Parameters[i].Name != other.Parameters[i].Name)
@@ -2074,6 +2201,7 @@ namespace Assertive.Mocking.Generators
         h = h * 31 + HasGetter.GetHashCode();
         h = h * 31 + HasSetter.GetHashCode();
         h = h * 31 + CallBase.GetHashCode();
+        h = h * 31 + (AccessModifier?.GetHashCode() ?? 0);
         foreach (var p in Parameters)
         {
           h = h * 31 + (p.Type?.GetHashCode() ?? 0);
@@ -2086,16 +2214,18 @@ namespace Assertive.Mocking.Generators
 
   internal sealed class MockEvent : IEquatable<MockEvent>
   {
-    public MockEvent(string name, string handlerTypeFqn)
+    public MockEvent(string name, string handlerTypeFqn, string accessModifier = "public ")
     {
       Name = name;
       HandlerTypeFqn = handlerTypeFqn;
+      AccessModifier = accessModifier;
     }
 
     public string Name { get; }
     public string HandlerTypeFqn { get; }
+    public string AccessModifier { get; }
 
-    public bool Equals(MockEvent? other) => other is not null && Name == other.Name && HandlerTypeFqn == other.HandlerTypeFqn;
+    public bool Equals(MockEvent? other) => other is not null && Name == other.Name && HandlerTypeFqn == other.HandlerTypeFqn && AccessModifier == other.AccessModifier;
 
     public override bool Equals(object? obj) => obj is MockEvent e && Equals(e);
 
@@ -2103,7 +2233,9 @@ namespace Assertive.Mocking.Generators
     {
       unchecked
       {
-        return (Name?.GetHashCode() ?? 0) * 397 ^ (HandlerTypeFqn?.GetHashCode() ?? 0);
+        var h = (Name?.GetHashCode() ?? 0) * 397 ^ (HandlerTypeFqn?.GetHashCode() ?? 0);
+        h = h * 31 + (AccessModifier?.GetHashCode() ?? 0);
+        return h;
       }
     }
   }
