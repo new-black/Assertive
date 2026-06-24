@@ -72,7 +72,7 @@ public class ArrangeTests : MockingTestBase
     greeter.Greet("Bob");
 
     // Should not throw
-    Received(greeter, g => g.Greet("Bob"));
+    Received(() => greeter.Greet("Bob"));
   }
 
   [Fact]
@@ -83,7 +83,7 @@ public class ArrangeTests : MockingTestBase
     greeter.Greet("Adam the Magnificent");
 
     // Received for a different argument — should throw an Assertive failure
-    ShouldFail(() => Received(greeter, g => g.Greet("Bob the Builder")));
+    ShouldFail(() => Received(() => greeter.Greet("Bob the Builder")));
   }
 
   [Fact]
@@ -95,7 +95,7 @@ public class ArrangeTests : MockingTestBase
     greeter.Log("shutting down");
 
     // Greet was never called
-    ShouldFail(() => Received(greeter, g => g.Greet("anyone")));
+    ShouldFail(() => Received(() => greeter.Greet("anyone")));
   }
 
   [Fact]
@@ -154,7 +154,7 @@ public class ADslTests
     greeter.Greet("Bob");
 
     // Should not throw
-    Received(greeter, g => g.Greet("Bob"));
+    Received(() => greeter.Greet("Bob"));
   }
 
   [Fact]
@@ -831,7 +831,7 @@ public class VerificationTests : MockingTestBase
     greeter.Greet("Bob");
 
     // Should not throw
-    Received(greeter, Times.Once, g => g.Greet("Bob"));
+    Received(() => greeter.Greet("Bob"), Times.Once);
   }
 
   [Fact]
@@ -841,7 +841,7 @@ public class VerificationTests : MockingTestBase
     greeter.Greet("Bob");
     greeter.Greet("Bob");
 
-    ShouldFail(() => Received(greeter, Times.Once, g => g.Greet("Bob")));
+    ShouldFail(() => Received(() => greeter.Greet("Bob"), Times.Once));
   }
 
   [Fact]
@@ -850,7 +850,7 @@ public class VerificationTests : MockingTestBase
     var greeter = A<IGreeter>();
 
     // Should not throw
-    Received(greeter, Times.Never, g => g.Greet("Bob"));
+    Received(() => greeter.Greet("Bob"), Times.Never);
   }
 
   [Fact]
@@ -859,7 +859,7 @@ public class VerificationTests : MockingTestBase
     var greeter = A<IGreeter>();
     greeter.Greet("Bob");
 
-    ShouldFail(() => Received(greeter, Times.Never, g => g.Greet("Bob")));
+    ShouldFail(() => Received(() => greeter.Greet("Bob"), Times.Never));
   }
 
   [Fact]
@@ -871,7 +871,7 @@ public class VerificationTests : MockingTestBase
     greeter.Greet("Bob");
 
     // Should not throw
-    Received(greeter, Times.AtLeastOnce, g => g.Greet("Bob"));
+    Received(() => greeter.Greet("Bob"), Times.AtLeastOnce);
   }
 
   [Fact]
@@ -879,7 +879,7 @@ public class VerificationTests : MockingTestBase
   {
     var greeter = A<IGreeter>();
 
-    ShouldFail(() => Received(greeter, Times.AtLeastOnce, g => g.Greet("Bob")));
+    ShouldFail(() => Received(() => greeter.Greet("Bob"), Times.AtLeastOnce));
   }
 
   [Fact]
@@ -890,7 +890,7 @@ public class VerificationTests : MockingTestBase
     greeter.Greet("Bob");
 
     // Should not throw
-    Received(greeter, Times.Exactly(2), g => g.Greet("Bob"));
+    Received(() => greeter.Greet("Bob"), Times.Exactly(2));
   }
 
   [Fact]
@@ -899,8 +899,19 @@ public class VerificationTests : MockingTestBase
     var greeter = A<IGreeter>();
     greeter.Greet("Bob");
 
-    ShouldFail(() => Received(greeter, Times.Exactly(3), g => g.Greet("Bob")));
+    ShouldFail(() => Received(() => greeter.Greet("Bob"), Times.Exactly(3)));
   }
+  
+  
+  [Fact]
+  public void Can_use_int_extension_for_Times()
+  {
+    var greeter = A<IGreeter>();
+    greeter.Greet("Bob");
+
+    ShouldFail(() => Received(() => greeter.Greet("Bob"), 3.Times));
+  }
+
 
   [Fact]
   public void Times_AtLeast_passes_when_count_at_threshold()
@@ -909,7 +920,7 @@ public class VerificationTests : MockingTestBase
     greeter.Greet("Bob");
     greeter.Greet("Bob");
 
-    Received(greeter, Times.AtLeast(2), g => g.Greet("Bob"));
+    Received(() => greeter.Greet("Bob"), Times.AtLeast(2));
   }
 
   [Fact]
@@ -918,7 +929,7 @@ public class VerificationTests : MockingTestBase
     var greeter = A<IGreeter>();
     greeter.Greet("Bob");
 
-    Received(greeter, Times.AtMost(3), g => g.Greet("Bob"));
+    Received(() => greeter.Greet("Bob"), Times.AtMost(3));
   }
 
   [Fact]
@@ -930,7 +941,7 @@ public class VerificationTests : MockingTestBase
     greeter.Greet("Bob");
     greeter.Greet("Bob");
 
-    ShouldFail(() => Received(greeter, Times.AtMost(3), g => g.Greet("Bob")));
+    ShouldFail(() => Received(() => greeter.Greet("Bob"), Times.AtMost(3)));
   }
 
   [Fact]
@@ -940,7 +951,7 @@ public class VerificationTests : MockingTestBase
     greeter.Greet("Bob");
     greeter.Greet("Bob");
 
-    Received(greeter, Times.Between(1, 3), g => g.Greet("Bob"));
+    Received(() => greeter.Greet("Bob"), Times.Between(1, 3));
   }
 
   [Fact]
@@ -948,7 +959,7 @@ public class VerificationTests : MockingTestBase
   {
     var greeter = A<IGreeter>();
 
-    ShouldFail(() => Received(greeter, Times.Between(2, 4), g => g.Greet("Bob")));
+    ShouldFail(() => Received(() => greeter.Greet("Bob"), Times.Between(2, 4)));
   }
 
   [Fact]
@@ -958,7 +969,7 @@ public class VerificationTests : MockingTestBase
     greeter.Log("something");
 
     // Greet was never called
-    DidNotReceive(greeter, g => g.Greet("Bob"));
+    DidNotReceive(() => greeter.Greet("Bob"));
   }
 
   [Fact]
@@ -967,7 +978,7 @@ public class VerificationTests : MockingTestBase
     var greeter = A<IGreeter>();
     greeter.Greet("Bob");
 
-    ShouldFail(() => DidNotReceive(greeter, g => g.Greet("Bob")));
+    ShouldFail(() => DidNotReceive(() => greeter.Greet("Bob")));
   }
 
   [Fact]
@@ -1017,7 +1028,7 @@ public class VerificationTests : MockingTestBase
     ClearReceivedCalls(greeter);
 
     // After clearing, Received for any call should fail (no calls recorded)
-    ShouldFail(() => Received(greeter, g => g.Greet("Bob")));
+    ShouldFail(() => Received(() => greeter.Greet("Bob")));
   }
 
   [Fact]
@@ -1158,7 +1169,7 @@ public class PropertyTests : MockingTestBase
     _ = svc.Name;
 
     // Should not throw
-    Received(svc, s => _ = s.Name);
+    Received(() => _ = svc.Name);
   }
 
   [Fact]
@@ -1167,7 +1178,7 @@ public class PropertyTests : MockingTestBase
     var svc = A<INamedService>();
 
     // Name was never read
-    DidNotReceive(svc, s => _ = s.Name);
+    DidNotReceive(() => _ = svc.Name);
   }
 
   [Fact]
@@ -1176,7 +1187,7 @@ public class PropertyTests : MockingTestBase
     var svc = A<INamedService>();
     _ = svc.Name;
 
-    ShouldFail(() => DidNotReceive(svc, s => _ = s.Name));
+    ShouldFail(() => DidNotReceive(() => _ = svc.Name));
   }
 
   [Fact]
@@ -1185,7 +1196,7 @@ public class PropertyTests : MockingTestBase
     var svc = A<INamedService>();
     svc.Name = "Charlie";
 
-    Received(svc, s => s.Name = "Charlie");
+    Received(() => svc.Name = "Charlie");
   }
 }
 
@@ -1278,12 +1289,12 @@ public class BehaviorTests : MockingTestBase
     greeter.Greet("Bob");
 
     // Verify call was recorded before reset
-    Received(greeter, g => g.Greet("Bob")); // would throw if call not recorded
+    Received(() => greeter.Greet("Bob")); // would throw if call not recorded
 
     Reset(greeter);
 
     // Call log is cleared — Received should now fail
-    ShouldFail(() => Received(greeter, g => g.Greet("Bob")));
+    ShouldFail(() => Received(() => greeter.Greet("Bob")));
 
     // Setup is cleared — unarranged on loose mock returns default
     var result = greeter.Greet("Bob");
@@ -1489,7 +1500,7 @@ public class IndexerTests
 
     cache["key"] = "value";
 
-    Received(cache, c => { c["key"] = "value"; });
+    Received(() => { cache["key"] = "value"; });
   }
 }
 
@@ -1799,7 +1810,7 @@ public class ComplexArgTests : MockingTestBase
     var wh = A<IWarehouse>();
     wh.Reserve(new OrderItem(42, "Widget", 3));
 
-    ShouldFail(() => Received(wh, w => w.Reserve(new OrderItem(99, "Gadget", 1))));
+    ShouldFail(() => Received(() => wh.Reserve(new OrderItem(99, "Gadget", 1))));
   }
 
   [Fact]
@@ -1807,7 +1818,7 @@ public class ComplexArgTests : MockingTestBase
   {
     var wh = A<IWarehouse>();
     wh.Tag(new LegacyItem { Id = 1, Label = "foo" });
-    ShouldFail(() => Received(wh, w => w.Tag(new LegacyItem { Id = 2 })));
+    ShouldFail(() => Received(() => wh.Tag(new LegacyItem { Id = 2 })));
   }
 }
 
@@ -1905,7 +1916,7 @@ public class StandaloneArrangeTests : MockingTestBase
     greeter.Greet("Bob");
 
     // The arrange call must not be counted — only the one real call above.
-    Received(greeter, Times.Once, g => g.Greet("Bob"));
+    Received(() => greeter.Greet("Bob"), Times.Once);
   }
 }
 
@@ -1971,7 +1982,7 @@ public class GenericInterfaceMockTests : MockingTestBase
     var repo = A<IRepository<IWidget>>();
     repo.FindById(7);
 
-    Received(repo, Times.Once, r => r.FindById(7));
+    Received(() => repo.FindById(7), Times.Once);
   }
 
   [Fact]
@@ -2012,7 +2023,7 @@ public class GenericInterfaceMockTests : MockingTestBase
     var mock = A<IConflict<string>>();
     mock.GetValue();
 
-    Received(mock, Times.Once, m => m.GetValue());
+    Received(() => mock.GetValue(), Times.Once);
   }
 }
 
@@ -2119,7 +2130,7 @@ public class OutRefParamTests : MockingTestBase
 
     mock.TryGet("key", out _);
 
-    Received(mock, Times.Once, m => m.TryGet("key", out _));
+    Received(() => mock.TryGet("key", out _), Times.Once);
   }
 
   [Fact]
@@ -2172,6 +2183,41 @@ public class LazyReturnsTests : MockingTestBase
     var result = mock.GetValue();
 
     Assert(() => result == 42);
+  }
+  
+  
+  public class Order { public int Id { get; set; } }
+  public interface IOrderRepository
+  {
+    Order GetById(int id);
+  }
+  
+  [Fact]
+  public void ReturnsLambdaTest()
+  {
+    var repo = A<IOrderRepository>();
+
+    // Return a fixed value
+    repo.GetById(123).Returns(new Order { Id = 123 });
+
+    repo.GetById(123).Returns((int id) => new Order { Id = 123 });
+
+    // Return a computed value based on the arguments (method-group arrangement)
+    Any(repo.GetById).Returns((int id) => new Order { Id = id });
+
+    Assert(() => repo.GetById(123).Id == 123);
+    Assert(() => repo.GetById(456).Id == 456);
+  }
+
+  [Fact]
+  public void ReturnsLambda_with_method_group_and_inferred_argument_type()
+  {
+    var repo = A<IOrderRepository>();
+
+    Any(repo.GetById).Returns(id => new Order { Id = id });
+
+    Assert(() => repo.GetById(123).Id == 123);
+    Assert(() => repo.GetById(456).Id == 456);
   }
 }
 

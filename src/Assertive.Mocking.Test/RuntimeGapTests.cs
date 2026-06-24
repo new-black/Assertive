@@ -51,6 +51,23 @@ public class RuntimeGapTests
   }
 
   [Fact]
+  public void Received_without_Mock_prefix_supports_Times()
+  {
+    var repo = A<IRepository>();
+
+    repo.GetById(123);
+    repo.GetById(123);
+    repo.GetById(456);
+
+    Received(() => repo.GetById(123), Times.Exactly(2));
+    Received(() => repo.GetById(456), Times.AtLeastOnce);
+    DidNotReceive(() => repo.GetById(999));
+
+    // Lambda form with Times also works without the Mock prefix
+    Received(() => repo.GetById(123), Times.AtLeastOnce);
+  }
+
+  [Fact]
   public async Task Arrange_lambda_can_await_inside()
   {
     var repo = await A<IRepository>(async m =>

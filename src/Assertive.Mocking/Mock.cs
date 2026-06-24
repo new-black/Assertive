@@ -181,7 +181,7 @@ namespace Assertive.Mocking
         : string.Join("\n", System.Linq.Enumerable.Select(mock.Calls, (c, i) => $"  [{i}] {c.Format()}"));
 
       throw GeneratedAssert.Failure(
-        $"Expected {captured.Format()} to be received {times.Describe()}, but was received {count} time(s).\n\nReceived calls:\n{received}",
+        $"Expected {captured.Format()} to be received {times.Describe()}, but was received {count} {(count == 1 ? "time" : "times")}.\n\nReceived calls:\n{received}",
         System.Array.Empty<(string, object?)>(),
         message: null, context: null, contextExpression: null);
     }
@@ -318,6 +318,47 @@ namespace Assertive.Mocking
       MockBase.AttachBehaviorToLastArrangedCall(_ => factory());
     }
 
+    /// <summary>
+    /// Configures the preceding mock call to invoke <paramref name="factory"/> on each call,
+    /// passing the first argument. Use an explicitly typed lambda parameter, e.g.
+    /// <c>.Returns((int id) => ...)</c>.
+    /// </summary>
+    public static void Returns<T1, TResult>(this TResult call, System.Func<T1, TResult> factory)
+    {
+      _ = call;
+      MockBase.AttachBehaviorToLastArrangedCall(args => factory((T1)args[0]!));
+    }
+
+    /// <summary>
+    /// Configures the preceding mock call to invoke <paramref name="factory"/> on each call,
+    /// passing the first two arguments.
+    /// </summary>
+    public static void Returns<T1, T2, TResult>(this TResult call, System.Func<T1, T2, TResult> factory)
+    {
+      _ = call;
+      MockBase.AttachBehaviorToLastArrangedCall(args => factory((T1)args[0]!, (T2)args[1]!));
+    }
+
+    /// <summary>
+    /// Configures the preceding mock call to invoke <paramref name="factory"/> on each call,
+    /// passing the first three arguments.
+    /// </summary>
+    public static void Returns<T1, T2, T3, TResult>(this TResult call, System.Func<T1, T2, T3, TResult> factory)
+    {
+      _ = call;
+      MockBase.AttachBehaviorToLastArrangedCall(args => factory((T1)args[0]!, (T2)args[1]!, (T3)args[2]!));
+    }
+
+    /// <summary>
+    /// Configures the preceding mock call to invoke <paramref name="factory"/> on each call,
+    /// passing the first four arguments.
+    /// </summary>
+    public static void Returns<T1, T2, T3, T4, TResult>(this TResult call, System.Func<T1, T2, T3, T4, TResult> factory)
+    {
+      _ = call;
+      MockBase.AttachBehaviorToLastArrangedCall(args => factory((T1)args[0]!, (T2)args[1]!, (T3)args[2]!, (T4)args[3]!));
+    }
+
     /// <summary>Configures a <c>Task&lt;T&gt;</c>-returning call to invoke <paramref name="factory"/> on each call.</summary>
     public static void Returns<T>(this System.Threading.Tasks.Task<T> call, System.Func<T> factory)
     {
@@ -340,6 +381,11 @@ namespace Assertive.Mocking
     {
       _ = call;
       MockBase.AttachBehaviorToLastArrangedCall(_ => new OutResult(returnValue, outValues));
+    }
+    
+    extension(int i)
+    {
+      public Times Times => Times.Exactly(i);
     }
   }
 }

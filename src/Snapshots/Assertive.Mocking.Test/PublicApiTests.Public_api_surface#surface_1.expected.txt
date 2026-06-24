@@ -2,16 +2,26 @@ namespace Assertive.Mocking
 
 static class ArrangeExtensions
   static void Does<TResult>(TResult call, Func<object[], TResult> callback)
+  static Times get_Times(int i)
   static void Returns<TResult>(TResult call, TResult value)
   static void Returns<T>(Task<T> call, T value)
   static void Returns<T>(ValueTask<T> call, T value)
   static void Returns<TResult>(TResult call, TResult value, Func<bool> when)
   static void Returns<TResult>(TResult call, Func<TResult> factory)
+  static void Returns<T1, TResult>(TResult call, Func<T1, TResult> factory)
+  static void Returns<T1, T2, TResult>(TResult call, Func<T1, T2, TResult> factory)
+  static void Returns<T1, T2, T3, TResult>(TResult call, Func<T1, T2, T3, TResult> factory)
+  static void Returns<T1, T2, T3, T4, TResult>(TResult call, Func<T1, T2, T3, T4, TResult> factory)
   static void Returns<T>(Task<T> call, Func<T> factory)
   static void Returns<T>(ValueTask<T> call, Func<T> factory)
   static void ReturnsMany<TResult>(TResult call, TResult[] values)
   static void ReturnsWithOuts<TResult>(TResult call, TResult returnValue, object[] outValues)
   static void Throws<TResult>(TResult call, Exception exception)
+
+sealed class <G>$BA41CFE2B5EDAEB8C1B9062F59ED4D69
+  Times Times { get; }
+
+static class <M>$F4B4FFE41AB49E80A4ECF390CF6EB372
 
 static class AsyncArrangeExtensions
   static void Returns<T>(ValueArrange<Task<T>> arrange, T value)
@@ -61,7 +71,6 @@ static class Mock
   static IEnumerable<T> Contains<T>(T item)
   static Func<object, bool> DequeueMatcher()
   static void DidNotReceive(Action call, string callExpression)
-  static void DidNotReceive<T>(T mock, Action<T> call, string callExpression)
   static void InOrder<T>(T mock, Action<T> sequence, string sequenceExpression)
   static IEnumerable<T> IsEmpty<T>()
   static T IsIn<T>(T[] values)
@@ -70,8 +79,6 @@ static class Mock
   static void Raise<T>(T mock, Action<T> attach, object[] args)
   static void Received(Action call, string callExpression)
   static void Received(Action call, Times times, string callExpression)
-  static void Received<T>(T mock, Action<T> call, string callExpression)
-  static void Received<T>(T mock, Times times, Action<T> call, string callExpression)
   static void Reset<T>(T mock)
   static void Setup<T>(T mock, Action<T> setup)
   static void VerifyNoOtherCalls<T>(T mock)

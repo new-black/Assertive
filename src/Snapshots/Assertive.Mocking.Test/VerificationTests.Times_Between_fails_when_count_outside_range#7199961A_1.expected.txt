@@ -1,6 +1,6 @@
 
-Expected Greet("Bob") to be received never, but was received 1 time.
+Expected Greet("Bob") to be received between 2 and 4 times, but was received 0 times.
 
 Received calls:
-  [0] Greet("Bob")
+(no calls received)
 ················································································

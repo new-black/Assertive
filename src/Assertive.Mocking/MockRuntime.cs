@@ -35,16 +35,18 @@ namespace Assertive.Mocking
     public bool Matches(int count) =>
       count >= _min && (_max == -1 || count <= _max);
 
+    private static string P(int n) => n == 1 ? "time" : "times";
+
     public string Describe() => (_min, _max) switch
     {
       (0, 0) => "never",
       (1, 1) => "exactly once",
       (0, 1) => "at most once",
       (1, -1) => "at least once",
-      var (mn, mx) when mn == mx => $"exactly {mn} time(s)",
-      (var mn, -1) => $"at least {mn} time(s)",
-      (0, var mx) => $"at most {mx} time(s)",
-      var (mn, mx) => $"between {mn} and {mx} time(s)",
+      var (mn, mx) when mn == mx => $"exactly {mn} {P(mn)}",
+      (var mn, -1) => $"at least {mn} {P(mn)}",
+      (0, var mx) => $"at most {mx} {P(mx)}",
+      var (mn, mx) => $"between {mn} and {mx} times",
     };
   }
 
@@ -91,123 +93,6 @@ namespace Assertive.Mocking
       => mock is IMockObject m
         ? m.Core
         : throw new InvalidOperationException($"Assertive.Mocking: '{mock.GetType().Name}' is not a generated mock.");
-
-    /// <summary>
-    /// Verifies the mock received the call expressed by <paramref name="call"/>. On failure it
-    /// throws an Assertive failure built through <see cref="GeneratedAssert"/>, so the message
-    /// reuses Assertive's value rendering, string diffing and layout.
-    /// </summary>
-    public static void Received<T>(T mock, Action<T> call, [CallerArgumentExpression(nameof(call))] string callExpression = "") where T : class
-    {
-      var @base = AsBase(mock);
-
-      @base.Capturing = true;
-
-      try
-      {
-        call(mock);
-      }
-      finally
-      {
-        @base.Capturing = false;
-      }
-
-      var expected = @base.Captured!;
-
-      // Matcher interceptor → use its argument matcher; otherwise exact-argument equality.
-      var matchSpec = @base.CapturedMatch;
-      @base.CapturedMatch = null;
-      var matches = matchSpec is { } spec
-        ? new Func<MockInvocation, bool>(c => c.Method == spec.Method && spec.Match(c.Arguments))
-        : c => c.Method == expected.Method && @base.ArgumentsMatchEqual(expected.Arguments, c.Arguments);
-
-      // A matching call satisfies the verification.
-      if (@base.Calls.Any(matches))
-      {
-        return;
-      }
-
-      var assertionText = StripLambdaParameter(callExpression);
-      var received = @base.Calls.Count == 0
-        ? "(no calls received)"
-        : string.Join("\n", @base.Calls.Select((c, i) => $"  [{i}] {c.Format()}"));
-
-      var sameMethod = @base.Calls.Where(c => c.Method == expected.Method).ToList();
-
-      if (sameMethod.Count > 0)
-      {
-        // Method was called but with different arguments.
-        throw GeneratedAssert.Failure(
-          $"{assertionText}\n\nExpected: {expected.Format()}\nReceived:\n{received}",
-          System.Array.Empty<(string, object?)>(),
-          message: null,
-          context: null,
-          contextExpression: null);
-      }
-
-      // The method was never called at all.
-      throw GeneratedAssert.Failure(
-        $"{assertionText}\n\nExpected the mock to have received {expected.Format()}, but it never was.\n\nReceived calls:\n{received}",
-        System.Array.Empty<(string, object?)>(),
-        message: null,
-        context: null,
-        contextExpression: null);
-    }
-
-    /// <summary>
-    /// Verifies the mock received the call expressed by <paramref name="call"/> exactly the
-    /// number of times described by <paramref name="times"/>. Throws an Assertive failure on mismatch.
-    /// </summary>
-    public static void Received<T>(T mock, Times times, Action<T> call,
-      [CallerArgumentExpression(nameof(call))] string callExpression = "") where T : class
-    {
-      var @base = AsBase(mock);
-
-      @base.Capturing = true;
-
-      try
-      {
-        call(mock);
-      }
-      finally
-      {
-        @base.Capturing = false;
-      }
-
-      var expected = @base.Captured!;
-
-      var matchSpec = @base.CapturedMatch;
-      @base.CapturedMatch = null;
-      var matches = matchSpec is { } spec
-        ? new Func<MockInvocation, bool>(c => c.Method == spec.Method && spec.Match(c.Arguments))
-        : c => c.Method == expected.Method && @base.ArgumentsMatchEqual(expected.Arguments, c.Arguments);
-
-      var count = @base.Calls.Count(matches);
-
-      if (times.Matches(count))
-      {
-        return;
-      }
-
-      var received = @base.Calls.Count == 0
-        ? "(no calls received)"
-        : string.Join("\n", @base.Calls.Select((c, i) => $"  [{i}] {c.Format()}"));
-
-      throw GeneratedAssert.Failure(
-        $"Expected {expected.Format()} to be received {times.Describe()}, but was received {count} time(s).\n\nReceived calls:\n{received}",
-        System.Array.Empty<(string, object?)>(),
-        message: null,
-        context: null,
-        contextExpression: null);
-    }
-
-    /// <summary>
-    /// Verifies the mock never received the call expressed by <paramref name="call"/>.
-    /// Equivalent to <c>Received(mock, Times.Never, call)</c>.
-    /// </summary>
-    public static void DidNotReceive<T>(T mock, Action<T> call,
-      [CallerArgumentExpression(nameof(call))] string callExpression = "") where T : class
-      => Received(mock, Times.Never, call, callExpression);
 
     /// <summary>
     /// Verifies that the calls expressed in <paramref name="sequence"/> were received in that
@@ -293,20 +178,5 @@ namespace Assertive.Mocking
 
     private static MockBase AsBase<T>(T mock) where T : class => CoreOf(mock!);
 
-    private static string StripLambdaParameter(string expression)
-    {
-      // Turn "g => g.Greet(\"Bob\")" into "Greet(\"Bob\")" for a clean assertion header.
-      var arrow = expression.IndexOf("=>", StringComparison.Ordinal);
-
-      if (arrow < 0)
-      {
-        return expression;
-      }
-
-      var body = expression.Substring(arrow + 2).Trim();
-      var dot = body.IndexOf('.');
-
-      return dot >= 0 ? body.Substring(dot + 1) : body;
-    }
   }
 }

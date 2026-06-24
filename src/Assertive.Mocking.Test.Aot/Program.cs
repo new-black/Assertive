@@ -61,7 +61,7 @@ namespace Assertive.Mocking.Test.Aot
       Expect(result == 99, $"expected 99 but got {result}");
     }
 
-    // ── Check 3: Mock.Received passes when call was made ────────────────────
+    // ── Check 3: Received passes when call was made ────────────────────────
 
     private static void InterfaceMock_Received_passes_for_matching_call()
     {
@@ -71,10 +71,10 @@ namespace Assertive.Mocking.Test.Aot
       svc.GetValue();
 
       // Should not throw
-      Mock.Received(svc, s => s.GetValue());
+      Received(() => svc.GetValue());
     }
 
-    // ── Check 4: Mock.Received throws when method was not called ────────────
+    // ── Check 4: Received throws when method was not called ─────────────────
 
     private static void InterfaceMock_Received_fails_when_not_called()
     {
@@ -83,7 +83,7 @@ namespace Assertive.Mocking.Test.Aot
       Exception? ex = null;
       try
       {
-        Mock.Received(svc, s => s.GetValue());
+        Received(() => svc.GetValue());
       }
       catch (Exception caught)
       {
