@@ -427,17 +427,20 @@ namespace Assertive.Mocking.Runtime
     /// </summary>
     public object GetOrCreateAutoMock(string method, object?[] arguments, Func<object> factory)
     {
-      foreach (var (call, mock) in _autoMocks)
+      lock (_lock)
       {
-        if (call.Method == method && ArgumentsEqual(call.Arguments, arguments))
+        foreach (var (call, mock) in _autoMocks)
         {
-          return mock;
+          if (call.Method == method && ArgumentsEqual(call.Arguments, arguments))
+          {
+            return mock;
+          }
         }
-      }
 
-      var created = factory();
-      _autoMocks.Add((new MockInvocation(method, arguments), created));
-      return created;
+        var created = factory();
+        _autoMocks.Add((new MockInvocation(method, arguments), created));
+        return created;
+      }
     }
 
     private static bool ArgumentsEqual(object?[] a, object?[] b)

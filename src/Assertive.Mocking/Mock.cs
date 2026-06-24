@@ -118,6 +118,10 @@ namespace Assertive.Mocking
     public static T Build<T>(object? a0, object? a1, object? a2, object? a3, object? a4, object? a5, object? a6) where T : class
       => throw new InvalidOperationException("Assertive.Mocking: Build<T>(a0..a6) was not intercepted. Ensure Assertive.Mocking.Generators is referenced by this project.");
 
+    /// <inheritdoc cref="Build{T}()"/>
+    public static T Build<T>(object? a0, object? a1, object? a2, object? a3, object? a4, object? a5, object? a6, object? a7) where T : class
+      => throw new InvalidOperationException("Assertive.Mocking: Build<T>(a0..a7) was not intercepted. Ensure Assertive.Mocking.Generators is referenced by this project.");
+
     /// <summary>Verifies that the mock call expressed by <paramref name="call"/> was received at least once.</summary>
     public static void Received(System.Action call, [CallerArgumentExpression(nameof(call))] string callExpression = "")
       => ReceivedCore(call, Times.AtLeastOnce, callExpression);
@@ -140,7 +144,7 @@ namespace Assertive.Mocking
 
       var matches = matchSpec is { } spec
         ? new System.Func<MockInvocation, bool>(c => c.Method == spec.Method && spec.Match(c.Arguments))
-        : c => c.Method == captured.Method && System.Linq.Enumerable.SequenceEqual(c.Arguments, captured.Arguments);
+        : c => c.Method == captured.Method && mock.ArgumentsMatchEqual(captured.Arguments, c.Arguments);
 
       var count = System.Linq.Enumerable.Count(mock.Calls, matches);
 

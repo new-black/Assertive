@@ -303,7 +303,7 @@ Assert(() => spy.Transform("world") == "WORLD"); // not overridden → calls thr
 
 ### Post-creation setup with `Setup<T>`
 
-When a mock was created outside an `A<T>(arrange)` lambda — for example after `Wrap<T>` — use `Arrange<T>` to add arrangements later:
+When a mock was created outside an `A<T>(arrange)` lambda — for example after `Wrap<T>` — use `Setup<T>` to add arrangements later:
 
 ```csharp
 var spy = Wrap<ITransformer>(new UpperCaseTransformer());
@@ -350,14 +350,14 @@ Mock.Reset(repo);
 | Spy wrapper (`Wrap<T>`) | ✓ | ✗ | ✓ |
 | SUT auto-construction (`Build<T>`) | ✓ | ✗ | ✗ |
 | Generic methods | ✗ | ✓ | ✓ |
-| ref / out parameters | ✗ | ✓ | ✓ |
+| ref / out parameters | Partial ✓ | ✓ | ✓ |
 
 ---
 
 ## Known limitations
 
-- **Generic methods** are silently skipped by the source generator. Calls to generic methods on a mock will invoke the real implementation (or throw on interfaces).
-- **`ref` / `out` / `in` parameters** are not supported. Methods with by-ref parameters are skipped.
+- **Generic methods** cannot be arranged. On interfaces they now throw `NotSupportedException`; on classes they are emitted as throwing stubs so the generated type still compiles, but unarranged non-abstract generic methods run the real base implementation.
+- **`ref` / `out` / `in` parameters** are supported for recording, arrangement (`ReturnsWithOuts`/`SetsOuts`), and verification, but **argument matchers** cannot be used on `ref`/`out`/`in` parameters.
 - **Sealed classes** cannot be mocked — the generator requires a type it can subclass.
 - **Non-virtual class members** always run the real implementation regardless of any arrangement.
 - **`Wrap<T>`** only supports non-generic interface types.

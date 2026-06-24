@@ -55,6 +55,7 @@ static class Mock
   static T Build<T>(object a0, object a1, object a2, object a3, object a4)
   static T Build<T>(object a0, object a1, object a2, object a3, object a4, object a5)
   static T Build<T>(object a0, object a1, object a2, object a3, object a4, object a5, object a6)
+  static T Build<T>(object a0, object a1, object a2, object a3, object a4, object a5, object a6, object a7)
   static void ClearReceivedCalls<T>(T mock)
   static IEnumerable<T> Contains<T>(T item)
   static Func<object, bool> DequeueMatcher()

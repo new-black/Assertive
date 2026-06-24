@@ -119,7 +119,7 @@ namespace Assertive.Mocking
       @base.CapturedMatch = null;
       var matches = matchSpec is { } spec
         ? new Func<MockInvocation, bool>(c => c.Method == spec.Method && spec.Match(c.Arguments))
-        : c => c.Method == expected.Method && c.Arguments.SequenceEqual(expected.Arguments);
+        : c => c.Method == expected.Method && @base.ArgumentsMatchEqual(expected.Arguments, c.Arguments);
 
       // A matching call satisfies the verification.
       if (@base.Calls.Any(matches))
@@ -180,7 +180,7 @@ namespace Assertive.Mocking
       @base.CapturedMatch = null;
       var matches = matchSpec is { } spec
         ? new Func<MockInvocation, bool>(c => c.Method == spec.Method && spec.Match(c.Arguments))
-        : c => c.Method == expected.Method && c.Arguments.SequenceEqual(expected.Arguments);
+        : c => c.Method == expected.Method && @base.ArgumentsMatchEqual(expected.Arguments, c.Arguments);
 
       var count = @base.Calls.Count(matches);
 
