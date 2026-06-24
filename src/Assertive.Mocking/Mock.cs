@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Assertive.Runtime;
 using Assertive.Mocking.Runtime;
 
@@ -51,6 +52,30 @@ namespace Assertive.Mocking
       try
       {
         arrange(mock);
+      }
+      finally
+      {
+        @base.EndArrange();
+      }
+
+      return mock;
+    }
+
+    /// <summary>
+    /// Creates a mock of <typeparamref name="T"/> and runs an <b>asynchronous</b> arrange lambda
+    /// against it. Arrangement state flows across <c>await</c> via <see cref="System.Threading.AsyncLocal{T}"/>,
+    /// so the NSubstitute-style <c>mock.Member().Returns(value)</c> form works inside async lambdas.
+    /// </summary>
+    public static async System.Threading.Tasks.Task<T> A<T>(System.Func<T, System.Threading.Tasks.Task> arrangeAsync, MockMode mode = MockMode.Loose) where T : class
+    {
+      var mock = A<T>(mode);
+      var @base = Mock.CoreOf(mock);
+
+      @base.BeginArrange();
+
+      try
+      {
+        await arrangeAsync(mock);
       }
       finally
       {

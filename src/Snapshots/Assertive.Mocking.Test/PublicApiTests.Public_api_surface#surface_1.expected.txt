@@ -35,6 +35,7 @@ static class Mock
   static T A<T>(MockMode mode, object[] constructorArguments)
   static T A<T>(object[] constructorArguments)
   static T A<T>(Action<T> arrange, MockMode mode)
+  static Task<T> A<T>(Func<T, Task> arrangeAsync, MockMode mode)
   static ValueArrange<TResult> Any<TResult>(Func<TResult> method)
   static ValueArrange<T1, TResult> Any<T1, TResult>(Func<T1, TResult> method)
   static ValueArrange<T1, T2, TResult> Any<T1, T2, TResult>(Func<T1, T2, TResult> method)
