@@ -1,11 +1,17 @@
 using System.ComponentModel;
+using System.Threading;
 
 namespace Assertive.Mocking
 {
   public static partial class Mock
   {
-    [ThreadStatic]
-    private static Queue<Func<object, bool>>? _predicates;
+    private static readonly AsyncLocal<Queue<Func<object, bool>>?> _predicates = new();
+
+    internal static void ClearMatchers()
+    {
+      // Discard any matchers that were not consumed by an interceptor.
+      _predicates.Value = null;
+    }
 
     /// <summary>Matches any argument of type <typeparamref name="T"/>.</summary>
     public static T Any<T>() => default!;
@@ -13,7 +19,7 @@ namespace Assertive.Mocking
     /// <summary>Matches an argument of type <typeparamref name="T"/> satisfying <paramref name="predicate"/>.</summary>
     public static T Any<T>(Func<T, bool> predicate)
     {
-      (_predicates ??= new Queue<Func<object, bool>>()).Enqueue(o => predicate((T)o));
+      (_predicates.Value ??= new Queue<Func<object, bool>>()).Enqueue(o => predicate((T)o));
       return default!;
     }
 
@@ -24,7 +30,7 @@ namespace Assertive.Mocking
     /// </summary>
     public static T Any<T>(Capture<T> capture)
     {
-      (_predicates ??= new Queue<Func<object, bool>>()).Enqueue(o => { capture.Record((T)o!); return true; });
+      (_predicates.Value ??= new Queue<Func<object, bool>>()).Enqueue(o => { capture.Record((T)o!); return true; });
       return default!;
     }
 
@@ -56,7 +62,7 @@ namespace Assertive.Mocking
     [EditorBrowsable(EditorBrowsableState.Never)]
     public static Func<object, bool> DequeueMatcher()
     {
-      if (_predicates is not { Count: > 0 } queue)
+      if (_predicates.Value is not { Count: > 0 } queue)
       {
         throw new InvalidOperationException("Assertive.Mocking: no predicate matcher available — Any<T>(predicate) must appear directly inside the intercepted mock call.");
       }

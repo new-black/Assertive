@@ -39,6 +39,31 @@ public class RuntimeGapTests
   }
 
   [Fact]
+  public async Task Standalone_arrange_flows_across_await()
+  {
+    var repo = A<IRepository>();
+
+    // Switch to a continuation; the AsyncLocal arrange/matcher state must flow across it.
+    await Task.Delay(1);
+
+    repo.GetById(Any<int>()).Returns(99);
+    Assert(() => repo.GetById(123) == 99);
+  }
+
+  [Fact]
+  public async Task Arrange_lambda_can_await_inside()
+  {
+    var repo = await A<IRepository>(async m =>
+    {
+      await Task.Delay(1);
+      m.GetById(Any<int>()).Returns(77);
+    });
+
+    Assert(() => repo.GetById(42) == 77);
+    Assert(() => repo.GetById(0) == 77);
+  }
+
+  [Fact]
   public void AutoMock_concurrent_calls_return_same_instance()
   {
     var factory = A<IFactory>();
