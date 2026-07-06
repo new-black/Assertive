@@ -32,7 +32,7 @@ internal partial class AssertImpl
     Expected
   }
 
-  private class AssertionState
+  internal class AssertionState
   {
     public readonly Dictionary<string, int> ExpressionCounter = new();
     public int GetCounter(string expression) => ExpressionCounter.GetValueOrDefault(expression, 0);
@@ -74,7 +74,7 @@ internal partial class AssertImpl
       $"{currentTestInfo.ClassName}.{TestName()}#{Identifier()}.{(type == SnapshotType.Actual ? "actual" : "expected")}.{extension}");
   }
 
-  private static AssertionState UpdateState(CurrentTestInfo currentTestInfo, string expression)
+  internal static AssertionState UpdateState(CurrentTestInfo currentTestInfo, string expression)
   {
     lock (_assertionStates)
     {
@@ -190,7 +190,34 @@ internal partial class AssertImpl
       return null;
     }
 
-    var context = new CheckSnapshotContext { ExpectedFileExists = expectedFileExists, UpdatedExpected = false, Configuration = options.Configuration };
+    if (!expectedFileExists)
+    {
+      var colors = Config.Configuration.Colors;
+      var sb = new StringBuilder();
+
+      sb.AppendLine();
+      sb.AppendLine(colors.Dimmed("No expected snapshot exists yet. Copy the actual value to the expected file to accept."));
+
+      sb.AppendLine();
+      sb.AppendLine(colors.ExpectedHeader());
+      sb.AppendLine(colors.Dimmed("(new snapshot)"));
+
+      sb.AppendLine();
+      sb.AppendLine(colors.ActualHeader());
+      sb.AppendLine(actualJson.Length < 100 ? colors.Expression(actualJson) : actualJson);
+
+      sb.AppendLine();
+      sb.AppendLine(colors.MetadataHeader("SNAPSHOT FILE"));
+      sb.AppendLine(colors.Highlight(expectedFileInfo.FullName));
+
+      sb.AppendLine(colors.Dimmed(new string('·', 80)));
+
+      LaunchDiffToolIfConfigured(options, expectedFileInfo, actualJson, currentTestInfo, expression, assertionState, isStringSnapshot: false);
+
+      return ExceptionHelper.GetException(sb.ToString());
+    }
+
+    var context = new CheckSnapshotContext { ExpectedFileExists = true, UpdatedExpected = false, Configuration = options.Configuration };
 
     CheckRecursive(context, expectedNode, actualNode, "$");
 
@@ -199,18 +226,11 @@ internal partial class AssertImpl
       var colors = Config.Configuration.Colors;
       var sb = new StringBuilder();
 
-      if (!expectedFileExists)
-      {
-        sb.AppendLine();
-        sb.AppendLine(colors.Dimmed("No expected snapshot exists yet. Copy the actual value to the expected file to accept."));
-      }
-
       sb.AppendLine();
       sb.AppendLine(colors.ExpectedHeader());
 
       var expectedJson = expectedNode.ToJsonString(serializerOptions);
-
-      sb.AppendLine(expectedFileExists ? expectedJson.Length < 100 ? colors.Expression(expectedJson) : expectedJson : colors.Dimmed("(new snapshot)"));
+      sb.AppendLine(expectedJson.Length < 100 ? colors.Expression(expectedJson) : expectedJson);
 
       sb.AppendLine();
       sb.AppendLine(colors.ActualHeader());

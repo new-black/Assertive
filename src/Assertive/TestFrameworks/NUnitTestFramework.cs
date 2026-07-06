@@ -39,7 +39,7 @@ namespace Assertive.TestFrameworks
         Name = test.MethodName,
         ClassName = test.ClassName,
         Arguments = test.Arguments,
-        State = test
+        State = currentTest
       };
     }
   }
