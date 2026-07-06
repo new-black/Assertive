@@ -193,6 +193,12 @@ namespace Assertive.Mocking.Generators
 
       var containingType = method.ContainingType;
 
+      // Static calls are not instance arrangements on a class mock.
+      if (method.IsStatic)
+      {
+        return null;
+      }
+
       // Only class receivers; interfaces are always interceptable.
       if (containingType is null || containingType.TypeKind != TypeKind.Class)
       {
