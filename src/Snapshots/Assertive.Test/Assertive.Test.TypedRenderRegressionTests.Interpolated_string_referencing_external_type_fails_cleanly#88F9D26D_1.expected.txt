@@ -1,0 +1,14 @@
+
+$"user<{RegressionConstants.Username}>" == "user<root>"
+
+[EXPECTED]
+$"user<{RegressionConstants.Username}>": "user<root>"
+[ACTUAL]
+$"user<{RegressionConstants.Username}>": "user<admin>"
+String diff (expected vs actual):
+Legend: [E#] expected line, [A#] actual line, plain line number = unchanged
+- [E1] user<[-root-]>
++ [A1] user<[+admin+]>
+
+
+················································································

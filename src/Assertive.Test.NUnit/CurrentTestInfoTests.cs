@@ -78,22 +78,39 @@ public class CurrentTestInfoTests
 [TestFixture]
 public class ParameterizedStateTests
 {
-  // The snapshot counter is keyed by State. When a test framework retries a failing
-  // test (e.g. [RetryOnError]), NUnit reuses the same Test object but creates a fresh
-  // TestExecutionContext for each attempt. If State were the Test object the counter
-  // would persist across retries, causing snapshot #N+1 to be requested on attempt N+1
-  // (which doesn't exist), turning a simple mismatch into a cascade of "no snapshot"
-  // failures. State must therefore be the TestExecutionContext, not the Test object.
+  // State is keyed by (TestExecutionContext, CurrentRepeatCount) so that each retry
+  // attempt gets a fresh snapshot counter while calls within the same attempt share one.
   [Test]
-  public void State_is_the_execution_context_so_retries_get_a_fresh_counter()
+  public void State_is_stable_within_a_single_attempt()
   {
     var testFramework = new NUnitTestFramework();
-    var info = testFramework.GetCurrentTestInfo()!;
+    var state1 = testFramework.GetCurrentTestInfo()!.State;
+    var state2 = testFramework.GetCurrentTestInfo()!.State;
+    Assert(() => ReferenceEquals(state1, state2));
+  }
 
-    var contextType = Type.GetType("NUnit.Framework.Internal.TestExecutionContext, nunit.framework");
-    var currentContext = contextType?.GetProperty("CurrentContext")?.GetValue(null);
+  [Test]
+  public void State_differs_across_simulated_retries()
+  {
+    // Simulate what RetryOnErrorCommand does: increment CurrentRepeatCount between attempts.
+    var contextType = Type.GetType("NUnit.Framework.Internal.TestExecutionContext, nunit.framework")!;
+    var context = contextType.GetProperty("CurrentContext")!.GetValue(null)!;
+    var repeatProp = contextType.GetProperty("CurrentRepeatCount")!;
 
-    Assert(() => currentContext != null);
-    Assert(() => ReferenceEquals(info.State, currentContext));
+    var testFramework = new NUnitTestFramework();
+
+    var stateBefore = testFramework.GetCurrentTestInfo()!.State;
+
+    var before = (int)repeatProp.GetValue(context)!;
+    repeatProp.SetValue(context, before + 1);
+    try
+    {
+      var stateAfter = testFramework.GetCurrentTestInfo()!.State;
+      Assert(() => !ReferenceEquals(stateBefore, stateAfter));
+    }
+    finally
+    {
+      repeatProp.SetValue(context, before);
+    }
   }
 }

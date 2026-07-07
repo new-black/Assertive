@@ -43,6 +43,16 @@ namespace Assertive.Generators
     public string? Compile(ExpressionSyntax operand, IReadOnlyDictionary<string, CallSiteAnalyzer.LambdaBinding>? bindings = null,
       IReadOnlyDictionary<string, string>? designationRenames = null)
     {
+      // Method groups (a method referenced without invocation, e.g. passed as a delegate
+      // like `.All(xs.Contains)`) have no object value: every caller wraps the result in
+      // `(object)(...)`, which fails to compile for an unconverted method group (CS0030).
+      // Operators also bind to IMethodSymbol, so restrict this to ordinary/reduced methods.
+      if (operand is not InvocationExpressionSyntax
+          && _model.GetSymbolInfo(operand, _ct).Symbol is IMethodSymbol { MethodKind: MethodKind.Ordinary or MethodKind.ReducedExtension })
+      {
+        return null;
+      }
+
       var typed = CompileTyped(operand, bindings, designationRenames);
 
       if (typed != null)
@@ -180,6 +190,25 @@ namespace Assertive.Generators
             }
 
             continue;
+
+          // Target-typed `new(...)` carries no type in source: the rewriter materializes
+          // the inferred type, so it must be nameable and its constructor accessible.
+          case ImplicitObjectCreationExpressionSyntax implicitCreation:
+          {
+            if (_model.GetSymbolInfo(implicitCreation, _ct).Symbol is { } implicitCtor
+                && !IsAccessibleMember(implicitCtor))
+            {
+              return false;
+            }
+
+            var implicitType = _model.GetTypeInfo(implicitCreation, _ct).Type;
+            if (implicitType == null || !CallSiteAnalyzer.IsUsableType(implicitType, _compilation))
+            {
+              return false;
+            }
+
+            continue;
+          }
         }
       }
 
@@ -375,6 +404,19 @@ namespace Assertive.Generators
 
       public bool Failed;
 
+      // Fully-qualified format without the `global::` prefix. The C# parser rejects
+      // `global::` inside interpolated-string interpolation holes (CS0103: the name
+      // 'global' does not exist in the current context), so names emitted there must
+      // use the unqualified fully-qualified form instead.
+      private static readonly SymbolDisplayFormat FullyQualifiedNoGlobalFormat =
+        SymbolDisplayFormat.FullyQualifiedFormat
+          .WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted);
+
+      private static SymbolDisplayFormat QualifiedFormatFor(SyntaxNode? context)
+        => context != null && context.Ancestors().Any(a => a is InterpolationSyntax)
+          ? FullyQualifiedNoGlobalFormat
+          : SymbolDisplayFormat.FullyQualifiedFormat;
+
       public TypedRenderRewriter(SemanticModel model, SyntaxNode fragment, IReadOnlyDictionary<string, CallSiteAnalyzer.LambdaBinding>? bindings,
         CancellationToken ct, IReadOnlyDictionary<string, string>? designationRenames = null)
       {
@@ -387,6 +429,46 @@ namespace Assertive.Generators
 
       public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
         => RewriteName(node, base.VisitIdentifierName(node));
+
+      // Target-typed conditional: `cond ? value : null` resolves to `T?` only when the
+      // surrounding context supplies the target type. Pasted into a fresh `var` or
+      // `(object)(...)` cast it loses that context (CS0173: no conversion between
+      // 'T' and '<null>'). Re-apply the nullable type explicitly on the value branch.
+      public override SyntaxNode? VisitConditionalExpression(ConditionalExpressionSyntax node)
+      {
+        var visited = (ConditionalExpressionSyntax?)base.VisitConditionalExpression(node);
+        if (visited == null)
+        {
+          return null;
+        }
+
+        var trueIsNull = visited.WhenTrue.IsKind(SyntaxKind.NullLiteralExpression);
+        var falseIsNull = visited.WhenFalse.IsKind(SyntaxKind.NullLiteralExpression);
+
+        if (!trueIsNull && !falseIsNull)
+        {
+          return visited;
+        }
+
+        // `cond ? refType : null` resolves to the reference type naturally; only
+        // `cond ? nonNullableValueType : null` lacks a natural type without a target.
+        var originalValueBranch = trueIsNull ? node.WhenFalse : node.WhenTrue;
+        var valueType = _model.GetTypeInfo(originalValueBranch, _ct).Type;
+
+        if (valueType is not { IsValueType: true }
+            || valueType is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T })
+        {
+          return visited;
+        }
+
+        var typeFqn = SyntaxFactory.ParseTypeName(valueType.ToDisplayString(QualifiedFormatFor(node)) + "?");
+        var newValueBranch = SyntaxFactory.CastExpression(typeFqn, trueIsNull ? visited.WhenFalse : visited.WhenTrue);
+        var newTrue = trueIsNull ? visited.WhenTrue : newValueBranch;
+        var newFalse = trueIsNull ? newValueBranch : visited.WhenFalse;
+
+        return visited.Update(visited.Condition, visited.QuestionToken, newTrue, visited.ColonToken, newFalse)
+          .WithTriviaFrom(node);
+      }
 
       public override SyntaxNode? VisitGenericName(GenericNameSyntax node)
         => RewriteName(node, base.VisitGenericName(node));
@@ -445,7 +527,7 @@ namespace Assertive.Generators
 
         if (symbol is INamespaceOrTypeSymbol namespaceOrType)
         {
-          return SyntaxFactory.ParseName(namespaceOrType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
+          return SyntaxFactory.ParseName(namespaceOrType.ToDisplayString(QualifiedFormatFor(original)))
             .WithTriviaFrom(original);
         }
 
@@ -474,6 +556,32 @@ namespace Assertive.Generators
         return visited;
       }
 
+      // Target-typed `new(...)` has no type token in source; pasted into a foreign
+      // context (e.g. `(object)(new(...))`) it would bind to the conversion target.
+      // Materialize the inferred type so the call resolves regardless of context.
+      public override SyntaxNode? VisitImplicitObjectCreationExpression(ImplicitObjectCreationExpressionSyntax node)
+      {
+        var visited = (ImplicitObjectCreationExpressionSyntax?)base.VisitImplicitObjectCreationExpression(node);
+        if (visited == null)
+        {
+          return null;
+        }
+
+        var type = _model.GetTypeInfo(node, _ct).Type;
+        if (type == null || !CallSiteAnalyzer.IsUsableType(type, _model.Compilation))
+        {
+          Failed = true;
+          return visited;
+        }
+
+        var typeFqn = SyntaxFactory.ParseTypeName(type.ToDisplayString(QualifiedFormatFor(node)));
+        var creation = SyntaxFactory.ObjectCreationExpression(typeFqn, visited.ArgumentList, visited.Initializer);
+        // Factory attaches a trivia-less `new` token; without a trailing space the type
+        // name glues onto it (`newglobal::...`). Restore the conventional spacing.
+        creation = creation.WithNewKeyword(SyntaxFactory.Token(SyntaxKind.NewKeyword).WithTrailingTrivia(SyntaxFactory.Space));
+        return creation.WithTriviaFrom(node);
+      }
+
       public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node)
       {
         var symbol = _model.GetSymbolInfo(node, _ct).Symbol as IMethodSymbol;
@@ -491,7 +599,7 @@ namespace Assertive.Generators
           return visited;
         }
 
-        var staticClass = symbol.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var staticClass = symbol.ContainingType.ToDisplayString(QualifiedFormatFor(node));
         var typeArguments = access.Name is GenericNameSyntax generic ? generic.TypeArgumentList.ToString() : "";
         var arguments = new List<string> { access.Expression.ToString() };
         arguments.AddRange(visited.ArgumentList.Arguments.Select(a => a.ToString()));

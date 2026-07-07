@@ -164,6 +164,14 @@ namespace Assertive.Generators
 
       private void VisitInvocation(InvocationExpressionSyntax invocation, IReadOnlyDictionary<string, LambdaBinding>? bindings, int depth, List<string> steps)
       {
+        // `nameof(...)` arguments are compile-time constants that reference types/members
+        // by name — they are not runtime expressions and cannot throw. Walking into them
+        // would try to evaluate a type name (e.g. `OrderDto.BillingAddress`) as a value.
+        if (invocation.Expression is IdentifierNameSyntax { Identifier: { ValueText: "nameof" } })
+        {
+          return;
+        }
+
         var method = _model.GetSymbolInfo(invocation, _ct).Symbol as IMethodSymbol;
         var access = invocation.Expression is MemberAccessExpressionSyntax ma && ma.IsKind(SyntaxKind.SimpleMemberAccessExpression)
           ? ma
@@ -347,7 +355,7 @@ namespace Assertive.Generators
                   $"MemberName = {Quote(method.Name)}, " +
                   $"MethodDisplay = {Quote($"{access.Name}{Display(invocation.ArgumentList)}")}, " +
                   $"StaticTypeName = {Quote(method.ContainingType.ToDisplayString(ShortTypeFormat))}, " +
-                  (isExtension ? $"ReceiverSource = {Quote(Display(access.Expression))}, Receiver = {receiverEval}, " : "") +
+                   (isExtension ? $"ReceiverSource = {Quote(Display(access.Expression))}, Receiver = {receiverEval ?? "null"}, " : "") +
                   $"Node = {nodeEval ?? "null"}, " +
                   $"{CommonCallInitializers(invocation, method, bindings)} }}");
       }

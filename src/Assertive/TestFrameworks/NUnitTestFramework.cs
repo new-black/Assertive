@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using Assertive.Helpers;
 
 namespace Assertive.TestFrameworks
@@ -7,6 +9,10 @@ namespace Assertive.TestFrameworks
   {
     private Type? _exceptionType = null;
     private Type? _testContextType = null;
+
+    // Maps (TestExecutionContext, repeatCount) → a stable reference-type key for AssertionState.
+    // ConditionalWeakTable keeps weak refs to the context, so entries are collected automatically.
+    private static readonly ConditionalWeakTable<object, ConcurrentDictionary<int, object>> _repeatKeyCache = new();
     
     public Type? ExceptionType
     {
@@ -32,6 +38,9 @@ namespace Assertive.TestFrameworks
       }
       
       var test = currentTest.CurrentTest;
+      var repeatCount = (int)currentTest.CurrentRepeatCount;
+      var repeatKeys = _repeatKeyCache.GetValue((object)currentTest, static _ => new ConcurrentDictionary<int, object>());
+      var stateKey = repeatKeys.GetOrAdd(repeatCount, static _ => new object());
 
       return new CurrentTestInfo()
       {
@@ -39,7 +48,7 @@ namespace Assertive.TestFrameworks
         Name = test.MethodName,
         ClassName = test.ClassName,
         Arguments = test.Arguments,
-        State = currentTest
+        State = stateKey
       };
     }
   }
