@@ -291,7 +291,8 @@ internal partial class AssertImpl
   private static bool TryAcceptSnapshot(FileInfo expectedFileInfo, AssertSnapshotOptions options, string content)
   {
     // TreatAllSnapshotsAsCorrect: accept any snapshot (new or existing), overwriting expected files
-    if (options.Configuration.TreatAllSnapshotsAsCorrect)
+    // ASSERTIVE_ACCEPT_SNAPSHOT_CHANGES env var enables the same behavior without a code change, useful for AI agents.
+    if (options.Configuration.TreatAllSnapshotsAsCorrect || IsAcceptSnapshotChangesEnabled())
     {
       EnsureExpectedDirectory(expectedFileInfo);
       File.WriteAllText(expectedFileInfo.FullName, content);
@@ -307,6 +308,19 @@ internal partial class AssertImpl
     }
 
     return false;
+  }
+
+  private static bool IsAcceptSnapshotChangesEnabled()
+  {
+    var value = Environment.GetEnvironmentVariable("ASSERTIVE_ACCEPT_SNAPSHOT_CHANGES");
+
+    if (string.IsNullOrEmpty(value))
+    {
+      return false;
+    }
+
+    return !value.Equals("false", StringComparison.OrdinalIgnoreCase)
+           && !value.Equals("0", StringComparison.OrdinalIgnoreCase);
   }
 
   private static bool ShouldLaunchDiffTool()

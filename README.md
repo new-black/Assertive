@@ -458,6 +458,8 @@ Configuration.Snapshots.TreatAllSnapshotsAsCorrect = true;
 This will overwrite ALL expected files with actual values - both new and existing. Remember to set it back to `false` after regenerating. Then, simply check the diff in whatever source-control tool you use
 to check that the new expected files match your assumptions.
 
+For AI agents (Claude Code, Codex, etc.), setting `TreatAllSnapshotsAsCorrect` requires editing the test code. Instead, set the environment variable `ASSERTIVE_ACCEPT_SNAPSHOT_CHANGES` to any truthy value (e.g. `ASSERTIVE_ACCEPT_SNAPSHOT_CHANGES=1`) before running the test suite. It enables the same behavior - updating snapshots on every run - without touching any source files, so the agent can then inspect the resulting diff. Set it to `false` or `0` (or unset it) to disable.
+
 **Auto-accepting new snapshots only:**
 
 When writing new tests (especially useful for AI agents and automated workflows), you can auto-accept new snapshots while still failing on changes to existing ones:
