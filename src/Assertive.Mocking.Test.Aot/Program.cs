@@ -1,14 +1,20 @@
+using System;
+using System.Threading.Tasks;
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+
 namespace Assertive.Mocking.Test.Aot
 {
-  using System;
-  using Assertive.Mocking;
-  using static Assertive.Mocking.Mock;
-
   /// <summary>
   /// Native AOT smoke test: a plain console app (test frameworks don't run under AOT)
-  /// published with PublishAot=true. Each check exercises a reflective path of
-  /// Assertive.Mocking (interface mock creation, arrangement, verification, class mock,
-  /// auto-mock) to prove the library is trimming- and AOT-safe.
+  /// published with PublishAot=true. Each check exercises a trimming-sensitive path of
+  /// Assertive.Mocking — interface/class mock creation, arrangement, verification, auto-mocks,
+  /// Wrap spies, Build factories, async returns, matchers/method groups and Capture — to prove
+  /// the library is trimming- and AOT-safe.
+  ///
+  /// Usings are intentionally at file scope: the generated MockArrange.Any overloads are imported
+  /// via a global using, and a namespace-scoped <c>using static</c> suppresses them during method
+  /// group overload resolution (Any(mock.Method)).
   ///
   /// Exit code is the number of failed checks (0 = all passed).
   /// </summary>
@@ -28,6 +34,11 @@ namespace Assertive.Mocking.Test.Aot
       Check(nameof(ClassMock_virtual_method_arranged), ClassMock_virtual_method_arranged);
       Check(nameof(ClassMock_unarranged_virtual_calls_base), ClassMock_unarranged_virtual_calls_base);
       Check(nameof(AutoMock_interface_return_is_not_null), AutoMock_interface_return_is_not_null);
+      Check(nameof(Wrap_spy_delegates_then_overrides), Wrap_spy_delegates_then_overrides);
+      Check(nameof(Build_constructs_with_auto_mocked_dependency), Build_constructs_with_auto_mocked_dependency);
+      Check(nameof(Async_Task_and_ValueTask_returns), Async_Task_and_ValueTask_returns);
+      Check(nameof(Matchers_and_method_group_arrange), Matchers_and_method_group_arrange);
+      Check(nameof(Times_and_capture_verification), Times_and_capture_verification);
 
       Console.WriteLine();
       Console.WriteLine(_failed == 0 ? "All checks passed." : $"{_failed} check(s) FAILED.");
@@ -128,6 +139,96 @@ namespace Assertive.Mocking.Test.Aot
       Expect(dep != null, "unarranged interface-returning method should return an auto-mock, not null");
     }
 
+    // ── Check 8: Wrap<T> passes through then honours arrangements ───────────
+
+    private static void Wrap_spy_delegates_then_overrides()
+    {
+      var spy = Wrap<ITransformer>(new UpperTransformer());
+
+      var passthrough = spy.Transform("abc");
+      Expect(passthrough == "ABC", $"expected 'ABC' but got '{passthrough}'");
+
+      Setup(spy, s => s.Transform("abc").Returns("OVERRIDDEN"));
+
+      var overridden = spy.Transform("abc");
+      var stillPassthrough = spy.Transform("zzz");
+
+      Expect(overridden == "OVERRIDDEN", $"expected 'OVERRIDDEN' but got '{overridden}'");
+      Expect(stillPassthrough == "ZZZ", $"expected 'ZZZ' but got '{stillPassthrough}'");
+      Received(() => spy.Transform("zzz"));
+    }
+
+    // ── Check 9: Build<T> constructs with auto-mocked dependencies ──────────
+
+    private static void Build_constructs_with_auto_mocked_dependency()
+    {
+      var svc = Build<ConsumerService>();
+
+      var dependency = svc.Dependency;
+      if (dependency is null)
+      {
+        throw new Exception("Build should auto-mock the constructor dependency");
+      }
+
+      Expect(dependency.Tag() == null, "auto-mocked dependency should return its default");
+    }
+
+    // ── Check 10: Task<T>/ValueTask<T> bare-value Returns ───────────────────
+
+    private static void Async_Task_and_ValueTask_returns()
+    {
+      var svc = A<IAsyncService>(s =>
+      {
+        s.GetNameAsync().Returns("bob");
+        s.GetCountAsync().Returns(7);
+      });
+
+      var name = svc.GetNameAsync().GetAwaiter().GetResult();
+      var count = svc.GetCountAsync().GetAwaiter().GetResult();
+
+      Expect(name == "bob", $"expected 'bob' but got '{name}'");
+      Expect(count == 7, $"expected 7 but got {count}");
+    }
+
+    // ── Check 11: matchers + method-group arrangement (delegate reflection) ─
+
+    private static void Matchers_and_method_group_arrange()
+    {
+      var repo = A<IRepo>();
+
+      Any(repo.GetById).Returns(5);
+
+      var broad = repo.GetById(3);
+      Expect(broad == 5, $"expected 5 but got {broad}");
+
+      var greeter = A<IGreeter>();
+      greeter.Greet(Any<string>(name => name.StartsWith("A"))).Returns("hi A");
+
+      var matched = greeter.Greet("Alice");
+      var unmatched = greeter.Greet("Bob");
+
+      Expect(matched == "hi A", $"expected 'hi A' but got '{matched}'");
+      Expect(unmatched == null, $"expected null but got '{unmatched}'");
+    }
+
+    // ── Check 12: Times + Capture ───────────────────────────────────────────
+
+    private static void Times_and_capture_verification()
+    {
+      var svc = A<IService>();
+      svc.GetValue();
+      svc.GetValue();
+
+      Received(() => svc.GetValue(), Times.Exactly(2));
+
+      var captured = new Capture<int>();
+      var repo = A<IRepo>();
+      repo.GetById(Any<int>(captured)).Returns(1);
+      repo.GetById(42);
+
+      Expect(captured.Latest == 42, $"expected captured 42 but got {captured.Latest}");
+    }
+
     // ── Harness ─────────────────────────────────────────────────────────────
 
     private static void Check(string name, Action check)
@@ -165,6 +266,39 @@ namespace Assertive.Mocking.Test.Aot
   {
     int GetValue();
     IDependency GetDependency();
+  }
+
+  public interface IRepo
+  {
+    int GetById(int id);
+  }
+
+  public interface IGreeter
+  {
+    string Greet(string name);
+  }
+
+  public interface ITransformer
+  {
+    string Transform(string input);
+  }
+
+  public sealed class UpperTransformer : ITransformer
+  {
+    public string Transform(string input) => input.ToUpperInvariant();
+  }
+
+  public interface IAsyncService
+  {
+    Task<string> GetNameAsync();
+    ValueTask<int> GetCountAsync();
+  }
+
+  public class ConsumerService
+  {
+    public IDependency Dependency { get; }
+
+    public ConsumerService(IDependency dependency) => Dependency = dependency;
   }
 
   public class ConcreteService

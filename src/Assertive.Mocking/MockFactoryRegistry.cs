@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.ComponentModel;
 
 namespace Assertive.Mocking.Runtime
@@ -10,7 +11,7 @@ namespace Assertive.Mocking.Runtime
   [EditorBrowsable(EditorBrowsableState.Never)]
   public static class MockFactoryRegistry
   {
-    private static readonly Dictionary<Type, Func<object?[], object>> Factories = new();
+    private static readonly ConcurrentDictionary<Type, Func<object?[], object>> Factories = new();
 
     public static void Register(Type type, Func<object?[], object> factory) => Factories[type] = factory;
 

@@ -390,6 +390,8 @@ var bus = A<IEventBus>();
 Any(bus.Publish).Does((IEvent e) => log.Add(e));
 ```
 
+The method-group form resolves through `Any` overloads the generator imports with a `global using static`. Keep `using static Assertive.Mocking.Mock;` at file scope (outside any `namespace` block) — a namespace-scoped static using can prevent the generated overloads from being selected, in which case `Any(mock.Method)` fails to compile.
+
 ## Sequential returns and conditional setups
 
 `ReturnsSequentially` returns values in order; the last value is repeated once the sequence is exhausted:
