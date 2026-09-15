@@ -164,6 +164,78 @@ public class RuntimeGapTests
     Assert(() => ex is NotSupportedException);
   }
 
+  [Fact]
+  public void Matcher_setup_compares_exact_args_structurally()
+  {
+    var svc = A<IMixedMatcherService>();
+
+    svc.Mix(Any<int>(n => n > 0), new[] { 1, 2, 3 }).Returns(7);
+
+    Assert(() => svc.Mix(5, new[] { 1, 2, 3 }) == 7);
+  }
+
+  [Fact]
+  public void Received_lambda_with_multiple_mock_calls_throws()
+  {
+    var repo = A<IRepository>();
+    repo.GetById(1);
+    repo.GetById(2);
+
+    var ex = Record.Exception(() => Received(() => { repo.GetById(1); repo.GetById(2); }));
+
+    Assert(() => ex is InvalidOperationException);
+  }
+
+  [Fact]
+  public void Build_passes_null_to_nullable_parameter()
+  {
+    var svc = Build<OptionalDependencyService>(null);
+
+    Assert(() => svc.Repository == null);
+  }
+
+  [Fact]
+  public void Reset_clears_auto_mock_cache()
+  {
+    var factory = A<IFactory>();
+
+    var first = factory.GetService("svc");
+    Reset(factory);
+    var second = factory.GetService("svc");
+
+    Assert(() => !ReferenceEquals(first, second));
+  }
+
+  [Fact]
+  public void Nested_arrange_scopes_do_not_clobber_the_outer_scope()
+  {
+    var innerRan = false;
+
+    var repo = A<IRepository>(r =>
+    {
+      // Nested arrange scope on a different mock must not tear down the outer scope.
+      _ = A<IProcessor>(p => p.Sum(Any<int[]>()).Returns(5));
+      innerRan = true;
+      r.GetById(Any<int>()).Returns(42);
+    });
+
+    Assert(() => innerRan);
+    Assert(() => repo.GetById(7) == 42);
+  }
+
+  [Fact]
+  public void Nested_arrange_scopes_on_the_same_mock_work()
+  {
+    var repo = A<IRepository>(r =>
+    {
+      r.GetById(Any<int>()).Returns(42);
+      Setup(r, x => x.GetById(1).Returns(11));
+    });
+
+    Assert(() => repo.GetById(1) == 11);
+    Assert(() => repo.GetById(9) == 42);
+  }
+
   // ── test types ─────────────────────────────────────────────────────────────
 
   public class Calculator
@@ -183,6 +255,18 @@ public class RuntimeGapTests
 
   public interface IService { }
   public interface IFactory { IService GetService(string name); }
+
+  public interface IMixedMatcherService
+  {
+    int Mix(int n, int[] values);
+  }
+
+  public class OptionalDependencyService
+  {
+    public IRepository? Repository { get; }
+
+    public OptionalDependencyService(IRepository? repository) => Repository = repository;
+  }
 
   public class Service
   {

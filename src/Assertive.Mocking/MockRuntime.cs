@@ -165,9 +165,9 @@ namespace Assertive.Mocking
       var core = AsBase(mock);
 
       // Capture the event name by executing attach in capturing mode.
-      core.Capturing = true;
+      var previousCapturing = core.BeginSingleCapture();
       try { attach(mock); }
-      finally { core.Capturing = false; }
+      finally { MockBase.EndSingleCapture(previousCapturing); }
 
       var eventName = core.Captured?.Method
         ?? throw new InvalidOperationException("Assertive.Mocking: Mock.Raise could not capture the event name.");

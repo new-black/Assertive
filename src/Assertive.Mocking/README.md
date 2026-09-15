@@ -115,7 +115,7 @@ The examples below assume the following imports: `using Assertive.Mocking;` for 
 
 ## Arranging behavior
 
-Arranging is the act of telling a mock what to return, throw or do for a given call.
+`Arranging` is the act of telling a mock what to return, throw or do for a given call. Arrange scopes nest: creating and arranging another mock inside an arrange lambda does not disturb the outer scope.
 
 ### Arrange inside the creation callback
 
@@ -266,7 +266,7 @@ Mock.Received(() => repo.GetById(123));
 Mock.DidNotReceive(() => repo.Delete(123));
 ```
 
-Arguments are matched structurally. A collection passed to `Received` will match a call with a logically equal collection, not just the same instance.
+Arguments are matched structurally. A collection passed to `Received` will match a call with a logically equal collection, not just the same instance. The lambda must invoke a single mock member; calling more than one throws with a clear message.
 
 ### Call counts
 
@@ -443,7 +443,7 @@ Assert(() => ReferenceEquals(repo, sameRepo));
 
 ### Building the system under test
 
-`Build<T>` constructs a class using its richest accessible constructor. Provided arguments are matched to constructor parameters by type, not by position; unmatched parameters are auto-mocked. Up to 8 arguments can be provided. Matching is by exact type — implicit conversions are not applied and `null` is treated as "not provided" — so pass values of the exact parameter type.
+`Build<T>` constructs a class using its richest accessible constructor. Provided arguments are matched to constructor parameters by type, not by position; unmatched parameters are auto-mocked. Up to 8 arguments can be provided. Matching is by exact type — implicit conversions are not applied — but `null` and `default` are passed through to the first matching reference-type or nullable parameter.
 
 ```csharp
 // All dependencies auto-mocked
@@ -490,7 +490,7 @@ Assert(() => spy.Transform("hello") == "OVERRIDDEN");
 // Clear recorded calls but keep setups
 Mock.ClearReceivedCalls(repo);
 
-// Clear both calls and setups
+// Clear both calls and setups (also drops cached auto-mocks)
 Mock.Reset(repo);
 ```
 

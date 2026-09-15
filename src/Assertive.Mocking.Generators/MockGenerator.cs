@@ -1444,6 +1444,18 @@ namespace Assertive.Mocking.Generators
       // Resolve the declared type of each provided argument at the call site
       var args = invocation.ArgumentList.Arguments;
       var argTypes = args.Select(a => ctx.SemanticModel.GetTypeInfo(a.Expression, ct).Type).ToArray();
+      // `null`/`default` literals have no type of their own; treat them as bindable to any
+      // reference type or Nullable<T> so they're passed through instead of auto-mocked.
+      var argIsNull = args.Select(a =>
+        a.Expression.IsKind(SyntaxKind.NullLiteralExpression)
+        || a.Expression.IsKind(SyntaxKind.DefaultLiteralExpression)).ToArray();
+
+      bool CanBind(int argIndex, ITypeSymbol parameterType)
+      {
+        return argIsNull[argIndex]
+          ? parameterType.IsReferenceType || IsNullableValueType(parameterType)
+          : argTypes[argIndex] is { } argType && IsAssignableTo(argType, parameterType);
+      }
 
       // Pick the best accessible constructor: prefer the one that uses the most provided arguments,
       // then the longest constructor among ties. A constructor is only viable when every unmatched
@@ -1467,8 +1479,8 @@ namespace Assertive.Mocking.Generators
           var matchedIndex = -1;
           for (var i = 0; i < argTypes.Length; i++)
           {
-            if (used.Contains(i) || argTypes[i] is null) continue;
-            if (IsAssignableTo(argTypes[i]!, param.Type))
+            if (used.Contains(i)) continue;
+            if (CanBind(i, param.Type))
             {
               matchedIndex = i;
               used.Add(i);
@@ -1513,8 +1525,8 @@ namespace Assertive.Mocking.Generators
         int matchedArgIndex = -1;
         for (int i = 0; i < argTypes.Length; i++)
         {
-          if (usedArgIndices.Contains(i) || argTypes[i] is null) continue;
-          if (IsAssignableTo(argTypes[i]!, param.Type))
+          if (usedArgIndices.Contains(i)) continue;
+          if (CanBind(i, param.Type))
           {
             matchedArgIndex = i;
             usedArgIndices.Add(i);
@@ -1556,6 +1568,9 @@ namespace Assertive.Mocking.Generators
         location.GetDisplayLocation(),
         args.Count);
     }
+
+    private static bool IsNullableValueType(ITypeSymbol type) =>
+      type is INamedTypeSymbol named && named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
 
     private static bool IsAssignableTo(ITypeSymbol from, ITypeSymbol to)
     {
@@ -1781,7 +1796,8 @@ namespace Assertive.Mocking.Generators
         {
           ArgKind.Any => "static (object __x) => true",
           ArgKind.Predicate => "global::Assertive.Mocking.Mock.DequeueMatcher()",
-          _ => $"(object __x) => global::System.Object.Equals(__x, (object)__a{i})",
+          // Exact args must compare structurally (like OnCall/Received do), not by reference.
+          _ => $"(object __x) => __m.ArgumentsMatchEqual(new object[] {{ __x }}, new object[] {{ __a{i} }})",
         });
 
         var displayArgs = string.Join(", ", Enumerable.Range(0, call.ParameterTypes.Length).Select(i => $"(object)__a{i}"));

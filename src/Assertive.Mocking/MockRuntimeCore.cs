@@ -102,12 +102,23 @@ namespace Assertive.Mocking.Runtime
     // runs a side effect — so void (Throws/Does) and value (Returns/Throws/Does) share one path.
     private readonly List<(string Method, Func<object?[], bool> Match, Func<object?[], object?> Behavior)> _setups = new();
 
-    /// <summary>When true, member calls record the invocation as <see cref="Captured"/> instead of running.</summary>
-    internal bool Capturing;
+    /// <summary>
+    /// True while this mock is being arranged (any arrange scope for it is active) or captured via
+    /// <see cref="CaptureSequence"/>/<c>Mock.Raise</c>. When true, member calls record the invocation
+    /// as <see cref="Captured"/> instead of running.
+    /// </summary>
+    internal bool Capturing =>
+      ReferenceEquals(_capturingMock.Value, this)
+      || (_arrangeScopes.Value is { Count: > 0 } scopes && scopes.Contains(this));
+
     internal MockInvocation? Captured;
 
     /// <summary>When true, a call that matches no arrangement throws instead of returning a default/auto-mock.</summary>
     internal bool Strict;
+
+    /// <summary>The mock whose arrange lambda is currently executing (innermost scope), if any.</summary>
+    private static MockBase? CurrentArrangeMock =>
+      _arrangeScopes.Value is { Count: > 0 } scopes ? scopes[scopes.Count - 1] : null;
 
     /// <summary>
     /// Set by a generated matcher interceptor instead of <see cref="Captured"/>'s exact args: the
@@ -186,8 +197,13 @@ namespace Assertive.Mocking.Runtime
       // record the global capture result here as well.
       if (_globalCapturing.Value)
       {
+        if (_globalCapturingResult.Value is not null)
+        {
+          throw new InvalidOperationException(
+            "Assertive.Mocking: Received() / DidNotReceive() lambdas must invoke a single mock method.");
+        }
+
         _globalCapturingResult.Value = this;
-        _globalCapturing.Value = false;
       }
 
       // Support the standalone arrange form: var mock = A<T>(); mock.Method(default).Returns(v);
@@ -197,10 +213,14 @@ namespace Assertive.Mocking.Runtime
     }
 
     /// <summary>
-    /// The mock whose arrange lambda is currently executing in this async context, so that a trailing
-    /// <c>.Returns(value)</c> knows which mock + captured call to attach to (the NSubstitute trick).
+    /// Nested arrange scopes in the current async context, innermost last. A stack (rather than a
+    /// single value) so an <c>A&lt;T&gt;(...)</c> inside another arrange lambda doesn't clobber the
+    /// outer scope.
     /// </summary>
-    private static readonly AsyncLocal<MockBase?> _arrangingMock = new();
+    private static readonly AsyncLocal<List<MockBase>?> _arrangeScopes = new();
+
+    /// <summary>Single-mock capture mode used by <see cref="CaptureSequence"/> and <c>Mock.Raise</c>.</summary>
+    private static readonly AsyncLocal<MockBase?> _capturingMock = new();
 
     /// <summary>
     /// Tracks the last mock that had a method called on it (via interceptor or OnCall), enabling
@@ -212,30 +232,53 @@ namespace Assertive.Mocking.Runtime
     internal void BeginArrange()
     {
       Mock.ClearMatchers();
-      Capturing = true;
       Captured = null;
-      _arrangingMock.Value = this;
+
+      var scopes = _arrangeScopes.Value;
+      var next = scopes is null ? new List<MockBase>() : new List<MockBase>(scopes);
+      next.Add(this);
+      _arrangeScopes.Value = next;
     }
 
     internal void EndArrange()
     {
-      Capturing = false;
-      _arrangingMock.Value = null;
+      var scopes = _arrangeScopes.Value;
+      if (scopes is { Count: > 0 })
+      {
+        var next = new List<MockBase>(scopes);
+        if (ReferenceEquals(next[next.Count - 1], this))
+          next.RemoveAt(next.Count - 1);
+        else
+          next.Remove(this);
+        _arrangeScopes.Value = next.Count == 0 ? null : next;
+      }
+
       Mock.ClearMatchers();
     }
 
+    /// <summary>Enters single-mock capture mode, returning the previous value to restore on exit.</summary>
+    internal MockBase? BeginSingleCapture()
+    {
+      var previous = _capturingMock.Value;
+      _capturingMock.Value = this;
+      return previous;
+    }
+
+    /// <summary>Restores the capture mode saved by <see cref="BeginSingleCapture"/>.</summary>
+    internal static void EndSingleCapture(MockBase? previous) => _capturingMock.Value = previous;
+
     /// <summary>
     /// Resolves the mock and arg-match function for the most recent arrange call, consuming any
-    /// pending standalone target. Prefers the explicit lambda scope (<see cref="_arrangingMock"/>)
-    /// over the standalone async-local (<see cref="_standaloneArrangeMock"/>).
+    /// pending standalone target. Prefers the explicit lambda scope over the standalone async-local.
     /// </summary>
     private static (MockBase Mock, string Method, Func<object?[], bool> Match) ResolveArrangeTarget()
     {
-      var mock = _arrangingMock.Value ?? _standaloneArrangeMock.Value
+      var scopeMock = CurrentArrangeMock;
+      var mock = scopeMock ?? _standaloneArrangeMock.Value
         ?? throw new InvalidOperationException(
           "Assertive.Mocking: an arrange verb (Returns/Throws/Does) was called with no preceding mock call on this thread.");
 
-      var isStandalone = _arrangingMock.Value == null;
+      var isStandalone = scopeMock is null;
       if (isStandalone)
         _standaloneArrangeMock.Value = null; // consume
 
@@ -281,14 +324,15 @@ namespace Assertive.Mocking.Runtime
       mock.AddSetup(method, argMatch, behavior);
     }
 
-    /// <summary>The mock arranging on this thread, its captured call, and its argument matcher — used by <c>When(...)</c>.</summary>
+    /// <summary>The mock arranging in this async context, its captured call, and its argument matcher — used by <c>When(...)</c>.</summary>
     internal static (MockBase Mock, MockInvocation Call, Func<object?[], bool> Match) CurrentCapture()
     {
-      var mock = _arrangingMock.Value ?? _standaloneArrangeMock.Value
+      var scopeMock = CurrentArrangeMock;
+      var mock = scopeMock ?? _standaloneArrangeMock.Value
         ?? throw new InvalidOperationException(
           "Assertive.Mocking: When(...) was called with no preceding mock call or active A<T>(...) arrange lambda.");
 
-      var isStandalone = _arrangingMock.Value == null;
+      var isStandalone = scopeMock is null;
       if (isStandalone)
         _standaloneArrangeMock.Value = null; // consume
 
@@ -331,8 +375,17 @@ namespace Assertive.Mocking.Runtime
       return true;
     }
 
-    /// <summary>The calls this mock actually received, in order.</summary>
-    public IReadOnlyList<MockInvocation> Calls => _calls;
+    /// <summary>The calls this mock actually received, in order (a snapshot safe to enumerate while calls are recorded).</summary>
+    public IReadOnlyList<MockInvocation> Calls
+    {
+      get
+      {
+        lock (_lock)
+        {
+          return _calls.ToArray();
+        }
+      }
+    }
 
     /// <summary>
     /// Adds a behavior matching a specific method + arguments (value equality). Used by arrange
@@ -377,10 +430,15 @@ namespace Assertive.Mocking.Runtime
 
       if (_globalCapturing.Value)
       {
+        if (_globalCapturingResult.Value is not null)
+        {
+          throw new InvalidOperationException(
+            "Assertive.Mocking: Received() / DidNotReceive() lambdas must invoke a single mock method.");
+        }
+
         Captured = new MockInvocation(method, arguments);
         CapturedMatch = null;
         _globalCapturingResult.Value = this;
-        _globalCapturing.Value = false;
         configuredReturn = null;
         matched = false;
         return true;
@@ -567,7 +625,11 @@ namespace Assertive.Mocking.Runtime
       {
         _calls.Clear();
         _setups.Clear();
+        _autoMocks.Clear();
       }
+
+      Captured = null;
+      CapturedMatch = null;
     }
 
     /// <summary>
@@ -579,10 +641,10 @@ namespace Assertive.Mocking.Runtime
     {
       var captured = new List<MockInvocation>();
       Mock.ClearMatchers();
-      Capturing = true;
+      var previousCapturing = BeginSingleCapture();
       _sequenceCapture.Value = captured;
       try { execute(); }
-      finally { Capturing = false; _sequenceCapture.Value = null; Mock.ClearMatchers(); }
+      finally { EndSingleCapture(previousCapturing); _sequenceCapture.Value = null; Mock.ClearMatchers(); }
       return captured;
     }
 
