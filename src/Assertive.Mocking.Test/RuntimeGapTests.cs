@@ -68,6 +68,41 @@ public class RuntimeGapTests
   }
 
   [Fact]
+  public void Standalone_When_applies_arrangement()
+  {
+    var greeter = A<IGreeter>();
+
+    When(() => greeter.Log("boom")).Throws(new InvalidOperationException("offline"));
+
+    var ex = Record.Exception(() => greeter.Log("boom"));
+
+    Assert(() => ex is InvalidOperationException);
+  }
+
+  [Fact]
+  public void Standalone_When_does_not_record_the_probe_call()
+  {
+    var greeter = A<IGreeter>();
+
+    When(() => greeter.Log("audit")).Does(_ => { });
+
+    // Capturing the arrangement must not show up as a received call.
+    DidNotReceive(() => greeter.Log("audit"));
+  }
+
+  [Fact]
+  public void Unconsumed_matchers_do_not_leak_into_a_later_arrange_scope()
+  {
+    // A matcher that is never consumed by an interceptor must not poison the next arrangement.
+    _ = Any<int>(x => x > 5);
+
+    var repo = A<IRepository>(m => m.GetById(Any<int>(x => x == 1)).Returns(42));
+
+    Assert(() => repo.GetById(1) == 42);
+    Assert(() => repo.GetById(7) == 0);
+  }
+
+  [Fact]
   public async Task Arrange_lambda_can_await_inside()
   {
     var repo = await A<IRepository>(async m =>

@@ -130,6 +130,7 @@ namespace Assertive.Mocking.Runtime
 
     internal static void BeginGlobalCapture()
     {
+      Mock.ClearMatchers();
       _globalCapturing.Value = true;
       _globalCapturingResult.Value = null;
     }
@@ -138,6 +139,7 @@ namespace Assertive.Mocking.Runtime
     {
       _globalCapturing.Value = false;
       _globalCapturingResult.Value = null;
+      Mock.ClearMatchers();
     }
 
     internal static (MockBase Mock, MockInvocation Call, (string Method, Func<object?[], bool> Match)? MatchSpec) EndGlobalCapture()
@@ -151,6 +153,7 @@ namespace Assertive.Mocking.Runtime
       var call = mock.Captured!;
       var match = mock.CapturedMatch;
       mock.CapturedMatch = null;
+      Mock.ClearMatchers();
       return (mock, call, match);
     }
 
@@ -208,6 +211,7 @@ namespace Assertive.Mocking.Runtime
 
     internal void BeginArrange()
     {
+      Mock.ClearMatchers();
       Capturing = true;
       Captured = null;
       _arrangingMock.Value = this;
@@ -217,6 +221,7 @@ namespace Assertive.Mocking.Runtime
     {
       Capturing = false;
       _arrangingMock.Value = null;
+      Mock.ClearMatchers();
     }
 
     /// <summary>
@@ -279,8 +284,13 @@ namespace Assertive.Mocking.Runtime
     /// <summary>The mock arranging on this thread, its captured call, and its argument matcher — used by <c>When(...)</c>.</summary>
     internal static (MockBase Mock, MockInvocation Call, Func<object?[], bool> Match) CurrentCapture()
     {
-      var mock = _arrangingMock.Value
-        ?? throw new InvalidOperationException("Assertive.Mocking: When(...) was called outside of an A<T>(...) arrange lambda.");
+      var mock = _arrangingMock.Value ?? _standaloneArrangeMock.Value
+        ?? throw new InvalidOperationException(
+          "Assertive.Mocking: When(...) was called with no preceding mock call or active A<T>(...) arrange lambda.");
+
+      var isStandalone = _arrangingMock.Value == null;
+      if (isStandalone)
+        _standaloneArrangeMock.Value = null; // consume
 
       if (mock.Captured is not { } call)
       {
@@ -288,11 +298,18 @@ namespace Assertive.Mocking.Runtime
       }
 
       // Prefer a matcher (from a matcher interceptor); fall back to exact-argument equality.
-      var match = mock.CapturedMatch is { } spec
-        ? spec.Match
+      var spec = mock.CapturedMatch;
+      var hasMatcher = spec is not null;
+      var match = spec is { } matcherSpec
+        ? matcherSpec.Match
         : new Func<object?[], bool>(args => ArgumentsEqual(call.Arguments, args));
 
       mock.CapturedMatch = null;
+
+      // Non-matcher standalone When recorded the probe call through OnCall; remove it so the
+      // arrangement itself doesn't appear as a received call.
+      if (isStandalone && !hasMatcher)
+        mock.RemoveLastCall(call.Method, call.Arguments);
 
       return (mock, call, match);
     }
@@ -561,10 +578,11 @@ namespace Assertive.Mocking.Runtime
     public List<MockInvocation> CaptureSequence(Action execute)
     {
       var captured = new List<MockInvocation>();
+      Mock.ClearMatchers();
       Capturing = true;
       _sequenceCapture.Value = captured;
       try { execute(); }
-      finally { Capturing = false; _sequenceCapture.Value = null; }
+      finally { Capturing = false; _sequenceCapture.Value = null; Mock.ClearMatchers(); }
       return captured;
     }
 

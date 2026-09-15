@@ -203,7 +203,8 @@ namespace Assertive.Mocking
     /// </summary>
     public static WhenBuilder When(System.Action call)
     {
-      call();
+      try { call(); }
+      finally { ClearMatchers(); }
       var (mock, captured, match) = MockBase.CurrentCapture();
       return new WhenBuilder(mock, captured.Method, match);
     }

@@ -6,10 +6,10 @@ cd "$ROOT_DIR"
 
 dotnet restore src/Assertive.slnx
 dotnet build src/Assertive.slnx -c Release --no-restore
-for proj in src/Assertive.Test*/; do
+for proj in src/Assertive.Test*/ src/Assertive.Mocking.Test*/; do
   name=$(basename "$proj")
   case "$name" in
-    Assertive.Test.Aot|Assertive.Test.TUnit.Aot)
+    Assertive.Test.Aot|Assertive.Test.TUnit.Aot|Assertive.Mocking.Test.Aot)
       # Native AOT smoke projects are published to native executables and run directly
       # (see below), not through dotnet test.
       continue
@@ -42,3 +42,8 @@ dotnet publish src/Assertive.Test.Aot -c Release -r "$RID" -p:RootApp=false
 # Realistic Assertive + TUnit, AOT-published and run through TUnit's native test host.
 dotnet publish src/Assertive.Test.TUnit.Aot -c Release -r "$RID"
 "$(aot_bin src/Assertive.Test.TUnit.Aot)"
+
+# Assertive.Mocking smoke test: published with PublishAot=true so the generator and mock
+# runtime are compiled/trimmed natively, then asserts behaviour at runtime.
+dotnet publish src/Assertive.Mocking.Test.Aot -c Release -r "$RID"
+"$(aot_bin src/Assertive.Mocking.Test.Aot)"
