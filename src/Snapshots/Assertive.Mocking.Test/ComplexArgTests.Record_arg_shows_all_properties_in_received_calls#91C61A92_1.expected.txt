@@ -1,0 +1,7 @@
+
+Reserve(new OrderItem(99, "Gadget", 1))
+
+Expected: Reserve(OrderItem { ProductId = 99, Name = Gadget, Quantity = 1 })
+Received:
+  [0] Reserve(OrderItem { ProductId = 42, Name = Widget, Quantity = 3 })
+················································································

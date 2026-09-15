@@ -1,0 +1,6 @@
+
+Expected Tag({ Id = 2, Label = "" }) to be received at least once, but was received 0 times.
+
+Received calls:
+  [0] Tag({ Id = 1, Label = "foo" })
+················································································

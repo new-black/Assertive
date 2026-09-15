@@ -1,0 +1,7 @@
+
+Tag(new LegacyItem { Id = 2 })
+
+Expected: Tag({ Id = 2, Label = "" })
+Received:
+  [0] Tag({ Id = 1, Label = "foo" })
+················································································
