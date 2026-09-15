@@ -39,6 +39,7 @@ namespace Assertive.Mocking.Test.Aot
       Check(nameof(Async_Task_and_ValueTask_returns), Async_Task_and_ValueTask_returns);
       Check(nameof(Matchers_and_method_group_arrange), Matchers_and_method_group_arrange);
       Check(nameof(Times_and_capture_verification), Times_and_capture_verification);
+      Check(nameof(Optional_and_params_matchers), Optional_and_params_matchers);
 
       Console.WriteLine();
       Console.WriteLine(_failed == 0 ? "All checks passed." : $"{_failed} check(s) FAILED.");
@@ -229,6 +230,20 @@ namespace Assertive.Mocking.Test.Aot
       Expect(captured.Latest == 42, $"expected captured 42 but got {captured.Latest}");
     }
 
+    // ── Check 13: optional parameters and expanded params matchers ──────────
+
+    private static void Optional_and_params_matchers()
+    {
+      var optional = A<IOptionalService>();
+      optional.M(Any<int>(x => x > 0)).Returns(1);
+      Expect(optional.M(5) == 1, "omitted optional should match its default");
+
+      var paramsService = A<IParamsService>();
+      paramsService.Sum(Any<int>(v => v > 0), 2).Returns(9);
+      Expect(paramsService.Sum(1, 2) == 9, "expanded params elements should match");
+      Expect(paramsService.Sum(1, 3) == 0, "non-matching params element should fall through");
+    }
+
     // ── Harness ─────────────────────────────────────────────────────────────
 
     private static void Check(string name, Action check)
@@ -271,6 +286,16 @@ namespace Assertive.Mocking.Test.Aot
   public interface IRepo
   {
     int GetById(int id);
+  }
+
+  public interface IOptionalService
+  {
+    int M(int x, int y = 7);
+  }
+
+  public interface IParamsService
+  {
+    int Sum(params int[] values);
   }
 
   public interface IGreeter

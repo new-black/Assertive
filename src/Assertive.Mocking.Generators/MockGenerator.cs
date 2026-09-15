@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -612,18 +613,76 @@ namespace Assertive.Mocking.Generators
         return null;
       }
 
+      // Static/extension/struct members can never be mock members — intercepting them would only
+      // replace a real call. (Instance calls on real objects are handled at runtime by the
+      // generated interceptor's IMockObject guard.)
       if (ctx.SemanticModel.GetSymbolInfo(invocation, ct).Symbol is not IMethodSymbol method
           || method.IsGenericMethod
-          || method.Parameters.Any(p => p.RefKind != RefKind.None))
+          || method.IsStatic
+          || method.IsExtensionMethod
+          || method.Parameters.Any(p => p.RefKind != RefKind.None)
+          || method.ContainingType is not { } containing
+          || containing.TypeKind is not (TypeKind.Class or TypeKind.Interface))
       {
         return null;
       }
 
       var args = invocation.ArgumentList.Arguments;
-      var kinds = args.Select(a => Classify(a.Expression)).ToImmutableArray();
+
+      // Named arguments desync the positional matcher queue (MOCK004 warns); don't intercept.
+      if (args.Any(a => a.NameColon != null))
+      {
+        return null;
+      }
+
+      // Map the call's arguments onto the declared parameters. Optional parameters that were
+      // omitted become OptionalDefault, and an expanded params array is matched element-wise.
+      var kinds = new ArgKind[method.Parameters.Length];
+      var paramsElementKinds = new ImmutableArray<ArgKind>[method.Parameters.Length];
+      var argIndex = 0;
+      var hasMatcher = false;
+
+      for (var pi = 0; pi < method.Parameters.Length; pi++)
+      {
+        var parameter = method.Parameters[pi];
+
+        if (parameter.IsParams && args.Count != method.Parameters.Length)
+        {
+          var elements = ImmutableArray.CreateBuilder<ArgKind>();
+          while (argIndex < args.Count)
+          {
+            var elementKind = Classify(args[argIndex].Expression);
+            if (elementKind != ArgKind.Exact)
+            {
+              hasMatcher = true;
+            }
+
+            elements.Add(elementKind);
+            argIndex++;
+          }
+
+          kinds[pi] = ArgKind.ParamsExpanded;
+          paramsElementKinds[pi] = elements.ToImmutable();
+        }
+        else if (argIndex < args.Count)
+        {
+          var kind = Classify(args[argIndex].Expression);
+          if (kind != ArgKind.Exact)
+          {
+            hasMatcher = true;
+          }
+
+          kinds[pi] = kind;
+          argIndex++;
+        }
+        else
+        {
+          kinds[pi] = ArgKind.OptionalDefault;
+        }
+      }
 
       // Nothing to do unless at least one argument is a matcher.
-      if (!kinds.Any(k => k != ArgKind.Exact))
+      if (!hasMatcher)
       {
         return null;
       }
@@ -635,16 +694,54 @@ namespace Assertive.Mocking.Generators
         return null;
       }
 
+      var parameters = method.Parameters.Select(p =>
+      {
+        var typeFqn = p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        // typeof(...) can't take reference-type nullable annotations; value-type ? is preserved.
+        var typeofFqn = p.Type.IsValueType ? typeFqn : typeFqn.Replace("?", "");
+        var defaultLiteral = !p.IsParams && p.IsOptional ? FormatDefaultLiteral(p, typeFqn) : null;
+        return new CallParameter(typeFqn, typeofFqn, p.Name, p.IsParams, defaultLiteral);
+      }).ToImmutableArray();
+
       return new MatcherCall(
         method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
         method.Name,
         method.ReturnsVoid ? null : method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-        method.Parameters.Select(p => p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)).ToImmutableArray(),
-        kinds,
+        parameters,
+        kinds.ToImmutableArray(),
+        paramsElementKinds.ToImmutableArray(),
         location.Version,
         location.Data,
         location.GetDisplayLocation());
     }
+
+    /// <summary>Formats an omitted optional parameter's default value as C# source.</summary>
+    private static string FormatDefaultLiteral(IParameterSymbol parameter, string typeFqn)
+    {
+      if (!parameter.HasExplicitDefaultValue || parameter.ExplicitDefaultValue is null)
+      {
+        return $"default({typeFqn})";
+      }
+
+      var value = parameter.ExplicitDefaultValue;
+      return parameter.Type.TypeKind == TypeKind.Enum
+        ? $"({typeFqn})({FormatConstant(value)})"
+        : FormatConstant(value);
+    }
+
+    private static string FormatConstant(object value) => value switch
+    {
+      bool b => b ? "true" : "false",
+      string s => SymbolDisplay.FormatLiteral(s, true),
+      char c => SymbolDisplay.FormatLiteral(c, true),
+      float f => f.ToString("R", CultureInfo.InvariantCulture) + "f",
+      double d => d.ToString("R", CultureInfo.InvariantCulture) + "d",
+      decimal m => m.ToString(CultureInfo.InvariantCulture) + "m",
+      long l => l.ToString(CultureInfo.InvariantCulture) + "L",
+      ulong ul => ul.ToString(CultureInfo.InvariantCulture) + "UL",
+      uint ui => ui.ToString(CultureInfo.InvariantCulture) + "U",
+      _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "default",
+    };
 
     private static ArgKind Classify(ExpressionSyntax expression)
     {
@@ -1878,9 +1975,11 @@ namespace Assertive.Mocking.Generators
     }
 
     /// <summary>
-    /// Emits an extension-method interceptor per matcher-bearing mock call. Each builds the
-    /// per-argument matcher array (Any / dequeued predicate / exact-value equality) and captures
-    /// it on the mock, so the following arrange verb / When / Received uses those matchers.
+    /// Emits an extension-method interceptor per matcher-bearing mock call. Each mirrors the
+    /// original method's signature (including optional defaults and <c>params</c>), builds the
+    /// per-argument matcher array plus the declared parameter types (for overload disambiguation),
+    /// and captures them on the mock. When the receiver is not a mock, the interceptor calls the
+    /// real method unchanged so non-mock calls inside arrange lambdas keep working.
     /// </summary>
     private static void EmitMatcherInterceptors(StringBuilder sb, List<MatcherCall> calls)
     {
@@ -1896,31 +1995,90 @@ namespace Assertive.Mocking.Generators
 
       foreach (var call in calls)
       {
-        var parameters = string.Join(", ", call.ParameterTypes.Select((t, i) => $"{t} __a{i}"));
-        var returnType = call.ReturnTypeFqn ?? "void";
-
-        var matcherExprs = call.ArgumentKinds.Select((kind, i) => kind switch
+        var parameterDecls = call.Parameters.Select(p =>
         {
-          ArgKind.Any => "static (object __x) => true",
-          ArgKind.Predicate => "global::Assertive.Mocking.Mock.DequeueMatcher()",
-          // Exact args must compare structurally (like OnCall/Received do), not by reference.
-          _ => $"(object __x) => __m.ArgumentsMatchEqual(new object[] {{ __x }}, new object[] {{ __a{i} }})",
+          var modifier = p.IsParams ? "params " : "";
+          var defaultSuffix = p.DefaultLiteral is null ? "" : $" = {p.DefaultLiteral}";
+          return $"{modifier}{p.TypeFqn} {p.Name}{defaultSuffix}";
         });
+        var parameters = string.Join(", ", parameterDecls);
+        var callArgs = string.Join(", ", call.Parameters.Select(p => p.Name));
+        var returnType = call.ReturnTypeFqn ?? "void";
+        var displayArgs = string.Join(", ", call.Parameters.Select(p => $"(object){p.Name}"));
+        var parameterTypes = string.Join(", ", call.Parameters.Select(p => $"typeof({p.TypeofFqn})"));
 
-        var displayArgs = string.Join(", ", Enumerable.Range(0, call.ParameterTypes.Length).Select(i => $"(object)__a{i}"));
+        var prelude = new List<string>();
+        var matcherExprs = new List<string>();
+
+        for (var pi = 0; pi < call.Parameters.Length; pi++)
+        {
+          var parameter = call.Parameters[pi];
+          switch (call.ArgumentKinds[pi])
+          {
+            case ArgKind.Any:
+              matcherExprs.Add("static (object __x) => true");
+              break;
+            case ArgKind.Predicate:
+              matcherExprs.Add("global::Assertive.Mocking.Mock.DequeueMatcher()");
+              break;
+            case ArgKind.ParamsExpanded:
+              var elements = call.ParamsElementKinds[pi];
+              var elementNames = new List<string>();
+              for (var j = 0; j < elements.Length; j++)
+              {
+                var elementName = $"__p{pi}_{j}";
+                elementNames.Add(elementName);
+                var elementExpr = elements[j] switch
+                {
+                  ArgKind.Any => "static (object __e) => true",
+                  ArgKind.Predicate => "global::Assertive.Mocking.Mock.DequeueMatcher()",
+                  _ => $"(object __e) => __m.ArgumentsMatchEqual(new object[] {{ __e }}, new object[] {{ {parameter.Name}[{j}] }})",
+                };
+                prelude.Add($"      global::System.Func<object, bool> {elementName} = {elementExpr};");
+              }
+
+              var conditions = new List<string> { $"__arr.Length == {elements.Length}" };
+              for (var j = 0; j < elementNames.Count; j++)
+              {
+                conditions.Add($"{elementNames[j]}(__arr[{j}])");
+              }
+
+              matcherExprs.Add($"__x => __x is {parameter.TypeFqn} __arr && {string.Join(" && ", conditions)}");
+              break;
+            default:
+              // Exact args (and omitted optionals, matched against their default) compare structurally.
+              matcherExprs.Add($"(object __x) => __m.ArgumentsMatchEqual(new object[] {{ __x }}, new object[] {{ {parameter.Name} }})");
+              break;
+          }
+        }
 
         sb.AppendLine($"    // {call.DisplayLocation}");
         sb.AppendLine($"    [global::System.Runtime.CompilerServices.InterceptsLocation({call.LocationVersion}, {SymbolDisplay.FormatLiteral(call.LocationData, true)})]");
         sb.AppendLine($"    public static {returnType} Match_{index}(this {call.ReceiverFqn} __r, {parameters})");
         sb.AppendLine("    {");
-        sb.AppendLine("      var __m = ((global::Assertive.Mocking.Runtime.IMockObject)(object)__r).Core;");
-        sb.AppendLine($"      __m.CaptureMatchers(\"{call.Method}\", new global::System.Func<object, bool>[] {{ {string.Join(", ", matcherExprs)} }}, new object[] {{ {displayArgs} }});");
+        sb.AppendLine("      if ((object)__r is global::Assertive.Mocking.Runtime.IMockObject __mock)");
+        sb.AppendLine("      {");
+        sb.AppendLine("        var __m = __mock.Core;");
+        foreach (var line in prelude)
+        {
+          sb.AppendLine(line);
+        }
+
+        sb.AppendLine($"        __m.CaptureMatchers(\"{call.Method}\", new global::System.Func<object, bool>[] {{ {string.Join(", ", matcherExprs)} }}, new global::System.Type[] {{ {parameterTypes} }}, new object[] {{ {displayArgs} }});");
 
         if (call.ReturnTypeFqn != null)
         {
-          sb.AppendLine("      return default;");
+          sb.AppendLine("        return default;");
+        }
+        else
+        {
+          sb.AppendLine("        return;");
         }
 
+        sb.AppendLine("      }");
+        sb.AppendLine(call.ReturnTypeFqn != null
+          ? $"      return __r.{call.Method}({callArgs});"
+          : $"      __r.{call.Method}({callArgs});");
         sb.AppendLine("    }");
         index++;
       }
@@ -2290,18 +2448,64 @@ namespace Assertive.Mocking.Generators
     Exact,
     Any,
     Predicate,
+    /// <summary>The optional parameter was omitted at the call site; match its declared default.</summary>
+    OptionalDefault,
+    /// <summary>A <c>params</c> array was expanded at the call site; elements are matched individually.</summary>
+    ParamsExpanded,
+  }
+
+  /// <summary>One declared parameter of an intercepted call, used to mirror the method signature.</summary>
+  internal readonly struct CallParameter : IEquatable<CallParameter>
+  {
+    public CallParameter(string typeFqn, string typeofFqn, string name, bool isParams, string? defaultLiteral)
+    {
+      TypeFqn = typeFqn;
+      TypeofFqn = typeofFqn;
+      Name = name;
+      IsParams = isParams;
+      DefaultLiteral = defaultLiteral;
+    }
+
+    /// <summary>Type as written in the interceptor signature.</summary>
+    public string TypeFqn { get; }
+    /// <summary>Type without reference-type nullable annotations, safe for <c>typeof(...)</c>.</summary>
+    public string TypeofFqn { get; }
+    public string Name { get; }
+    public bool IsParams { get; }
+    /// <summary>C# literal for an omitted optional's default, or null when not optional.</summary>
+    public string? DefaultLiteral { get; }
+
+    public bool Equals(CallParameter other) =>
+      TypeFqn == other.TypeFqn && TypeofFqn == other.TypeofFqn && Name == other.Name && IsParams == other.IsParams && DefaultLiteral == other.DefaultLiteral;
+
+    public override bool Equals(object? obj) => obj is CallParameter p && Equals(p);
+
+    public override int GetHashCode()
+    {
+      unchecked
+      {
+        var h = TypeFqn?.GetHashCode() ?? 0;
+        h = h * 31 + (TypeofFqn?.GetHashCode() ?? 0);
+        h = h * 31 + (Name?.GetHashCode() ?? 0);
+        h = h * 31 + IsParams.GetHashCode();
+        h = h * 31 + (DefaultLiteral?.GetHashCode() ?? 0);
+        return h;
+      }
+    }
   }
 
   internal sealed class MatcherCall : IEquatable<MatcherCall>
   {
-    public MatcherCall(string receiverFqn, string method, string? returnTypeFqn, ImmutableArray<string> parameterTypes,
-      ImmutableArray<ArgKind> argumentKinds, int locationVersion, string locationData, string displayLocation)
+    public MatcherCall(string receiverFqn, string method, string? returnTypeFqn, ImmutableArray<CallParameter> parameters,
+      ImmutableArray<ArgKind> argumentKinds, ImmutableArray<ImmutableArray<ArgKind>> paramsElementKinds,
+      int locationVersion, string locationData, string displayLocation)
     {
       ReceiverFqn = receiverFqn;
       Method = method;
       ReturnTypeFqn = returnTypeFqn;
-      ParameterTypes = parameterTypes;
+      Parameters = parameters;
       ArgumentKinds = argumentKinds;
+      ParamsElementKinds = paramsElementKinds.IsDefault ? ImmutableArray<ImmutableArray<ArgKind>>.Empty : paramsElementKinds;
       LocationVersion = locationVersion;
       LocationData = locationData;
       DisplayLocation = displayLocation;
@@ -2310,8 +2514,11 @@ namespace Assertive.Mocking.Generators
     public string ReceiverFqn { get; }
     public string Method { get; }
     public string? ReturnTypeFqn { get; }
-    public ImmutableArray<string> ParameterTypes { get; }
+    public ImmutableArray<CallParameter> Parameters { get; }
+    /// <summary>One entry per declared parameter.</summary>
     public ImmutableArray<ArgKind> ArgumentKinds { get; }
+    /// <summary>Parallel to <see cref="ArgumentKinds"/>; element kinds when the kind is ParamsExpanded.</summary>
+    public ImmutableArray<ImmutableArray<ArgKind>> ParamsElementKinds { get; }
     public int LocationVersion { get; }
     public string LocationData { get; }
     public string DisplayLocation { get; }
@@ -2325,8 +2532,13 @@ namespace Assertive.Mocking.Generators
       if (LocationVersion != other.LocationVersion) return false;
       if (LocationData != other.LocationData) return false;
       if (DisplayLocation != other.DisplayLocation) return false;
-      if (!ParameterTypes.SequenceEqual(other.ParameterTypes)) return false;
+      if (!Parameters.SequenceEqual(other.Parameters)) return false;
       if (!ArgumentKinds.SequenceEqual(other.ArgumentKinds)) return false;
+      if (ParamsElementKinds.Length != other.ParamsElementKinds.Length) return false;
+      for (var i = 0; i < ParamsElementKinds.Length; i++)
+      {
+        if (!ParamsElementKinds[i].SequenceEqual(other.ParamsElementKinds[i])) return false;
+      }
       return true;
     }
 
@@ -2340,6 +2552,7 @@ namespace Assertive.Mocking.Generators
         h = h * 31 + (Method?.GetHashCode() ?? 0);
         h = h * 31 + (LocationData?.GetHashCode() ?? 0);
         h = h * 31 + LocationVersion;
+        h = h * 31 + Parameters.Length;
         return h;
       }
     }

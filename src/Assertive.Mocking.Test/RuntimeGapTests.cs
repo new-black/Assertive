@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Assertive.Mocking;
@@ -220,6 +221,70 @@ public class RuntimeGapTests
   }
 
   [Fact]
+  public void Matcher_like_call_on_real_object_inside_arrange_lambda_runs_real_method()
+  {
+    var list = new List<int> { 0, 1 };
+
+    var greeter = A<IGreeter>(g =>
+    {
+      // `default` looks like a matcher; the interceptor must fall back to the real List.Contains.
+      var found = list.Contains(default);
+      g.Greet(Any<string>()).Returns(found ? "found" : "missing");
+    });
+
+    Assert(() => greeter.Greet("x") == "found");
+  }
+
+  [Fact]
+  public void Matcher_on_optional_parameter_matches()
+  {
+    var svc = A<IOptionalParameterService>();
+
+    svc.M(Any<int>(x => x > 0)).Returns(1);
+
+    Assert(() => svc.M(5) == 1);       // y defaults to 7
+    Assert(() => svc.M(5, 7) == 1);
+    Assert(() => svc.M(5, 8) == 0);    // y differs
+    Assert(() => svc.M(-1) == 0);      // predicate fails
+  }
+
+  [Fact]
+  public void Matcher_on_expanded_params_elements_matches()
+  {
+    var svc = A<IParamsService>();
+
+    svc.Sum(Any<int>(v => v > 0), 2).Returns(9);
+
+    Assert(() => svc.Sum(1, 2) == 9);
+    Assert(() => svc.Sum(-1, 2) == 0); // first element fails the predicate
+    Assert(() => svc.Sum(1, 3) == 0);  // second element isn't 2
+    Assert(() => svc.Sum(1) == 0);     // length must match
+  }
+
+  [Fact]
+  public void Matcher_setup_does_not_cross_match_overloads()
+  {
+    var svc = A<IOverloadedService>();
+
+    svc.M(Any<int>()).Returns("int");
+    svc.M(Any<string>()).Returns("string");
+
+    Assert(() => svc.M(5) == "int");
+    Assert(() => svc.M("x") == "string");
+  }
+
+  [Fact]
+  public void Method_group_Any_does_not_cross_match_arity_overloads()
+  {
+    var svc = A<IArityOverloadedService>();
+
+    Any((Func<int, string>)svc.M).Returns("one");
+
+    Assert(() => svc.M(1) == "one");
+    Assert(() => svc.M(1, 2) == null);
+  }
+
+  [Fact]
   public void Nested_arrange_scopes_do_not_clobber_the_outer_scope()
   {
     var innerRan = false;
@@ -272,6 +337,28 @@ public class RuntimeGapTests
   public interface IMixedMatcherService
   {
     int Mix(int n, int[] values);
+  }
+
+  public interface IOptionalParameterService
+  {
+    int M(int x, int y = 7);
+  }
+
+  public interface IParamsService
+  {
+    int Sum(params int[] values);
+  }
+
+  public interface IOverloadedService
+  {
+    string M(int x);
+    string M(string x);
+  }
+
+  public interface IArityOverloadedService
+  {
+    string M(int x);
+    string M(int x, int y);
   }
 
   public class OptionalDependencyService

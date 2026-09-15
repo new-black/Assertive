@@ -170,11 +170,11 @@ class MockBase
   IReadOnlyList<MockInvocation> Calls { get; }
   void AddBehavior(MockInvocation expected, Func<object[], object> behavior)
   void AddEventHandler(string eventName, Delegate handler)
-  void AddSetup(string method, Func<object[], bool> match, Func<object[], object> behavior)
+  void AddSetup(string method, Func<object[], bool> match, Func<object[], object> behavior, Type[] parameterTypes)
   bool ArgumentsMatchEqual(object[] a, object[] b)
   static void AttachBehaviorToLastArrangedCall(Func<object[], object> behavior)
   static void AttachConditionalBehaviorToLastArrangedCall(Func<object[], object> behavior, Func<bool> condition)
-  void CaptureMatchers(string method, Func<object, bool>[] matchers, object[] displayArguments)
+  void CaptureMatchers(string method, Func<object, bool>[] matchers, Type[] parameterTypes, object[] displayArguments)
   List<MockInvocation> CaptureSequence(Action execute)
   void ClearCalls()
   Delegate GetEventHandler(string eventName)

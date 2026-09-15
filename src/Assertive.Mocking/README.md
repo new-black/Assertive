@@ -248,7 +248,7 @@ repo.ProcessOrders(Contains(order1)).Returns(true);
 repo.ProcessOrders(IsEmpty<Order>()).Returns(true);
 ```
 
-`default` is a convenient shorthand that is treated specially which tells the generator "match any value here". It is equivalent to `Any<T>()` but does not require an explicit type. Named arguments at matcher call sites are not supported (the compiler reports `MOCK004`).
+`default` is a convenient shorthand that is treated specially which tells the generator "match any value here". It is equivalent to `Any<T>()` but does not require an explicit type. Named arguments at matcher call sites are not supported (the compiler reports `MOCK004`). Matchers also work with optional parameters (an omitted optional matches its declared default) and with `params` arrays, where elements are matched individually: `Enumerable(Any<int>(v => v > 0), 2)`.
 
 ## Verifying calls
 

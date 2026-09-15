@@ -170,14 +170,16 @@ namespace Assertive.Mocking.Runtime
 
     /// <summary>
     /// Captures a call described by per-argument matchers (generated interceptor entry point).
-    /// <paramref name="displayArguments"/> are the placeholder values, used only for messages.
+    /// <paramref name="parameterTypes"/> disambiguate overloads (a matcher like <c>Any&lt;int&gt;()</c>
+    /// must not match an overload taking another type). <paramref name="displayArguments"/> are the
+    /// placeholder values, used only for messages.
     /// </summary>
-    public void CaptureMatchers(string method, Func<object, bool>[] matchers, object?[] displayArguments)
+    public void CaptureMatchers(string method, Func<object, bool>[] matchers, Type[] parameterTypes, object?[] displayArguments)
     {
       Captured = new MockInvocation(method, displayArguments);
       CapturedMatch = (method, args =>
       {
-        if (args.Length != matchers.Length)
+        if (args.Length != matchers.Length || !ParameterTypesMatch(parameterTypes, args))
         {
           return false;
         }
@@ -402,13 +404,48 @@ namespace Assertive.Mocking.Runtime
     /// <summary>
     /// Adds a behavior matching a method by name with a custom argument matcher. Used by the
     /// method-group form <c>Any(mock.Method)</c> (matcher <c>_ =&gt; true</c>) and predicate matchers.
+    /// When <paramref name="parameterTypes"/> is supplied, the call's argument types must match too,
+    /// so arrangements on overloaded methods don't cross-match.
     /// </summary>
-    public void AddSetup(string method, Func<object?[], bool> match, Func<object?[], object?> behavior)
+    public void AddSetup(string method, Func<object?[], bool> match, Func<object?[], object?> behavior, Type[]? parameterTypes = null)
     {
+      var effectiveMatch = parameterTypes is null
+        ? match
+        : args => ParameterTypesMatch(parameterTypes, args) && match(args);
+
       lock (_lock)
       {
-        _setups.Add((method, match, behavior));
+        _setups.Add((method, effectiveMatch, behavior));
       }
+    }
+
+    /// <summary>
+    /// True when every argument is assignable to the corresponding declared parameter type. A
+    /// boxed <c>Nullable&lt;T&gt;</c> arrives as a boxed <c>T</c>, so the underlying type is used.
+    /// </summary>
+    private static bool ParameterTypesMatch(Type[] parameterTypes, object?[] arguments)
+    {
+      if (parameterTypes.Length != arguments.Length)
+      {
+        return false;
+      }
+
+      for (var i = 0; i < parameterTypes.Length; i++)
+      {
+        var argument = arguments[i];
+        if (argument is null)
+        {
+          continue;
+        }
+
+        var expected = Nullable.GetUnderlyingType(parameterTypes[i]) ?? parameterTypes[i];
+        if (!expected.IsInstanceOfType(argument))
+        {
+          return false;
+        }
+      }
+
+      return true;
     }
 
     /// <summary>
