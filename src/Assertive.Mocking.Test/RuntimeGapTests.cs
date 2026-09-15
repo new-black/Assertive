@@ -285,6 +285,55 @@ public class RuntimeGapTests
   }
 
   [Fact]
+  public void Wrap_arranged_property_setter_does_not_mutate_wrapped_object()
+  {
+    var target = new MutableService { Value = 1 };
+    var spy = Wrap<IMutableService>(target);
+
+    Setup(spy, s => When(() => s.Value = 42).Does(_ => { }));
+
+    spy.Value = 42;
+
+    Assert(() => target.Value == 1);
+  }
+
+  [Fact]
+  public void Wrap_unarranged_property_setter_passes_through()
+  {
+    var target = new MutableService { Value = 1 };
+    var spy = Wrap<IMutableService>(target);
+
+    spy.Value = 5;
+
+    Assert(() => target.Value == 5);
+  }
+
+  [Fact]
+  public void Wrap_arranged_indexer_setter_does_not_mutate_wrapped_object()
+  {
+    var target = new IndexedService();
+    target[1] = 10;
+    var spy = Wrap<IIndexedService>(target);
+
+    Setup(spy, s => When(() => s[1] = 99).Does(_ => { }));
+
+    spy[1] = 99;
+
+    Assert(() => target[1] == 10);
+  }
+
+  [Fact]
+  public void Class_mock_arranged_setter_throws()
+  {
+    var mock = A<VirtualMutableService>();
+    Setup(mock, m => When(() => m.Value = 42).Throws(new InvalidOperationException("nope")));
+
+    var ex = Record.Exception(() => mock.Value = 42);
+
+    Assert(() => ex is InvalidOperationException);
+  }
+
+  [Fact]
   public void Nested_arrange_scopes_do_not_clobber_the_outer_scope()
   {
     var innerRan = false;
@@ -359,6 +408,37 @@ public class RuntimeGapTests
   {
     string M(int x);
     string M(int x, int y);
+  }
+
+  public interface IMutableService
+  {
+    int Value { get; set; }
+  }
+
+  public class MutableService : IMutableService
+  {
+    public int Value { get; set; }
+  }
+
+  public interface IIndexedService
+  {
+    int this[int key] { get; set; }
+  }
+
+  public class IndexedService : IIndexedService
+  {
+    private readonly Dictionary<int, int> _values = new();
+
+    public int this[int key]
+    {
+      get => _values[key];
+      set => _values[key] = value;
+    }
+  }
+
+  public class VirtualMutableService
+  {
+    public virtual int Value { get; set; }
   }
 
   public class OptionalDependencyService

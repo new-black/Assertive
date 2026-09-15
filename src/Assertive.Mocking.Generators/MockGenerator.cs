@@ -1571,7 +1571,16 @@ namespace Assertive.Mocking.Generators
           }
           else
           {
-            sb.AppendLine($"      set {{ if (OnCall(\"set_{property.Name}\", new object[] {{ value }}, out _, out _)) return; __wrapped.{property.Name} = value; }}");
+            sb.AppendLine("      set");
+            sb.AppendLine("      {");
+            sb.AppendLine($"        if (OnCall(\"set_{property.Name}\", new object[] {{ value }}, out var __r, out var __matched)) return;");
+            sb.AppendLine("        if (__matched)");
+            sb.AppendLine("        {");
+            sb.AppendLine("          if (__r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
+            sb.AppendLine("          return; // arranged setter: don't mutate the wrapped object");
+            sb.AppendLine("        }");
+            sb.AppendLine($"        __wrapped.{property.Name} = value;");
+            sb.AppendLine("      }");
           }
         }
         sb.AppendLine("    }");
@@ -1604,7 +1613,12 @@ namespace Assertive.Mocking.Generators
         {
           sb.AppendLine("      set");
           sb.AppendLine("      {");
-          sb.AppendLine($"        if (OnCall(\"set_Item\", new object[] {{ {argNames}, value }}, out _, out _)) return;");
+          sb.AppendLine($"        if (OnCall(\"set_Item\", new object[] {{ {argNames}, value }}, out var __r, out var __matched)) return;");
+          sb.AppendLine("        if (__matched)");
+          sb.AppendLine("        {");
+          sb.AppendLine("          if (__r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
+          sb.AppendLine("          return; // arranged setter: don't mutate the wrapped object");
+          sb.AppendLine("        }");
           sb.AppendLine($"        __wrapped[{argNames}] = value;");
           sb.AppendLine("      }");
         }
@@ -2303,7 +2317,13 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine("        return default;");
           sb.AppendLine("      }");
           if (property.HasSetter)
-            sb.AppendLine($"      {(property.IsInitOnly ? "init" : "set")} {{ OnCall(\"set_{property.Name}\", new object[] {{ value }}, out _, out _); }}");
+          {
+            sb.AppendLine($"      {(property.IsInitOnly ? "init" : "set")}");
+            sb.AppendLine("      {");
+            sb.AppendLine($"        if (OnCall(\"set_{property.Name}\", new object[] {{ value }}, out var __r, out var __matched)) return;");
+            sb.AppendLine("        if (__matched && __r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
+            sb.AppendLine("      }");
+          }
           sb.AppendLine("    }");
         }
         else
@@ -2323,7 +2343,13 @@ namespace Assertive.Mocking.Generators
           sb.AppendLine($"        return {unarrangedPropReturn};");
           sb.AppendLine("      }");
           if (property.HasSetter)
-            sb.AppendLine($"      {(property.IsInitOnly ? "init" : "set")} {{ {core}OnCall(\"set_{property.Name}\", new object[] {{ value }}, out _, out _); }}");
+          {
+            sb.AppendLine($"      {(property.IsInitOnly ? "init" : "set")}");
+            sb.AppendLine("      {");
+            sb.AppendLine($"        if ({core}OnCall(\"set_{property.Name}\", new object[] {{ value }}, out var __r, out var __matched)) return;");
+            sb.AppendLine("        if (__matched && __r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
+            sb.AppendLine("      }");
+          }
           sb.AppendLine("    }");
         }
       }
@@ -2355,7 +2381,8 @@ namespace Assertive.Mocking.Generators
         {
           sb.AppendLine("      set");
           sb.AppendLine("      {");
-          sb.AppendLine($"        {core}OnCall(\"set_Item\", new object[] {{ {argNames}, value }}, out _, out _);");
+          sb.AppendLine($"        if ({core}OnCall(\"set_Item\", new object[] {{ {argNames}, value }}, out var __r, out var __matched)) return;");
+          sb.AppendLine("        if (__matched && __r is global::Assertive.Mocking.Runtime.MockFault __f) throw __f.Exception;");
           sb.AppendLine("      }");
         }
         sb.AppendLine("    }");

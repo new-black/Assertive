@@ -199,7 +199,8 @@ public class WithInit { public virtual string Name { get; init; } = ""x""; }
 class Test { void Run() { var m = A<WithInit>(); } }
 ";
     var output = RunGenerator(source);
-    Assert(() => output.Contains("init {"));
+    Assert(() => output.Contains("      init"));
+    Assert(() => !output.Contains("      set"));
 
     CompileGeneratedSource(source);
   }
@@ -214,7 +215,8 @@ public interface IWithInit { string Name { get; init; } }
 class Test { void Run() { var m = A<IWithInit>(); } }
 ";
     var output = RunGenerator(source);
-    Assert(() => output.Contains("init {"));
+    Assert(() => output.Contains("      init"));
+    Assert(() => !output.Contains("      set"));
 
     CompileGeneratedSource(source);
   }
