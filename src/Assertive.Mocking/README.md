@@ -518,7 +518,8 @@ The generated mock members are fully static and reflection-free. Two runtime hel
 ## Limitations
 
 - **Generic methods** cannot be arranged. Interface mocks throw `NotSupportedException` when an unarranged generic method is called; on class mocks, abstract generic methods are emitted as throwing stubs so the type still compiles, while non-abstract generic methods are not overridden at all and run the real base implementation.
-- **`ref` / `out` / `in` parameters** are supported for recording, arrangement (`ReturnsWithOuts` / `SetsOuts`) and verification, but argument matchers cannot be used on `ref` / `out` / `in` parameters.
+- **`ref` / `out` / `in` parameters** are supported for recording, arrangement (`ReturnsWithOuts` / `SetsOuts`) and verification, but argument matchers cannot be used on them (the compiler reports `MOCK003`).
 - **Non-virtual class members** cannot be arranged: arranging one is a compile error (`MOCK002`). This applies to `A<T>(m => m.NonVirtual(...).Returns(...))` and the standalone `m.NonVirtual(...).Returns(...)` form.
+- **Explicit interface implementations** on a mocked class cannot be intercepted and run the real implementation; the compiler reports `MOCK005` at the `A<T>()` call site.
 - **Unmockable types** are rejected at compile time with `MOCK001`: sealed and static classes, records, classes with no accessible constructor, and interfaces with `static abstract` members.
 - **`Wrap<T>`** only supports non-generic interface types. Generic interface methods are implemented as throwing stubs (they compile but throw `NotSupportedException` when called).

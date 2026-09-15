@@ -300,6 +300,64 @@ class Test
     Assert(() => !diagnostics.Any(d => d.Id == "MOCK002"));
   }
 
+  [Fact]
+  public void Ref_out_method_with_matcher_reports_MOCK003()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public interface ITryGet { bool TryGet(string key, out string value); }
+class Test { void Run() { var m = A<ITryGet>(x => x.TryGet(Any<string>(), out _).Returns(true)); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => diagnostics.Any(d => d.Id == "MOCK003" && d.GetMessage().Contains("ref/out/in")));
+  }
+
+  [Fact]
+  public void Ref_out_method_without_matcher_does_not_report_MOCK003()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public interface ITryGet { bool TryGet(string key, out string value); }
+class Test { void Run() { var m = A<ITryGet>(x => x.TryGet(""k"", out _).Returns(true)); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => !diagnostics.Any(d => d.Id == "MOCK003"));
+  }
+
+  [Fact]
+  public void Class_with_explicit_interface_implementation_reports_MOCK005()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public interface IExplicit { int Value(); }
+public class ExplicitImpl : IExplicit { int IExplicit.Value() => 1; }
+class Test { void Run() { var m = A<ExplicitImpl>(); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => diagnostics.Any(d => d.Id == "MOCK005" && d.GetMessage().Contains("IExplicit.Value")));
+  }
+
+  [Fact]
+  public void Class_without_explicit_interface_implementation_does_not_report_MOCK005()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public interface IExplicit { int Value(); }
+public class ImplicitImpl : IExplicit { public int Value() => 1; }
+class Test { void Run() { var m = A<ImplicitImpl>(); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => !diagnostics.Any(d => d.Id == "MOCK005"));
+  }
+
   // ── helpers ────────────────────────────────────────────────────────────────
 
   private static string RunGenerator(string source)

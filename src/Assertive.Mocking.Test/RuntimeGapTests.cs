@@ -207,6 +207,19 @@ public class RuntimeGapTests
   }
 
   [Fact]
+  public void Strict_violation_is_not_recorded_in_the_call_log()
+  {
+    var repo = A<IRepository>(MockMode.Strict);
+
+    var ex = Record.Exception(() => repo.GetById(1));
+
+    Assert(() => ex is StrictMockException);
+
+    var core = ((Assertive.Mocking.Runtime.IMockObject)(object)repo).Core;
+    Assert(() => core.Calls.Count == 0);
+  }
+
+  [Fact]
   public void Nested_arrange_scopes_do_not_clobber_the_outer_scope()
   {
     var innerRan = false;

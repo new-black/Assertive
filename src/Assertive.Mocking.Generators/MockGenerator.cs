@@ -57,6 +57,15 @@ namespace Assertive.Mocking.Generators
       defaultSeverity: DiagnosticSeverity.Warning,
       isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor Mock005 = new DiagnosticDescriptor(
+      id: "MOCK005",
+      title: "Class mock has explicit interface implementations",
+      messageFormat: "'{0}' explicitly implements {1}; those members cannot be arranged on a class mock and will run the real implementation",
+      category: "Assertive.Mocking",
+      defaultSeverity: DiagnosticSeverity.Warning,
+      isEnabledByDefault: true,
+      description: "Explicit interface implementations are private and cannot be intercepted by the generated subclass.");
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
       var arranged = context.SyntaxProvider.CreateSyntaxProvider(
@@ -81,6 +90,17 @@ namespace Assertive.Mocking.Generators
         {
           foreach (var d in diags) if (d is not null) spc.ReportDiagnostic(d);
         });
+
+      // MOCK005: warn when a mocked class has explicit interface implementations (not interceptable).
+      var mock005Diagnostics = context.SyntaxProvider.CreateSyntaxProvider(
+          predicate: static (node, _) => IsGenericCallNamed(node, "A"),
+          transform: static (ctx, ct) => ExtractMock005(ctx, ct))
+        .Where(static d => d is not null);
+
+      context.RegisterSourceOutput(mock005Diagnostics.Collect(), static (spc, diags) =>
+      {
+        foreach (var d in diags) if (d is not null) spc.ReportDiagnostic(d);
+      });
 
       var buildCalls = context.SyntaxProvider.CreateSyntaxProvider(
           predicate: static (node, _) => IsGenericCallNamed(node, "Build"),
@@ -342,10 +362,90 @@ namespace Assertive.Mocking.Generators
     }
 
     /// <summary>
-    /// MOCK003: warns when a generic method or a method with ref/out parameters is arranged. The
-    /// generator intentionally skips such members so an arrangement on them silently does nothing.
+    /// MOCK005 (warning): a mocked class implements interface members explicitly. Those members are
+    /// private and cannot be overridden by the generated subclass, so they run the real code and
+    /// cannot be arranged.
+    /// </summary>
+    private static Diagnostic? ExtractMock005(GeneratorSyntaxContext ctx, System.Threading.CancellationToken ct)
+    {
+      var invocation = (InvocationExpressionSyntax)ctx.Node;
+
+      var symbolInfo = ctx.SemanticModel.GetSymbolInfo(invocation, ct);
+      IMethodSymbol? method = symbolInfo.Symbol as IMethodSymbol;
+      if (method is null)
+      {
+        foreach (var candidate in symbolInfo.CandidateSymbols)
+        {
+          if (candidate is IMethodSymbol m) { method = m; break; }
+        }
+      }
+
+      if (method is null
+          || method.Name != "A"
+          || method.ContainingType?.Name != "Mock"
+          || method.ContainingType.ContainingNamespace is not { Name: "Mocking", ContainingNamespace.Name: "Assertive" }
+          || method.TypeArguments.Length != 1
+          || method.TypeArguments[0] is not INamedTypeSymbol target
+          || target.TypeKind != TypeKind.Class
+          || !IsMockableType(target))
+      {
+        return null;
+      }
+
+      var explicitMembers = GetExplicitInterfaceImplementations(target);
+      if (explicitMembers.Count == 0)
+      {
+        return null;
+      }
+
+      return Diagnostic.Create(
+        Mock005,
+        invocation.GetLocation(),
+        target.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+        string.Join(", ", explicitMembers));
+    }
+
+    private static List<string> GetExplicitInterfaceImplementations(INamedTypeSymbol type)
+    {
+      var result = new List<string>();
+
+      for (var current = type; current is { SpecialType: not SpecialType.System_Object }; current = current.BaseType)
+      {
+        foreach (var member in current.GetMembers())
+        {
+          if (member is IMethodSymbol { MethodKind: MethodKind.ExplicitInterfaceImplementation } m)
+          {
+            foreach (var ifaceMethod in m.ExplicitInterfaceImplementations)
+            {
+              result.Add($"{ifaceMethod.ContainingType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}.{ifaceMethod.Name}");
+            }
+          }
+          else if (member is IPropertySymbol p && !p.ExplicitInterfaceImplementations.IsDefaultOrEmpty)
+          {
+            foreach (var ifaceProperty in p.ExplicitInterfaceImplementations)
+            {
+              result.Add($"{ifaceProperty.ContainingType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}.{(ifaceProperty.IsIndexer ? "this[]" : ifaceProperty.Name)}");
+            }
+          }
+          else if (member is IEventSymbol e && !e.ExplicitInterfaceImplementations.IsDefaultOrEmpty)
+          {
+            foreach (var ifaceEvent in e.ExplicitInterfaceImplementations)
+            {
+              result.Add($"{ifaceEvent.ContainingType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}.{ifaceEvent.Name}");
+            }
+          }
+        }
+      }
+
+      return result.Distinct().ToList();
+    }
+
+    /// <summary>
+    /// MOCK003: warns when an arrangement targets a member the generator intentionally skips — a
+    /// generic method, a ref-returning method, or a method with ref/out/in parameters that is being
+    /// matched with argument matchers. Such arrangements would silently do nothing.
     /// Only fires for methods on interface or non-sealed class types (the kinds that get mocked),
-    /// to avoid false positives on DSL/framework helpers (It.Any, ArrangeExtensions.Returns, etc.).
+    /// to avoid false positives on DSL/framework helpers (Any, ArrangeExtensions.Returns, etc.).
     /// </summary>
     private static Diagnostic? ExtractMock003(GeneratorSyntaxContext ctx, System.Threading.CancellationToken ct)
     {
@@ -392,6 +492,13 @@ namespace Assertive.Mocking.Generators
       else if (method.ReturnsByRef)
       {
         reason = "it returns by ref";
+      }
+      else if (method.Parameters.Any(p => p.RefKind is RefKind.Ref or RefKind.Out or RefKind.In)
+               && invocation.ArgumentList.Arguments.Any(a => Classify(a.Expression) != ArgKind.Exact))
+      {
+        // ref/out/in methods can be arranged with exact args + ReturnsWithOuts/SetsOuts, but the
+        // generator never emits a matcher interceptor for them, so matchers would silently no-op.
+        reason = "it has ref/out/in parameters, which cannot be combined with argument matchers";
       }
 
       if (reason is null)

@@ -451,8 +451,6 @@ namespace Assertive.Mocking.Runtime
 
       lock (_lock)
       {
-        _calls.Add(new MockInvocation(method, arguments));
-
         // Last-registered match wins, so a later, more specific arrangement overrides an earlier
         // broad one (e.g. Any(...) first, then an exact-args override).
         for (var i = _setups.Count - 1; i >= 0; i--)
@@ -461,6 +459,7 @@ namespace Assertive.Mocking.Runtime
 
           if (setupMethod == method && match(arguments))
           {
+            _calls.Add(new MockInvocation(method, arguments));
             // The behavior may return a value, throw, or run a side effect. For void methods the
             // generated member ignores the return; a throwing behavior still propagates.
             configuredReturn = behavior(arguments);
@@ -470,6 +469,7 @@ namespace Assertive.Mocking.Runtime
         }
 
         // Strict: nothing implicit. An unarranged call is an error (no default, no auto-mock).
+        // Checked before recording so a violation doesn't pollute the call log.
         if (Strict)
         {
           var arranged = _setups.Count == 0
@@ -481,6 +481,7 @@ namespace Assertive.Mocking.Runtime
             $"but no matching arrangement was set up.{Environment.NewLine}Arranged: {arranged}");
         }
 
+        _calls.Add(new MockInvocation(method, arguments));
         configuredReturn = null;
         matched = false;
         return false;
