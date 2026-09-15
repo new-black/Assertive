@@ -21,6 +21,8 @@ Assert(() => order.Id == 123);
 Received(() => repo.GetById(123));
 ```
 
+`A<T>()` creates a source-generated mock of `T`; `Build<T>` constructs a concrete type with auto-mocked dependencies.
+
 ## Installation
 
 ```bash
@@ -33,7 +35,9 @@ Or add to your project file:
 <PackageReference Include="Assertive.Mocking" Version="0.1.11" />
 ```
 
-The package ships a `buildTransitive` props file that automatically enables the `InterceptorsPreviewNamespaces` compiler feature — no manual project configuration is needed.
+The package ships a `buildTransitive` props file that automatically enables the `InterceptorsNamespaces` and `InterceptorsPreviewNamespaces` compiler features — no manual project configuration is needed.
+
+Like Assertive itself, mocking is produced by a source generator that relies on C# interceptors, so you need to build with the **.NET 9.0.300 SDK or newer** (or any .NET 10 SDK / Visual Studio 2022 17.14+). If the generator does not run — for example because the SDK is too old — `A<T>()`/`Build<T>()` throw at runtime rather than silently degrading. The `2.Times` extension property additionally requires a **C# 14 compiler** (.NET 10 SDK); everything else works on the same toolchain as Assertive.
 
 ## Contents
 
@@ -51,15 +55,20 @@ The package ships a `buildTransitive` props file that automatically enables the 
 - [Verifying calls](#verifying-calls)
   - [Received and DidNotReceive](#received-and-didnotreceive)
   - [Call counts](#call-counts)
+  - [No unexpected calls](#no-unexpected-calls)
   - [Call order](#call-order)
 - [Capturing arguments](#capturing-arguments)
 - [Properties, indexers and events](#properties-indexers-and-events)
 - [Arranging an entire method at once](#arranging-an-entire-method-at-once)
 - [Sequential returns and conditional setups](#sequential-returns-and-conditional-setups)
 - [Class mocks, auto-mocks, builders and spies](#class-mocks-auto-mocks-builders-and-spies)
+  - [Class mocking](#class-mocking)
+  - [Auto-mock](#auto-mock)
+  - [Building the system under test](#building-the-system-under-test)
   - [Post-creation setup with `Setup<T>`](#post-creation-setup-with-setupt)
   - [Spying with Wrap](#spying-with-wrap)
 - [Resetting state](#resetting-state)
+- [Compatibility](#compatibility)
 - [How it works](#how-it-works)
 - [Limitations](#limitations)
 
@@ -79,7 +88,7 @@ Or you can create the mock first and arrange it later — even after `await`ing:
 ```csharp
 var repo = A<IOrderRepository>();
 
-repo.GetById(Any<int>()).Returns(id => new Order { Id = id });
+repo.GetById(Any<int>()).Returns((int id) => new Order { Id = id });
 
 await Task.Delay(1);
 
@@ -102,7 +111,7 @@ You can also access all methods through the `Mock` class itself:
 var repo = Mock.A<IOrderRepository>();
 ```
 
-The examples below assume `using static Assertive.Mocking.Mock` and `using static Assertive.DSL;` so both `A<T>()` and `Assert(...)` are available without prefixes.
+The examples below assume the following imports: `using Assertive.Mocking;` for the types (`Times`, `Capture<T>`, `MockMode`) and arrangement extensions (`.Returns`, `.Throws`, `.Does`), `using static Assertive.Mocking.Mock;` for `A<T>()` and the matchers, and `using static Assertive.DSL;` for `Assert(...)`.
 
 ## Arranging behavior
 
@@ -144,7 +153,7 @@ var repo = await A<IOrderRepository>(async m =>
 {
     var template = await LoadOrderTemplateAsync();
 
-    m.GetById(Any<int>()).Returns(id => template.WithId(id));
+    m.GetById(Any<int>()).Returns((int id) => template.WithId(id));
 });
 ```
 
@@ -152,7 +161,7 @@ The arrange context flows across `await`, so you can mix awaited work with stand
 
 ### Strict mode
 
-By default, mocks are loose: unarranged calls that return a reference type produce a stable auto-mock. In strict mode every call must have an arrangement or a `StrictMockException` is thrown:
+By default, mocks are loose: unarranged calls that return a mockable interface or class produce a stable auto-mock (BCL values such as strings, collections and tasks return their normal defaults). In strict mode every call must have an arrangement or a `StrictMockException` is thrown:
 
 ```csharp
 var repo = A<IOrderRepository>(MockMode.Strict);
@@ -171,7 +180,7 @@ var repo = A<IOrderRepository>(m =>
 
 ## Returning values, throwing and side-effects
 
-Three arrangement verbs are available on method calls: `Returns`, `Throws` and `Does`.
+The main arrangement verbs are `Returns`, `Throws` and `Does`, plus `ReturnsSequentially` and `ReturnsWithOuts`. For members that return `Task<T>` or `ValueTask<T>`, `.Returns(value)` takes the bare `T` and wraps it for you.
 
 ```csharp
 var repo = A<IOrderRepository>();
@@ -239,7 +248,7 @@ repo.ProcessOrders(Contains(order1)).Returns(true);
 repo.ProcessOrders(IsEmpty<Order>()).Returns(true);
 ```
 
-`default` is a convenient shorthand that is treated specially which tells the generator "match any value here". It is equivalent to `Any<T>()` but does not require an explicit type.
+`default` is a convenient shorthand that is treated specially which tells the generator "match any value here". It is equivalent to `Any<T>()` but does not require an explicit type. Named arguments at matcher call sites are not supported (the compiler reports `MOCK004`).
 
 ## Verifying calls
 
@@ -275,7 +284,15 @@ You can also use the `int` extension property for exact counts:
 Received(() => repo.GetById(123), 2.Times);
 ```
 
-Available values: `Times.Once`, `Times.Never`, `Times.AtLeastOnce`, `Times.AtMostOnce`, `Times.Exactly(n)`, `Times.AtLeast(n)`, `Times.AtMost(n)`, `Times.Between(min, max)`.
+Available values: `Times.Once`, `Times.Never`, `Times.AtLeastOnce`, `Times.AtMostOnce`, `Times.Exactly(n)`, `Times.AtLeast(n)`, `Times.AtMost(n)`, `Times.Between(min, max)`. The `2.Times` extension property requires a C# 14 compiler; `Times.Exactly(2)` works on all supported toolchains.
+
+### No unexpected calls
+
+`Mock.VerifyNoOtherCalls(mock)` asserts that every recorded call matched at least one setup. Run your `Received` checks first, then this:
+
+```csharp
+Mock.VerifyNoOtherCalls(repo);
+```
 
 ### Call order
 
@@ -398,14 +415,14 @@ When the condition is false, the setup is skipped and the next matching setup is
 
 ### Class mocking
 
-Concrete classes with virtual or abstract members can be mocked. Non-virtual members always run the real implementation. Virtual members that are not arranged call the base implementation.
+Concrete classes with virtual or abstract members can be mocked. Non-virtual members always run the real implementation. Virtual methods and gettable properties that are not arranged call the base implementation; virtual property/indexer setters and events are recorded but do not call the base implementation. Classes with `required` members and `init`-only accessors are supported.
 
 ```csharp
 // Default constructor
 var svc = A<MyService>();
 
 // Forward constructor arguments
-var svc = A<MyService>("connection-string", 30);
+var svcWithArgs = A<MyService>("connection-string", 30);
 
 // Arrange a virtual method
 svc.ComputeHash(default!).Returns("fake-hash");
@@ -413,7 +430,7 @@ svc.ComputeHash(default!).Returns("fake-hash");
 
 ### Auto-mock
 
-In loose mode, calls that return an interface or class and have no arrangement return a stable child mock. `Task<T>` and `ValueTask<T>` are unwrapped automatically.
+In loose mode, calls that return a mockable interface or class and have no arrangement return a stable child mock. `Task<T>` and `ValueTask<T>` are unwrapped automatically.
 
 ```csharp
 var factory = A<IOrderServiceFactory>();
@@ -426,7 +443,7 @@ Assert(() => ReferenceEquals(repo, sameRepo));
 
 ### Building the system under test
 
-`Build<T>` constructs a class using its richest accessible constructor. Provided arguments are matched by type, not by position; unmatched parameters are auto-mocked. The generator emits a typed factory per call site.
+`Build<T>` constructs a class using its richest accessible constructor. Provided arguments are matched to constructor parameters by type, not by position; unmatched parameters are auto-mocked. Up to 8 arguments can be provided. Matching is by exact type — implicit conversions are not applied and `null` is treated as "not provided" — so pass values of the exact parameter type.
 
 ```csharp
 // All dependencies auto-mocked
@@ -434,7 +451,7 @@ var svc = Build<CheckoutService>();
 
 // Provide specific deps; the rest are auto-mocked
 var gateway = A<IPaymentGateway>();
-var svc = Build<CheckoutService>(gateway);
+var svcWithGateway = Build<CheckoutService>(gateway);
 ```
 
 ### Post-creation setup with `Setup<T>`
@@ -465,7 +482,7 @@ Setup(spy, s => s.Transform("hello").Returns("OVERRIDDEN"));
 Assert(() => spy.Transform("hello") == "OVERRIDDEN");
 ```
 
-`Wrap<T>` currently supports non-generic interface types only.
+`Wrap<T>` currently supports non-generic interface types only; using a class or generic interface compiles but throws at runtime.
 
 ## Resetting state
 
@@ -477,9 +494,16 @@ Mock.ClearReceivedCalls(repo);
 Mock.Reset(repo);
 ```
 
+## Compatibility
+
+- Targets **.NET 8 or newer**; build with the **.NET 9.0.300 SDK or newer** (see [Installation](#installation)).
+- Works with xUnit, NUnit, TUnit, MSTest and any framework that renders `Assertive` failures.
+- Native AOT and trimming are supported for the generated mocks; see [How it works](#how-it-works).
+- The `2.Times` extension property requires a **C# 14 compiler**; `Times.Exactly(n)` works everywhere.
+
 ## How it works
 
-When you install the package, a Roslyn incremental source generator scans your compilation for calls to `A<T>()`, `Wrap<T>()`, `Build<T>()`, and the arrangement verbs. For each mocked type it emits a concrete subclass (for classes) or interface implementation (for interfaces) that overrides every eligible member. Each generated member records the call in the mock's internal log, checks for matching setups, and either returns the configured value, invokes the base, or returns a sensible default.
+When you install the package, a Roslyn incremental source generator scans your compilation for calls to `A<T>()`, `Wrap<T>()`, `Build<T>()`, and matcher-bearing mock call sites. For each mocked type it emits a concrete subclass (for classes) or interface implementation (for interfaces) that overrides every eligible member. Each generated member records the call in the mock's internal log, checks for matching setups, and either returns the configured value, invokes the base, or returns a sensible default.
 
 `Wrap<T>` generates a similar class but holds a reference to the wrapped instance and calls through to it when no arrangement matches.
 
@@ -487,14 +511,14 @@ When you install the package, a Roslyn incremental source generator scans your c
 
 Argument matchers are recognised syntactically at the call site. The generator emits a companion interceptor for each matching call that registers the matcher predicates before the actual call is recorded, so the runtime never has to guess which positions were matchers.
 
-Arrangement state is stored in `AsyncLocal<T>` so that setups inside async lambdas and standalone setups after an `await` work correctly.
+The active arrange scope is tracked in `AsyncLocal<T>` so that setups inside async lambdas and standalone setups after an `await` work correctly.
 
-The result is a fully static, reflection-free mock implementation that the AOT compiler can see in its entirety — no runtime `Emit`, no `Castle.DynamicProxy`, and no `[DynamicallyAccessedMembers]` annotations required.
+The generated mock members are fully static and reflection-free. Two runtime helpers use delegates — `Any(mock.Method)` inspects `Delegate.Method` and `Mock.Raise` uses `DynamicInvoke` — both of which are AOT-safe; no runtime `Emit`, no `Castle.DynamicProxy`, and no `[DynamicallyAccessedMembers]` annotations are required.
 
 ## Limitations
 
-- **Generic methods** cannot be arranged. On interfaces they throw `NotSupportedException`; on classes they are emitted as throwing stubs so the generated type still compiles, but unarranged non-abstract generic methods run the real base implementation.
+- **Generic methods** cannot be arranged. Interface mocks throw `NotSupportedException` when an unarranged generic method is called; on class mocks, abstract generic methods are emitted as throwing stubs so the type still compiles, while non-abstract generic methods are not overridden at all and run the real base implementation.
 - **`ref` / `out` / `in` parameters** are supported for recording, arrangement (`ReturnsWithOuts` / `SetsOuts`) and verification, but argument matchers cannot be used on `ref` / `out` / `in` parameters.
-- **Sealed classes** cannot be mocked.
-- **Non-virtual class members** always run the real implementation regardless of any arrangement.
-- **`Wrap<T>`** only supports non-generic interface types.
+- **Non-virtual class members** cannot be arranged: arranging one is a compile error (`MOCK002`). This applies to `A<T>(m => m.NonVirtual(...).Returns(...))` and the standalone `m.NonVirtual(...).Returns(...)` form.
+- **Unmockable types** are rejected at compile time with `MOCK001`: sealed and static classes, records, classes with no accessible constructor, and interfaces with `static abstract` members.
+- **`Wrap<T>`** only supports non-generic interface types. Generic interface methods are implemented as throwing stubs (they compile but throw `NotSupportedException` when called).

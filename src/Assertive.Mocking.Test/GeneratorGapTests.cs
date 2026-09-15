@@ -106,6 +106,200 @@ class Test
     CompileGeneratedSource(source);
   }
 
+  [Fact]
+  public void Class_with_same_arity_overloads_emits_both()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public abstract class Overloaded
+{
+  public abstract int M(int x);
+  public abstract string M(string x);
+}
+class Test { void Run() { var m = A<Overloaded>(); } }
+";
+    var output = RunGenerator(source);
+    Assert(() => output.Contains("override int M(int x)"));
+    Assert(() => output.Contains("override string M(string x)"));
+
+    CompileGeneratedSource(source);
+  }
+
+  [Fact]
+  public void Sealed_override_in_hierarchy_does_not_emit_illegal_override()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class SealedBase { public virtual int M() => 1; }
+public class SealedDerived : SealedBase { public sealed override int M() => 2; }
+class Test { void Run() { var m = A<SealedDerived>(); } }
+";
+    var output = RunGenerator(source);
+    Assert(() => !output.Contains("override int M("));
+
+    CompileGeneratedSource(source);
+  }
+
+  [Fact]
+  public void Record_type_reports_error()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public record Person(string Name);
+class Test { void Run() { var m = A<Person>(); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => diagnostics.Any(d => d.Id == "MOCK001" && d.Severity == DiagnosticSeverity.Error));
+    Assert(() => diagnostics.Any(d => d.Id == "MOCK001" && d.GetMessage().Contains("records cannot be mocked")));
+  }
+
+  [Fact]
+  public void Class_without_accessible_constructor_reports_error()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class NoAccessibleCtor
+{
+  private NoAccessibleCtor() { }
+  public virtual int M() => 1;
+}
+class Test { void Run() { var m = A<NoAccessibleCtor>(); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => diagnostics.Any(d => d.Id == "MOCK001" && d.GetMessage().Contains("no accessible constructor")));
+  }
+
+  [Fact]
+  public void Interface_with_static_abstract_member_reports_error()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public interface IStaticAbstract { static abstract int Zero(); }
+class Test { void Run() { var m = A<IStaticAbstract>(); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => diagnostics.Any(d => d.Id == "MOCK001" && d.GetMessage().Contains("static abstract")));
+  }
+
+  [Fact]
+  public void Class_with_init_only_property_emits_init_accessor()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class WithInit { public virtual string Name { get; init; } = ""x""; }
+class Test { void Run() { var m = A<WithInit>(); } }
+";
+    var output = RunGenerator(source);
+    Assert(() => output.Contains("init {"));
+
+    CompileGeneratedSource(source);
+  }
+
+  [Fact]
+  public void Interface_with_init_only_property_emits_init_accessor()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public interface IWithInit { string Name { get; init; } }
+class Test { void Run() { var m = A<IWithInit>(); } }
+";
+    var output = RunGenerator(source);
+    Assert(() => output.Contains("init {"));
+
+    CompileGeneratedSource(source);
+  }
+
+  [Fact]
+  public void Class_with_required_members_compiles()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class WithRequired { public required string Name { get; set; } public virtual int M() => 1; }
+class Test { void Run() { var m = A<WithRequired>(); } }
+";
+    var output = RunGenerator(source);
+    Assert(() => output.Contains("SetsRequiredMembers"));
+
+    CompileGeneratedSource(source);
+  }
+
+  [Fact]
+  public void Wrap_with_generic_method_compiles()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public interface IGenericWrapped { T Get<T>(); int M(); }
+class Impl : IGenericWrapped { public T Get<T>() => default!; public int M() => 1; }
+class Test { void Run() { var w = Wrap<IGenericWrapped>(new Impl()); } }
+";
+    var output = RunGenerator(source);
+    Assert(() => output.Contains("T Get<T>()"));
+
+    CompileGeneratedSource(source);
+  }
+
+  [Fact]
+  public void Non_virtual_arrangement_on_A_mock_reports_MOCK002_error()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class NonVirtualService { public int Compute() => 1; }
+class Test { void Run() { var m = A<NonVirtualService>(x => x.Compute().Returns(5)); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => diagnostics.Any(d => d.Id == "MOCK002" && d.Severity == DiagnosticSeverity.Error));
+  }
+
+  [Fact]
+  public void Non_virtual_standalone_arrangement_reports_MOCK002_error()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class NonVirtualService { public int Compute() => 1; }
+class Test { void Run() { var m = A<NonVirtualService>(); m.Compute().Returns(5); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => diagnostics.Any(d => d.Id == "MOCK002" && d.Severity == DiagnosticSeverity.Error));
+  }
+
+  [Fact]
+  public void Real_object_call_in_nested_lambda_does_not_report_MOCK002()
+  {
+    var source = @"
+using System.Collections.Generic;
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class NonVirtualService { public virtual void Log(string s) { } }
+class Test
+{
+  void Run()
+  {
+    var list = new List<string>();
+    var m = A<NonVirtualService>(x => When(() => x.Log(string.Empty)).Does(_ => list.Add(""x"")));
+  }
+}
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => !diagnostics.Any(d => d.Id == "MOCK002"));
+  }
+
   // ── helpers ────────────────────────────────────────────────────────────────
 
   private static string RunGenerator(string source)
@@ -154,14 +348,24 @@ class Test
 
   private static (string Output, IReadOnlyList<Diagnostic> Diagnostics) RunGeneratorWithDiagnostics(string source)
   {
+    var references = new List<MetadataReference>
+    {
+      MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+      MetadataReference.CreateFromFile(typeof(Assertive.Mocking.Mock).Assembly.Location),
+    };
+
+    foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+    {
+      if (!asm.IsDynamic && !string.IsNullOrEmpty(asm.Location) && references.All(r => r.Display != asm.Location))
+      {
+        references.Add(MetadataReference.CreateFromFile(asm.Location));
+      }
+    }
+
     var compilation = CSharpCompilation.Create(
       "TestAssembly",
       new[] { CSharpSyntaxTree.ParseText(source) },
-      new[]
-      {
-        MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-        MetadataReference.CreateFromFile(typeof(Assertive.Mocking.Mock).Assembly.Location),
-      },
+      references,
       new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
     var generator = new Assertive.Mocking.Generators.MockGenerator();
