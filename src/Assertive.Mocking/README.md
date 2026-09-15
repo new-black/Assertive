@@ -32,7 +32,7 @@ dotnet add package Assertive.Mocking
 Or add to your project file:
 
 ```xml
-<PackageReference Include="Assertive.Mocking" Version="0.1.11" />
+<PackageReference Include="Assertive.Mocking" Version="0.2.0" />
 ```
 
 The package ships a `buildTransitive` props file that automatically enables the `InterceptorsNamespaces` and `InterceptorsPreviewNamespaces` compiler features — no manual project configuration is needed.
