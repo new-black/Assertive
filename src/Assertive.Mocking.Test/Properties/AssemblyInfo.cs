@@ -14,7 +14,9 @@ public static class GlobalSetup
   [ModuleInitializer]
   public static void Initialize()
   {
-    Configuration.Snapshots.AcceptNewSnapshots = true;
+    // Snapshots must be committed explicitly; a new/unseen snapshot fails the build instead of
+    // being silently accepted (previously this hid a snapshot-format migration and orphaned files).
+    Configuration.Snapshots.AcceptNewSnapshots = false;
 
     DirectoryInfo? baseDir = null;
 

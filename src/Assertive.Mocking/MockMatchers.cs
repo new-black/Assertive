@@ -3,23 +3,73 @@ using System.Threading;
 
 namespace Assertive.Mocking
 {
+  /// <summary>A <see cref="Capture{T}"/> that can be cleared when its mock is reset.</summary>
+  internal interface ICaptureSink
+  {
+    void Clear();
+  }
+
   public static partial class Mock
   {
-    private static readonly AsyncLocal<Queue<Func<object, bool>>?> _predicates = new();
+    private readonly struct MatcherEntry
+    {
+      public MatcherEntry(Func<object, bool> predicate, ICaptureSink? sink)
+      {
+        Predicate = predicate;
+        Sink = sink;
+      }
+
+      public Func<object, bool> Predicate { get; }
+      public ICaptureSink? Sink { get; }
+    }
+
+    private static readonly AsyncLocal<Queue<MatcherEntry>?> _predicates = new();
+
+    // Sinks dequeued by the current interceptor, handed to CaptureMatchers so the owning mock can
+    // clear them on Reset.
+    private static readonly AsyncLocal<List<ICaptureSink>?> _dequeuedSinks = new();
+
+    // Set by any matcher helper so a context that never gets an interceptor (e.g. InOrder, generic
+    // methods) can detect that a matcher was written and fail loudly instead of silently comparing
+    // default(T). Cleared only by ClearMatchers (not by ClearPendingMatchers).
+    private static readonly AsyncLocal<bool> _matcherUsed = new();
+
+    internal static bool MatcherWasUsed => _matcherUsed.Value;
+
+    /// <summary>Discards any matchers that were not consumed by an interceptor (queue only).</summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void ClearPendingMatchers()
+    {
+      _predicates.Value = null;
+      _dequeuedSinks.Value = null;
+    }
 
     internal static void ClearMatchers()
     {
-      // Discard any matchers that were not consumed by an interceptor.
-      _predicates.Value = null;
+      ClearPendingMatchers();
+      _matcherUsed.Value = false;
+    }
+
+    /// <summary>Consumes the captures dequeued for the interceptor that is currently being invoked.</summary>
+    internal static List<ICaptureSink>? TakeDequeuedSinks()
+    {
+      var sinks = _dequeuedSinks.Value;
+      _dequeuedSinks.Value = null;
+      return sinks;
     }
 
     /// <summary>Matches any argument of type <typeparamref name="T"/>.</summary>
-    public static T Any<T>() => default!;
+    public static T Any<T>()
+    {
+      _matcherUsed.Value = true;
+      return default!;
+    }
 
     /// <summary>Matches an argument of type <typeparamref name="T"/> satisfying <paramref name="predicate"/>.</summary>
     public static T Any<T>(Func<T, bool> predicate)
     {
-      (_predicates.Value ??= new Queue<Func<object, bool>>()).Enqueue(o => predicate((T)o));
+      _matcherUsed.Value = true;
+      (_predicates.Value ??= new Queue<MatcherEntry>()).Enqueue(new MatcherEntry(o => predicate((T)o), null));
       return default!;
     }
 
@@ -30,7 +80,9 @@ namespace Assertive.Mocking
     /// </summary>
     public static T Any<T>(Capture<T> capture)
     {
-      (_predicates.Value ??= new Queue<Func<object, bool>>()).Enqueue(o => { capture.Record((T)o!); return true; });
+      _matcherUsed.Value = true;
+      (_predicates.Value ??= new Queue<MatcherEntry>()).Enqueue(
+        new MatcherEntry(o => { capture.Record((T)o!); return true; }, capture));
       return default!;
     }
 
@@ -67,7 +119,13 @@ namespace Assertive.Mocking
         throw new InvalidOperationException("Assertive.Mocking: no predicate matcher available — Any<T>(predicate) must appear directly inside the intercepted mock call.");
       }
 
-      return queue.Dequeue();
+      var entry = queue.Dequeue();
+      if (entry.Sink is not null)
+      {
+        (_dequeuedSinks.Value ??= new List<ICaptureSink>()).Add(entry.Sink);
+      }
+
+      return entry.Predicate;
     }
   }
 }

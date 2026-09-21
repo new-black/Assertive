@@ -175,7 +175,7 @@ namespace Assertive.Mocking
 
       if (times.Matches(count)) return;
 
-      var assertionText = StripArrow(callExpression);
+      _ = callExpression;
       var received = mock.Calls.Count == 0
         ? "(no calls received)"
         : string.Join("\n", System.Linq.Enumerable.Select(mock.Calls, (c, i) => $"  [{i}] {c.Format()}"));
@@ -186,15 +186,6 @@ namespace Assertive.Mocking
         message: null, context: null, contextExpression: null);
     }
 
-    private static string StripArrow(string expression)
-    {
-      var arrow = expression.IndexOf("=>", System.StringComparison.Ordinal);
-      if (arrow < 0) return expression;
-      var body = expression.Substring(arrow + 2).Trim();
-      var dot = body.IndexOf('.');
-      return dot >= 0 ? body.Substring(dot + 1) : body;
-    }
-
     /// <summary>
     /// Arranges a call expressed as a delegate, for cases the fluent suffix can't express —
     /// chiefly <b>void methods</b> (a void expression can't be the receiver of <c>.Returns</c>),
@@ -203,8 +194,9 @@ namespace Assertive.Mocking
     /// </summary>
     public static WhenBuilder When(System.Action call)
     {
+      var previousProbe = MockBase.BeginArrangeProbe();
       try { call(); }
-      finally { ClearMatchers(); }
+      finally { MockBase.EndArrangeProbe(previousProbe); ClearMatchers(); }
       var (mock, captured, match) = MockBase.CurrentCapture();
       return new WhenBuilder(mock, captured.Method, match);
     }
@@ -296,6 +288,7 @@ namespace Assertive.Mocking
     public static void ReturnsSequentially<TResult>(this TResult call, params TResult[] values)
     {
       _ = call;
+      ArrangeGuards.RequireValues(values);
       var idx = 0;
       MockBase.AttachBehaviorToLastArrangedCall(_ => values[System.Math.Min(idx++, values.Length - 1)]);
     }

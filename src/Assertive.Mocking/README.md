@@ -178,6 +178,8 @@ var repo = A<IOrderRepository>(m =>
 }, MockMode.Strict);
 ```
 
+Standalone arrangements with exact arguments work on a strict mock as well: `repo.GetById(123).Returns(new Order())` captures the arrange probe instead of treating it as an unarranged call. Only calls that match no arrangement still throw — `repo.GetById(456)` above throws because no setup matches `456`.
+
 ## Returning values, throwing and side-effects
 
 The main arrangement verbs are `Returns`, `Throws` and `Does`, plus `ReturnsSequentially` and `ReturnsWithOuts`. For members that return `Task<T>` or `ValueTask<T>`, `.Returns(value)` takes the bare `T` and wraps it for you.
@@ -307,6 +309,8 @@ Mock.InOrder(repo, r =>
 });
 ```
 
+`InOrder` uses exact argument values. Argument matchers (`Any<T>`, `IsIn`, …) are **not** supported inside it: calls inside `InOrder` are not intercepted, so a matcher would silently become `default(T)`. The runtime detects this and throws a clear `InvalidOperationException` instead of comparing against `null`.
+
 ## Capturing arguments
 
 Use `Capture<T>` to record the arguments a method was called with and inspect them later:
@@ -366,6 +370,8 @@ Mock.Raise(source, s => s.MessageReceived += null, null, "hello");
 
 Assert(() => message == "hello");
 ```
+
+`Received` verifies method and property calls; it cannot verify an event subscription (`Received(() => source.MessageReceived += handler)` throws). To assert on an event, raise it and check its effects, or subscribe through a property-like accessor if the type exposes one.
 
 ## Arranging an entire method at once
 
@@ -492,7 +498,8 @@ Assert(() => spy.Transform("hello") == "OVERRIDDEN");
 // Clear recorded calls but keep setups
 Mock.ClearReceivedCalls(repo);
 
-// Clear both calls and setups (also drops cached auto-mocks)
+// Clear both calls and setups (also drops cached auto-mocks and any Capture<T> values
+// recorded through this mock's matchers)
 Mock.Reset(repo);
 ```
 
@@ -513,7 +520,7 @@ When you install the package, a Roslyn incremental source generator scans your c
 
 Argument matchers are recognised syntactically at the call site. The generator emits a companion interceptor for each matching call that registers the matcher predicates before the actual call is recorded, so the runtime never has to guess which positions were matchers.
 
-The active arrange scope is tracked in `AsyncLocal<T>` so that setups inside async lambdas and standalone setups after an `await` work correctly.
+The active arrange scope is tracked in `AsyncLocal<T>` so that setups inside async lambdas and standalone setups after an `await` work correctly. The pending capture consumed by arrange verbs, `When` and `Received` is also stored per mock in `AsyncLocal<T>` rather than on the mock itself, so concurrent calls on the same mock from different threads cannot change what a verification sees.
 
 The generated mock members are fully static and reflection-free. Two runtime helpers use delegates — `Any(mock.Method)` inspects `Delegate.Method` and `Mock.Raise` uses `DynamicInvoke` — both of which are AOT-safe; no runtime `Emit`, no `Castle.DynamicProxy`, and no `[DynamicallyAccessedMembers]` annotations are required.
 

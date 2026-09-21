@@ -211,8 +211,10 @@ public class VoidMethodTests
   {
     var greeter = A<IGreeter>();
 
-    // Should not throw
-    greeter.Log("hello");
+    var ex = Record.Exception(() => greeter.Log("hello"));
+
+    Assert(() => ex == null);
+    Received(() => greeter.Log("hello"));
   }
 
   [Fact]
@@ -224,7 +226,9 @@ public class VoidMethodTests
     });
 
     // "ignored" doesn't match "boom" — should be a no-op
-    greeter.Log("ignored");
+    var ex = Record.Exception(() => greeter.Log("ignored"));
+
+    Assert(() => ex == null);
   }
 }
 
@@ -450,7 +454,11 @@ public class AsyncTests
     var greeter = A<IGreeter>();
 
     // Should not NRE or hang
-    await greeter.DoWorkAsync();
+    var task = greeter.DoWorkAsync();
+
+    Assert(() => task != null);
+    Assert(() => task.IsCompleted);
+    await task;
   }
 
   [Fact]
@@ -676,9 +684,8 @@ public class ClassMockTests
   [Fact]
   public void Class_mock_virtual_method_arranged_overrides_base()
   {
-    // Service only has a ctor that takes a string, so forward "test" as the ctor arg.
-    // A<T> with ctor args isn't directly supported (A<T> uses empty ctor args), so
-    // create via Mock.Of<T>(ctorArgs) and then arrange separately.
+    // Service only has a ctor that takes a string, so forward "test" as the ctor arg
+    // and then arrange the mock separately.
     var svc = A<Service>("test");
     Setup(svc, s => s.Describe().Returns("mocked-describe"));
 
@@ -1562,8 +1569,9 @@ public class EventTests
   {
     var source = A<IEventSource>();
 
-    // Should not throw
-    Raise(source, s => s.MessageReceived += null, null, "ignored");
+    var ex = Record.Exception(() => Raise(source, s => s.MessageReceived += null, null, "ignored"));
+
+    Assert(() => ex == null);
   }
 }
 

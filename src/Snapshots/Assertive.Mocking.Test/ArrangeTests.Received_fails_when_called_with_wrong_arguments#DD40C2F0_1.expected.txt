@@ -1,7 +1,0 @@
-
-Greet("Bob the Builder")
-
-Expected: Greet("Bob the Builder")
-Received:
-  [0] Greet("Adam the Magnificent")
-················································································

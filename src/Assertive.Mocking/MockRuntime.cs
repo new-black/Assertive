@@ -30,7 +30,20 @@ namespace Assertive.Mocking
     /// <summary>At most <paramref name="n"/> calls.</summary>
     public static Times AtMost(int n) => new Times(0, n);
     /// <summary>Between <paramref name="min"/> and <paramref name="max"/> calls (inclusive).</summary>
-    public static Times Between(int min, int max) => new Times(min, max);
+    public static Times Between(int min, int max)
+    {
+      if (min < 0)
+      {
+        throw new ArgumentOutOfRangeException(nameof(min), min, "Assertive.Mocking: Times.Between(min, max) requires min >= 0.");
+      }
+
+      if (max < min)
+      {
+        throw new ArgumentOutOfRangeException(nameof(max), max, "Assertive.Mocking: Times.Between(min, max) requires max >= min.");
+      }
+
+      return new Times(min, max);
+    }
 
     public bool Matches(int count) =>
       count >= _min && (_max == -1 || count <= _max);
@@ -54,7 +67,7 @@ namespace Assertive.Mocking
   /// Collects argument values captured during matched mock calls. Use <see cref="Mock.Any{T}(Capture{T})"/>
   /// inside an arrange or verify lambda to record the values passed to a mock member.
   /// </summary>
-  public sealed class Capture<T>
+  public sealed class Capture<T> : ICaptureSink
   {
     private readonly List<T> _values = new();
     /// <summary>All values captured in order of recording.</summary>
@@ -62,6 +75,7 @@ namespace Assertive.Mocking
     /// <summary>The most recently captured value. Throws if nothing has been captured yet.</summary>
     public T Latest => _values.Count > 0 ? _values[_values.Count - 1] : throw new InvalidOperationException("No captured values.");
     internal void Record(T value) => _values.Add(value);
+    void ICaptureSink.Clear() => _values.Clear();
   }
 
 
@@ -169,7 +183,7 @@ namespace Assertive.Mocking
       try { attach(mock); }
       finally { MockBase.EndSingleCapture(previousCapturing); }
 
-      var eventName = core.Captured?.Method
+      var eventName = core.CapturedCall?.Method
         ?? throw new InvalidOperationException("Assertive.Mocking: Mock.Raise could not capture the event name.");
 
       var handler = core.GetEventHandler(eventName);

@@ -4,6 +4,20 @@ using Assertive.Mocking.Runtime;
 
 namespace Assertive.Mocking
 {
+  /// <summary>Argument checks shared by the arrange builders.</summary>
+  internal static class ArrangeGuards
+  {
+    /// <summary><c>ReturnsSequentially</c> needs at least one value, otherwise it has nothing to return.</summary>
+    public static void RequireValues<T>(T[] values)
+    {
+      if (values.Length == 0)
+      {
+        throw new ArgumentException(
+          "Assertive.Mocking: ReturnsSequentially requires at least one value.", nameof(values));
+      }
+    }
+  }
+
   /// <summary>
   /// Method-group arrangement: <c>Any(mock.Method)</c> arranges a call to <c>Method</c> for ANY
   /// arguments, without writing placeholder/matcher arguments. The method group converts to a
@@ -122,6 +136,7 @@ namespace Assertive.Mocking
     /// </summary>
     public void ReturnsSequentially(params TResult[] values)
     {
+      ArrangeGuards.RequireValues(values);
       var idx = 0;
       _arrange.Any(_ => values[Math.Min(idx++, values.Length - 1)]);
     }
@@ -149,6 +164,7 @@ namespace Assertive.Mocking
     /// </summary>
     public void ReturnsSequentially(params TResult[] values)
     {
+      ArrangeGuards.RequireValues(values);
       var idx = 0;
       _arrange.Any(_ => values[Math.Min(idx++, values.Length - 1)]);
     }
@@ -175,6 +191,7 @@ namespace Assertive.Mocking
     /// </summary>
     public void ReturnsSequentially(params TResult[] values)
     {
+      ArrangeGuards.RequireValues(values);
       var idx = 0;
       _arrange.Any(_ => values[Math.Min(idx++, values.Length - 1)]);
     }
@@ -201,6 +218,7 @@ namespace Assertive.Mocking
     /// </summary>
     public void ReturnsSequentially(params TResult[] values)
     {
+      ArrangeGuards.RequireValues(values);
       var idx = 0;
       _arrange.Any(_ => values[Math.Min(idx++, values.Length - 1)]);
     }
@@ -227,6 +245,7 @@ namespace Assertive.Mocking
     /// </summary>
     public void ReturnsSequentially(params TResult[] values)
     {
+      ArrangeGuards.RequireValues(values);
       var idx = 0;
       _arrange.Any(_ => values[Math.Min(idx++, values.Length - 1)]);
     }

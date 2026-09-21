@@ -225,6 +225,13 @@ namespace Assertive.Mocking.Generators
         return null;
       }
 
+      // System.Object members (GetType, GetHashCode, ...) are inherited by every class and can
+      // never be arranged — touching one inside an arrange lambda is not a mistaken arrangement.
+      if (containingType.SpecialType == SpecialType.System_Object)
+      {
+        return null;
+      }
+
       // Virtual, abstract, and override members ARE interceptable; report only concrete non-virtual ones.
       if (method.IsVirtual || method.IsAbstract || method.IsOverride)
       {
@@ -248,8 +255,11 @@ namespace Assertive.Mocking.Generators
 
       if (mockType is not null)
       {
-        // A<T>(m => ...) / Setup(m, m => ...): the receiver must be the mocked type itself.
-        if (!SymbolEqualityComparer.Default.Equals(receiverType, mockType))
+        // A<T>(m => ...) / Setup(m, m => ...): the receiver must be the mocked type itself and
+        // must actually be the arrange lambda's parameter — a real object of the same type touched
+        // inside the lambda (e.g. `real.NonVirtual()`) is not the mock.
+        if (!SymbolEqualityComparer.Default.Equals(receiverType, mockType)
+            || !ReceiverIsArrangeLambdaParameter(ctx, invocation, ct))
         {
           return null;
         }
@@ -274,6 +284,51 @@ namespace Assertive.Mocking.Generators
         invocation.GetLocation(),
         containingType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
         method.Name);
+    }
+
+    /// <summary>
+    /// True when the receiver of <paramref name="invocation"/> is the parameter of the directly
+    /// enclosing <c>A&lt;T&gt;(...)</c> / <c>Setup(m, ...)</c> arrange lambda, i.e. provably the mock.
+    /// </summary>
+    private static bool ReceiverIsArrangeLambdaParameter(GeneratorSyntaxContext ctx, InvocationExpressionSyntax invocation, System.Threading.CancellationToken ct)
+    {
+      if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
+      {
+        return false;
+      }
+
+      var receiver = ctx.SemanticModel.GetSymbolInfo(memberAccess.Expression, ct).Symbol;
+      if (receiver is null)
+      {
+        return false;
+      }
+
+      for (var current = invocation.Parent; current is not null; current = current.Parent)
+      {
+        if (current is AnonymousFunctionExpressionSyntax lambda)
+        {
+          if (!IsArrangeLambda(lambda))
+          {
+            return false;
+          }
+
+          var parameter = lambda switch
+          {
+            SimpleLambdaExpressionSyntax simple => simple.Parameter,
+            ParenthesizedLambdaExpressionSyntax { ParameterList.Parameters.Count: 1 } parenthesized => parenthesized.ParameterList.Parameters[0],
+            _ => null,
+          };
+
+          if (parameter is null)
+          {
+            return false;
+          }
+
+          return SymbolEqualityComparer.Default.Equals(receiver, ctx.SemanticModel.GetDeclaredSymbol(parameter, ct));
+        }
+      }
+
+      return false;
     }
 
     /// <summary>The mocked type of the nearest enclosing A&lt;T&gt;(...)/Setup&lt;T&gt;(...)/InOrder&lt;T&gt;(...) call, if any.</summary>
@@ -577,10 +632,51 @@ namespace Assertive.Mocking.Generators
     /// <summary>Cheap pre-filter: a member call with at least one matcher-looking argument (bare default or a matcher invocation).</summary>
     private static bool IsPotentialMatcherCall(SyntaxNode node)
     {
-      return node is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax } inv
-        && inv.ArgumentList.Arguments.Any(static a =>
+      if (node is not InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax } inv)
+      {
+        return false;
+      }
+
+      if (inv.ArgumentList.Arguments.Any(static a =>
           UnwrapNullForgiving(a.Expression).IsKind(SyntaxKind.DefaultLiteralExpression)
-          || IsMatcherCall(UnwrapNullForgiving(a.Expression)));
+          || IsMatcherCall(UnwrapNullForgiving(a.Expression))))
+      {
+        return true;
+      }
+
+      // Standalone arrangements with exact arguments (`mock.Method(x).Returns(v)`) are intercepted
+      // too: it lets a strict mock be arranged with exact args (the probe must not trip the strict
+      // check), while the interceptor still falls through for non-mock receivers.
+      return HasArrangeVerbAncestor(inv);
+    }
+
+    /// <summary>
+    /// True when <paramref name="node"/> is the fluent call being arranged standalone, e.g.
+    /// <c>mock.Method(args).Returns(...)</c>, and is not inside an <c>A&lt;T&gt;(...)</c> / <c>Setup</c>
+    /// arrange lambda (those are captured by the runtime capture mode instead).
+    /// </summary>
+    private static bool IsStandaloneArrangeProbe(SyntaxNode node)
+    {
+      if (!HasArrangeVerbAncestor(node))
+      {
+        return false;
+      }
+
+      for (var current = node.Parent; current is not null; current = current.Parent)
+      {
+        if (current is AnonymousFunctionExpressionSyntax lambda && IsArrangeLambda(lambda))
+        {
+          return false;
+        }
+
+        if (current is InvocationExpressionSyntax invocation
+            && CalleeName(invocation) is "When" or "Received" or "DidNotReceive" or "A" or "Setup")
+        {
+          return false;
+        }
+      }
+
+      return true;
     }
 
     /// <summary>Strips a null-forgiving operator (<c>!</c>) if present, returning the inner expression.</summary>
@@ -681,8 +777,9 @@ namespace Assertive.Mocking.Generators
         }
       }
 
-      // Nothing to do unless at least one argument is a matcher.
-      if (!hasMatcher)
+      // Nothing to do unless at least one argument is a matcher, or this is a standalone exact-arg
+      // arrangement that must be captured without running the strict check.
+      if (!hasMatcher && !IsStandaloneArrangeProbe(invocation))
       {
         return null;
       }
@@ -1062,9 +1159,11 @@ namespace Assertive.Mocking.Generators
           // Assign out params before throwing to satisfy definite-assignment; throw keeps it simple.
           var outAssignments = sm.Parameters.Where(p => p.RefKind == RefKind.Out)
             .Select(p => $" {p.Name} = default!;");
+          // A matcher on a generic call is never intercepted; drop it before throwing so it cannot
+          // bind the next predicate arrangement to the wrong call.
           var body = outAssignments.Any()
-            ? $"{{ {string.Concat(outAssignments)} throw new global::System.NotSupportedException(\"{notSupportedMsg}\"); }}"
-            : $"{{ throw new global::System.NotSupportedException(\"{notSupportedMsg}\"); }}";
+            ? $"{{ {string.Concat(outAssignments)} global::Assertive.Mocking.Mock.ClearPendingMatchers(); throw new global::System.NotSupportedException(\"{notSupportedMsg}\"); }}"
+            : $"{{ global::Assertive.Mocking.Mock.ClearPendingMatchers(); throw new global::System.NotSupportedException(\"{notSupportedMsg}\"); }}";
           genericStubs.Add($"    public {returnTypeFqn} {sm.Name}{typeParamSuffix}({paramList}){constraintClauses} {body}");
         }
         else if (isClass && member is IMethodSymbol { MethodKind: MethodKind.Ordinary } am && am.IsAbstract && (am.IsGenericMethod || am.ReturnsByRef))
@@ -1083,8 +1182,8 @@ namespace Assertive.Mocking.Generators
           var outAssignments = am.Parameters.Where(p => p.RefKind == RefKind.Out)
             .Select(p => $" {p.Name} = default!;");
           var body = outAssignments.Any()
-            ? $"{{ {string.Concat(outAssignments)} throw new global::System.NotSupportedException(\"Assertive.Mocking: generic and ref-return methods cannot be arranged on source-generated mocks.\"); }}"
-            : "{ throw new global::System.NotSupportedException(\"Assertive.Mocking: generic and ref-return methods cannot be arranged on source-generated mocks.\"); }";
+            ? $"{{ {string.Concat(outAssignments)} global::Assertive.Mocking.Mock.ClearPendingMatchers(); throw new global::System.NotSupportedException(\"Assertive.Mocking: generic and ref-return methods cannot be arranged on source-generated mocks.\"); }}"
+            : "{ global::Assertive.Mocking.Mock.ClearPendingMatchers(); throw new global::System.NotSupportedException(\"Assertive.Mocking: generic and ref-return methods cannot be arranged on source-generated mocks.\"); }";
           genericStubs.Add($"    {GetAccessModifier(am)}override {refPrefix}{returnTypeFqn} {am.Name}{typeParamSuffix}({paramList}){constraintClauses} {body}");
         }
         else if (member is IPropertySymbol { IsIndexer: false } p)
@@ -2014,8 +2113,12 @@ namespace Assertive.Mocking.Generators
           var modifier = p.IsParams ? "params " : "";
           var defaultSuffix = p.DefaultLiteral is null ? "" : $" = {p.DefaultLiteral}";
           return $"{modifier}{p.TypeFqn} {p.Name}{defaultSuffix}";
-        });
+        }).ToList();
         var parameters = string.Join(", ", parameterDecls);
+        // A parameterless call (e.g. a zero-arg standalone arrangement) has no trailing comma.
+        var receiverSignature = parameterDecls.Count == 0
+          ? $"this {call.ReceiverFqn} __r"
+          : $"this {call.ReceiverFqn} __r, {parameters}";
         var callArgs = string.Join(", ", call.Parameters.Select(p => p.Name));
         var returnType = call.ReturnTypeFqn ?? "void";
         var displayArgs = string.Join(", ", call.Parameters.Select(p => $"(object){p.Name}"));
@@ -2068,7 +2171,7 @@ namespace Assertive.Mocking.Generators
 
         sb.AppendLine($"    // {call.DisplayLocation}");
         sb.AppendLine($"    [global::System.Runtime.CompilerServices.InterceptsLocation({call.LocationVersion}, {SymbolDisplay.FormatLiteral(call.LocationData, true)})]");
-        sb.AppendLine($"    public static {returnType} Match_{index}(this {call.ReceiverFqn} __r, {parameters})");
+        sb.AppendLine($"    public static {returnType} Match_{index}({receiverSignature})");
         sb.AppendLine("    {");
         sb.AppendLine("      if ((object)__r is global::Assertive.Mocking.Runtime.IMockObject __mock)");
         sb.AppendLine("      {");
@@ -2090,6 +2193,9 @@ namespace Assertive.Mocking.Generators
         }
 
         sb.AppendLine("      }");
+        // The receiver is not a mock, so this interceptor never consumed the argument matchers.
+        // Drop them rather than leaving them to bind the next predicate arrangement.
+        sb.AppendLine("      global::Assertive.Mocking.Mock.ClearPendingMatchers();");
         sb.AppendLine(call.ReturnTypeFqn != null
           ? $"      return __r.{call.Method}({callArgs});"
           : $"      __r.{call.Method}({callArgs});");

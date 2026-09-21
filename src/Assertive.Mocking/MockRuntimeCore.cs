@@ -105,27 +105,81 @@ namespace Assertive.Mocking.Runtime
     /// <summary>
     /// True while this mock is being arranged (any arrange scope for it is active) or captured via
     /// <see cref="CaptureSequence"/>/<c>Mock.Raise</c>. When true, member calls record the invocation
-    /// as <see cref="Captured"/> instead of running.
+    /// as the pending capture instead of running.
     /// </summary>
     internal bool Capturing =>
       ReferenceEquals(_capturingMock.Value, this)
       || (_arrangeScopes.Value is { Count: > 0 } scopes && scopes.Contains(this));
 
-    internal MockInvocation? Captured;
-
     /// <summary>When true, a call that matches no arrangement throws instead of returning a default/auto-mock.</summary>
     internal bool Strict;
+
+    /// <summary>
+    /// True while <see cref="Mock.When"/><c>(() =&gt; ...)</c> is executing its probe call. A probe
+    /// must be captured rather than treated as an unarranged call, so the strict check is skipped
+    /// for it (otherwise a strict mock could not be arranged with the void <c>When</c> form).
+    /// </summary>
+    private static readonly AsyncLocal<bool> _arrangeProbe = new();
+
+    internal static bool BeginArrangeProbe()
+    {
+      var previous = _arrangeProbe.Value;
+      _arrangeProbe.Value = true;
+      return previous;
+    }
+
+    internal static void EndArrangeProbe(bool previous) => _arrangeProbe.Value = previous;
+
+    /// <summary>
+    /// A pending capture in the current async context: the last call made on a mock (or a matcher
+    /// description of it) that a subsequent arrange verb / <c>When</c> / <c>Received</c> consumes.
+    /// Stored per mock in <see cref="_pendingCaptures"/> rather than on the mock itself so that
+    /// concurrent threads (or interleaved async flows) touching the same mock cannot clobber each
+    /// other's capture.
+    /// </summary>
+    private sealed class PendingCapture
+    {
+      public MockInvocation? Call;
+      public (string Method, Func<object?[], bool> Match)? Match;
+    }
+
+    // Copy-on-write: assigning a fresh dictionary isolates this async context, while inherited
+    // values (e.g. a Task that captured this ExecutionContext) can never mutate ours.
+    private static readonly AsyncLocal<Dictionary<MockBase, PendingCapture>?> _pendingCaptures = new();
+
+    private PendingCapture Pending =>
+      _pendingCaptures.Value is { } captures && captures.TryGetValue(this, out var pending)
+        ? pending
+        : new PendingCapture();
+
+    /// <summary>The pending call captured for this mock in the current async context, if any.</summary>
+    internal MockInvocation? CapturedCall => Pending.Call;
+
+    private void SetCapture(MockInvocation call, (string Method, Func<object?[], bool> Match)? match)
+    {
+      var current = _pendingCaptures.Value;
+      var next = current is null
+        ? new Dictionary<MockBase, PendingCapture>()
+        : new Dictionary<MockBase, PendingCapture>(current);
+      next[this] = new PendingCapture { Call = call, Match = match };
+      _pendingCaptures.Value = next;
+    }
+
+    private void ClearCapture()
+    {
+      if (_pendingCaptures.Value is not { } current || !current.ContainsKey(this))
+      {
+        return;
+      }
+
+      var next = new Dictionary<MockBase, PendingCapture>(current);
+      next.Remove(this);
+      _pendingCaptures.Value = next;
+    }
 
     /// <summary>The mock whose arrange lambda is currently executing (innermost scope), if any.</summary>
     private static MockBase? CurrentArrangeMock =>
       _arrangeScopes.Value is { Count: > 0 } scopes ? scopes[scopes.Count - 1] : null;
-
-    /// <summary>
-    /// Set by a generated matcher interceptor instead of <see cref="Captured"/>'s exact args: the
-    /// method name plus the argument-match predicate built from the call's matchers. Consumed (and
-    /// cleared) by the arrange verbs, <c>When</c>, and <c>Received</c>.
-    /// </summary>
-    internal (string Method, Func<object?[], bool> Match)? CapturedMatch;
 
     /// <summary>When non-null, all captures during a <see cref="CaptureSequence"/> call are appended here.</summary>
     private static readonly AsyncLocal<List<MockInvocation>?> _sequenceCapture = new();
@@ -133,7 +187,7 @@ namespace Assertive.Mocking.Runtime
     /// <summary>
     /// Set by <see cref="BeginGlobalCapture"/> so that the next mock call on any mock (whether it
     /// goes through the interceptor or through <see cref="OnCall"/> directly) records itself as the
-    /// global capture result. Used by <c>MockDSL.Received(() =&gt; mock.Method(...))</c>.
+    /// global capture result. Used by <c>Mock.Received(() =&gt; mock.Method(...))</c>.
     /// </summary>
     private static readonly AsyncLocal<bool> _globalCapturing = new();
 
@@ -161,9 +215,10 @@ namespace Assertive.Mocking.Runtime
           "Assertive.Mocking: Received() / DidNotReceive() lambda did not invoke a mock method. " +
           "Pass a lambda that calls a single mock member, e.g. Received(() => mock.Method(args)).");
       _globalCapturingResult.Value = null;
-      var call = mock.Captured!;
-      var match = mock.CapturedMatch;
-      mock.CapturedMatch = null;
+      var pending = mock.Pending;
+      var call = pending.Call!;
+      var match = pending.Match;
+      mock.ClearCapture();
       Mock.ClearMatchers();
       return (mock, call, match);
     }
@@ -176,8 +231,15 @@ namespace Assertive.Mocking.Runtime
     /// </summary>
     public void CaptureMatchers(string method, Func<object, bool>[] matchers, Type[] parameterTypes, object?[] displayArguments)
     {
-      Captured = new MockInvocation(method, displayArguments);
-      CapturedMatch = (method, args =>
+      if (Mock.TakeDequeuedSinks() is { } sinks)
+      {
+        lock (_lock)
+        {
+          _captures.AddRange(sinks);
+        }
+      }
+
+      SetCapture(new MockInvocation(method, displayArguments), (method, args =>
       {
         if (args.Length != matchers.Length || !ParameterTypesMatch(parameterTypes, args))
         {
@@ -193,7 +255,7 @@ namespace Assertive.Mocking.Runtime
         }
 
         return true;
-      });
+      }));
 
       // Matcher-bearing calls go through the interceptor and never reach OnCall, so we must
       // record the global capture result here as well.
@@ -234,7 +296,7 @@ namespace Assertive.Mocking.Runtime
     internal void BeginArrange()
     {
       Mock.ClearMatchers();
-      Captured = null;
+      ClearCapture();
 
       var scopes = _arrangeScopes.Value;
       var next = scopes is null ? new List<MockBase>() : new List<MockBase>(scopes);
@@ -284,14 +346,16 @@ namespace Assertive.Mocking.Runtime
       if (isStandalone)
         _standaloneArrangeMock.Value = null; // consume
 
-      if (mock.CapturedMatch is { } spec)
+      var pending = mock.Pending;
+
+      if (pending.Match is { } spec)
       {
-        mock.CapturedMatch = null;
+        pending.Match = null;
         // Matcher-bearing calls go through the interceptor (not OnCall), so nothing is in _calls.
         return (mock, spec.Method, spec.Match);
       }
 
-      if (mock.Captured is { } captured)
+      if (pending.Call is { } captured)
       {
         var args = captured.Arguments;
         // Non-matcher standalone arrange: OnCall recorded this call in _calls, remove it so arrange
@@ -338,19 +402,20 @@ namespace Assertive.Mocking.Runtime
       if (isStandalone)
         _standaloneArrangeMock.Value = null; // consume
 
-      if (mock.Captured is not { } call)
+      var pending = mock.Pending;
+      if (pending.Call is not { } call)
       {
         throw new InvalidOperationException("Assertive.Mocking: When(() => ...) did not capture a mock call.");
       }
 
       // Prefer a matcher (from a matcher interceptor); fall back to exact-argument equality.
-      var spec = mock.CapturedMatch;
+      var spec = pending.Match;
       var hasMatcher = spec is not null;
       var match = spec is { } matcherSpec
         ? matcherSpec.Match
         : new Func<object?[], bool>(args => ArgumentsEqual(call.Arguments, args));
 
-      mock.CapturedMatch = null;
+      pending.Match = null;
 
       // Non-matcher standalone When recorded the probe call through OnCall; remove it so the
       // arrangement itself doesn't appear as a received call.
@@ -362,7 +427,7 @@ namespace Assertive.Mocking.Runtime
 
     /// <summary>
     /// Called from generated event <c>add</c> accessors. When in capture mode, records the event
-    /// name in <see cref="Captured"/> and returns <c>true</c> so the accessor returns immediately
+    /// name in the pending capture and returns <c>true</c> so the accessor returns immediately
     /// without subscribing. Returns <c>false</c> during normal execution.
     /// </summary>
     public bool TryCaptureEvent(string eventName)
@@ -372,8 +437,7 @@ namespace Assertive.Mocking.Runtime
         return false;
       }
 
-      Captured = new MockInvocation(eventName, Array.Empty<object>());
-      CapturedMatch = null;
+      SetCapture(new MockInvocation(eventName, Array.Empty<object>()), null);
       return true;
     }
 
@@ -455,11 +519,15 @@ namespace Assertive.Mocking.Runtime
     /// </summary>
     public bool OnCall(string method, object?[] arguments, out object? configuredReturn, out bool matched)
     {
+      // A call that reaches OnCall was not intercepted, so any matcher queued for it can never be
+      // consumed. Drop it so it cannot bind the next predicate arrangement to the wrong argument.
+      Mock.ClearPendingMatchers();
+
       if (Capturing)
       {
-        Captured = new MockInvocation(method, arguments);
-        CapturedMatch = null;   // an exact (non-matcher) capture
-        _sequenceCapture.Value?.Add(Captured);
+        var captured = new MockInvocation(method, arguments);
+        SetCapture(captured, null);   // an exact (non-matcher) capture
+        _sequenceCapture.Value?.Add(captured);
         configuredReturn = null;
         matched = false;
         return true;
@@ -473,8 +541,7 @@ namespace Assertive.Mocking.Runtime
             "Assertive.Mocking: Received() / DidNotReceive() lambdas must invoke a single mock method.");
         }
 
-        Captured = new MockInvocation(method, arguments);
-        CapturedMatch = null;
+        SetCapture(new MockInvocation(method, arguments), null);
         _globalCapturingResult.Value = this;
         configuredReturn = null;
         matched = false;
@@ -482,8 +549,7 @@ namespace Assertive.Mocking.Runtime
       }
 
       // Standalone arrange: record this call so a subsequent Returns/Throws/Does can attach to it.
-      Captured = new MockInvocation(method, arguments);
-      CapturedMatch = null;
+      SetCapture(new MockInvocation(method, arguments), null);
       _standaloneArrangeMock.Value = this;
 
       lock (_lock)
@@ -506,8 +572,9 @@ namespace Assertive.Mocking.Runtime
         }
 
         // Strict: nothing implicit. An unarranged call is an error (no default, no auto-mock).
-        // Checked before recording so a violation doesn't pollute the call log.
-        if (Strict)
+        // Checked before recording so a violation doesn't pollute the call log. A probe call made
+        // by When(() => ...) is an arrangement in progress, not usage, so it is exempt.
+        if (Strict && !_arrangeProbe.Value)
         {
           var arranged = _setups.Count == 0
             ? "(no arrangements)"
@@ -528,6 +595,9 @@ namespace Assertive.Mocking.Runtime
     private string InterfaceName() => _typeName;
 
     private readonly List<(MockInvocation Call, object Mock)> _autoMocks = new();
+
+    /// <summary>Captures whose matchers were used with this mock, cleared by <see cref="Reset"/>.</summary>
+    private readonly List<ICaptureSink> _captures = new();
 
     /// <summary>
     /// Returns a memoized child mock for an unarranged interface-returning call, so repeated calls
@@ -664,10 +734,14 @@ namespace Assertive.Mocking.Runtime
         _calls.Clear();
         _setups.Clear();
         _autoMocks.Clear();
+        foreach (var capture in _captures)
+        {
+          capture.Clear();
+        }
+        _captures.Clear();
       }
 
-      Captured = null;
-      CapturedMatch = null;
+      ClearCapture();
     }
 
     /// <summary>
@@ -681,8 +755,28 @@ namespace Assertive.Mocking.Runtime
       Mock.ClearMatchers();
       var previousCapturing = BeginSingleCapture();
       _sequenceCapture.Value = captured;
-      try { execute(); }
-      finally { EndSingleCapture(previousCapturing); _sequenceCapture.Value = null; Mock.ClearMatchers(); }
+      var usedMatchers = false;
+      try
+      {
+        execute();
+      }
+      finally
+      {
+        EndSingleCapture(previousCapturing);
+        _sequenceCapture.Value = null;
+        // InOrder calls are not intercepted, so a matcher used here can never take effect — it would
+        // silently compare against default(T). Detect it and fail loudly instead.
+        usedMatchers = Mock.MatcherWasUsed;
+        Mock.ClearMatchers();
+      }
+
+      if (usedMatchers)
+      {
+        throw new InvalidOperationException(
+          "Assertive.Mocking: argument matchers (Any<T>/IsIn/...) are not supported inside InOrder; " +
+          "use exact argument values.");
+      }
+
       return captured;
     }
 

@@ -303,6 +303,34 @@ class Test
   }
 
   [Fact]
+  public void Object_member_call_in_arrange_lambda_does_not_report_MOCK002()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public abstract class AbstractMutable { public abstract int Value(); }
+class Test { void Run() { var m = A<AbstractMutable>(x => { _ = x.GetType(); }); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => !diagnostics.Any(d => d.Id == "MOCK002"));
+  }
+
+  [Fact]
+  public void Real_object_call_in_A_lambda_does_not_report_MOCK002()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class RealImpl { public virtual int Value() => 1; public int NonVirtual() => 2; }
+class Test { void Run() { RealImpl real = new(); var m = A<RealImpl>(x => { _ = real.NonVirtual(); }); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => !diagnostics.Any(d => d.Id == "MOCK002"));
+  }
+
+  [Fact]
   public void Ref_out_method_with_matcher_reports_MOCK003()
   {
     var source = @"
