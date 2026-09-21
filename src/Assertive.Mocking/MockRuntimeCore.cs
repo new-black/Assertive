@@ -133,6 +133,9 @@ namespace Assertive.Mocking.Runtime
       var previous = (_arrangeProbe.Value, _arrangeProbeTarget.Value);
       _arrangeProbe.Value = true;
       _arrangeProbeTarget.Value = null;
+      // A probe is its own arrange; a stale standalone target from a previous flow must not be
+      // consumed by CurrentCapture after it.
+      _standaloneArrangeTarget.Value = null;
       return previous;
     }
 
@@ -234,6 +237,9 @@ namespace Assertive.Mocking.Runtime
     internal static void BeginGlobalCapture()
     {
       Mock.ClearMatchers();
+      // A verification capture is not a standalone arrangement; drop any stale target so it cannot
+      // be consumed afterwards.
+      _standaloneArrangeTarget.Value = null;
       _globalCapturing.Value = true;
       _globalCapturingResult.Value = null;
     }

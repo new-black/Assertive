@@ -53,9 +53,9 @@ namespace Assertive.Mocking.Generators
     private static readonly DiagnosticDescriptor Mock004 = new DiagnosticDescriptor(
       id: "MOCK004",
       title: "Named arguments not supported in matcher calls",
-      messageFormat: "Named arguments at mock call sites are not supported; matchers (default, It.Any) will be treated as exact values. Use positional arguments instead.",
+      messageFormat: "Named arguments at mock call sites cannot be matched positionally: the matcher would silently bind the wrong argument. Use positional arguments instead.",
       category: "Assertive.Mocking",
-      defaultSeverity: DiagnosticSeverity.Warning,
+      defaultSeverity: DiagnosticSeverity.Error,
       isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor Mock005 = new DiagnosticDescriptor(
@@ -139,7 +139,9 @@ namespace Assertive.Mocking.Generators
         foreach (var d in diags) if (d is not null) spc.ReportDiagnostic(d);
       });
 
-      // MOCK004: warn when named arguments are used at a matcher call site inside an arrange context.
+      // MOCK004: reject named arguments at a matcher call site inside an arrange context. Named
+      // args cannot be mapped onto the positional matcher queue, so the arrangement would bind the
+      // wrong argument; reject it loudly rather than silently mis-arranging.
       var mock004Diagnostics = context.SyntaxProvider.CreateSyntaxProvider(
           predicate: static (node, _) => IsPotentialMatcherCall(node),
           transform: static (ctx, ct) => ExtractMock004(ctx, ct))
@@ -363,16 +365,75 @@ namespace Assertive.Mocking.Generators
         return true;
       }
 
-      // Local alias: follow its initializer (and only its initializer — a later assignment is not
-      // modelled, so a local reassigned from a real object is not treated as the mock).
+      // Local alias: follow its initializer, but only when the local is not later reassigned from
+      // a non-parameter source. If it is, the value at the use site is not provably the mock, so
+      // suppress (a false negative beats a false MOCK002 error on a real object).
       if (symbol is ILocalSymbol local)
       {
+        if (IsReassignedFromNonParameter(ctx, local, parameter, expression, ct, depth))
+        {
+          return false;
+        }
+
         foreach (var reference in local.DeclaringSyntaxReferences)
         {
           if (reference.GetSyntax(ct) is VariableDeclaratorSyntax { Initializer.Value: { } initializer })
           {
             return ExpressionResolvesToParameter(ctx, initializer, parameter, ct, depth + 1);
           }
+        }
+      }
+
+      return false;
+    }
+
+    /// <summary>
+    /// True when <paramref name="local"/> has a simple assignment (beyond its declaration
+    /// initializer) whose right-hand side does not resolve to the arrange parameter. In that case
+    /// the local's value at <paramref name="useSite"/> cannot be proven to be the mock.
+    /// </summary>
+    private static bool IsReassignedFromNonParameter(
+      GeneratorSyntaxContext ctx,
+      ILocalSymbol local,
+      ISymbol? parameter,
+      SyntaxNode useSite,
+      System.Threading.CancellationToken ct,
+      int depth)
+    {
+      if (depth > 8)
+      {
+        return false;
+      }
+
+      // Bound the search to the nearest enclosing lambda/method/local function: an assignment
+      // outside it cannot change the value observed at this use site.
+      SyntaxNode? scope = useSite;
+      while (scope is not null
+             && scope is not (AnonymousFunctionExpressionSyntax or BaseMethodDeclarationSyntax or LocalFunctionStatementSyntax or AccessorDeclarationSyntax))
+      {
+        scope = scope.Parent;
+      }
+
+      if (scope is null)
+      {
+        return false;
+      }
+
+      foreach (var assignment in scope.DescendantNodes().OfType<AssignmentExpressionSyntax>())
+      {
+        if (!assignment.IsKind(SyntaxKind.SimpleAssignmentExpression))
+        {
+          continue;
+        }
+
+        if (!SymbolEqualityComparer.Default.Equals(ctx.SemanticModel.GetSymbolInfo(assignment.Left, ct).Symbol, local))
+        {
+          continue;
+        }
+
+        if (!ExpressionResolvesToParameter(ctx, assignment.Right, parameter, ct, depth + 1))
+        {
+          return true;
         }
       }
 
@@ -619,8 +680,9 @@ namespace Assertive.Mocking.Generators
     }
 
     /// <summary>
-    /// MOCK004: warns when named arguments are used at a matcher call site inside an arrange
-    /// context. Named args desync the positional matcher queue, so they are not supported.
+    /// MOCK004: errors when named arguments are used at a matcher call site inside an arrange
+    /// context. Named args desync the positional matcher queue, so they are not supported; the
+    /// matcher would otherwise bind the wrong argument silently.
     /// </summary>
     private static Diagnostic? ExtractMock004(GeneratorSyntaxContext ctx, System.Threading.CancellationToken ct)
     {
@@ -2182,6 +2244,7 @@ namespace Assertive.Mocking.Generators
 
         var prelude = new List<string>();
         var matcherExprs = new List<string>();
+        var predicateCount = 0;
 
         for (var pi = 0; pi < call.Parameters.Length; pi++)
         {
@@ -2192,6 +2255,7 @@ namespace Assertive.Mocking.Generators
               matcherExprs.Add("static (object __x) => true");
               break;
             case ArgKind.Predicate:
+              predicateCount++;
               matcherExprs.Add("global::Assertive.Mocking.Mock.DequeueMatcher()");
               break;
             case ArgKind.ParamsExpanded:
@@ -2201,6 +2265,11 @@ namespace Assertive.Mocking.Generators
               {
                 var elementName = $"__p{pi}_{j}";
                 elementNames.Add(elementName);
+                if (elements[j] == ArgKind.Predicate)
+                {
+                  predicateCount++;
+                }
+
                 var elementExpr = elements[j] switch
                 {
                   ArgKind.Any => "static (object __e) => true",
@@ -2232,6 +2301,14 @@ namespace Assertive.Mocking.Generators
         sb.AppendLine("      if ((object)__r is global::Assertive.Mocking.Runtime.IMockObject __mock)");
         sb.AppendLine("      {");
         sb.AppendLine("        var __m = __mock.Core;");
+        // A matcher helper whose call is not intercepted (a matcher stored in a local, or a call with
+        // named arguments) leaves its predicate in the queue. This call's own matchers are the most
+        // recently enqueued, so keep only those and drop any stale predicate ahead of them.
+        if (predicateCount > 0)
+        {
+          sb.AppendLine($"        global::Assertive.Mocking.Mock.PrunePendingMatchers({predicateCount});");
+        }
+
         foreach (var line in prelude)
         {
           sb.AppendLine(line);

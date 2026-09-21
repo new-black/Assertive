@@ -401,6 +401,61 @@ class Test { void Run() { var m = A<ITryGet>(x => x.TryGet(""k"", out _).Returns
   }
 
   [Fact]
+  public void Named_argument_matcher_reports_MOCK004_error()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public interface IGreeter { string Greet(string name); }
+class Test { void Run() { var g = A<IGreeter>(); g.Greet(name: Any<string>(s => s == ""x"")).Returns(""xok""); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    // A warning would let the named-arg form silently mis-arrange; reject it loudly.
+    Assert(() => diagnostics.Any(d => d.Id == "MOCK004" && d.Severity == DiagnosticSeverity.Error));
+  }
+
+  [Fact]
+  public void Local_alias_reassigned_from_a_real_object_does_not_report_MOCK002()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class NonVirtualService { public int Compute() => 1; }
+class Test
+{
+  void Run()
+  {
+    var m = A<NonVirtualService>(x =>
+    {
+      NonVirtualService real = new();
+      var y = x;
+      y = real;
+      _ = y.Compute();
+    });
+  }
+}
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => !diagnostics.Any(d => d.Id == "MOCK002"));
+  }
+
+  [Fact]
+  public void Named_argument_matcher_outside_an_arrange_context_is_not_reported()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public interface IGreeter { string Greet(string name); }
+class Test { void Run() { var g = A<IGreeter>(); g.Greet(name: ""x""); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => !diagnostics.Any(d => d.Id == "MOCK004"));
+  }
+
+  [Fact]
   public void Class_with_explicit_interface_implementation_reports_MOCK005()
   {
     var source = @"

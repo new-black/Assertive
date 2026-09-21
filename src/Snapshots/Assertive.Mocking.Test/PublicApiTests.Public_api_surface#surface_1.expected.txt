@@ -77,6 +77,7 @@ static class Mock
   static T IsIn<T>(T[] values)
   static T IsInRange<T>(T min, T max)
   static T IsNotNull<T>()
+  static void PrunePendingMatchers(int keepLast)
   static void Raise<T>(T mock, Action<T> attach, object[] args)
   static void Received(Action call, string callExpression)
   static void Received(Action call, Times times, string callExpression)

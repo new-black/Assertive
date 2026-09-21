@@ -44,6 +44,34 @@ namespace Assertive.Mocking
       _dequeuedSinks.Value = null;
     }
 
+    /// <summary>
+    /// Discards predicate matchers that were enqueued before the current intercepted call's own
+    /// matchers. Called by a generated interceptor with the number of predicate arguments it owns,
+    /// before it dequeues them.
+    /// <para>
+    /// A matcher helper whose call is never intercepted (e.g. the matcher is stored in a local and
+    /// passed on a later statement) leaves its predicate in the queue. A call's own matchers are
+    /// always the most recently enqueued, so dropping everything but the last
+    /// <paramref name="keepLast"/> prevents the stale predicate from binding the wrong argument.
+    /// </para>
+    /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void PrunePendingMatchers(int keepLast)
+    {
+      if (_predicates.Value is not { Count: > 0 } queue)
+      {
+        return;
+      }
+
+      // Queue.Dequeue removes from the front, so drop the oldest until only the most recently
+      // enqueued `keepLast` remain. The call's own matchers are dequeued in argument order after
+      // this, and their relative order is preserved.
+      while (queue.Count > keepLast)
+      {
+        queue.Dequeue();
+      }
+    }
+
     internal static void ClearMatchers()
     {
       ClearPendingMatchers();
