@@ -121,14 +121,47 @@ namespace Assertive.Mocking.Runtime
     /// </summary>
     private static readonly AsyncLocal<bool> _arrangeProbe = new();
 
-    internal static bool BeginArrangeProbe()
+    /// <summary>
+    /// The one mock exempted during the active probe: the first strict mock called inside the
+    /// <c>When</c> lambda. Other strict mocks called in the same probe still throw, so the exemption
+    /// cannot be hijacked by an unrelated mock. Assigned (copy-on-write) only in the current context.
+    /// </summary>
+    private static readonly AsyncLocal<MockBase?> _arrangeProbeTarget = new();
+
+    internal static (bool Active, MockBase? Target) BeginArrangeProbe()
     {
-      var previous = _arrangeProbe.Value;
+      var previous = (_arrangeProbe.Value, _arrangeProbeTarget.Value);
       _arrangeProbe.Value = true;
+      _arrangeProbeTarget.Value = null;
       return previous;
     }
 
-    internal static void EndArrangeProbe(bool previous) => _arrangeProbe.Value = previous;
+    internal static void EndArrangeProbe((bool Active, MockBase? Target) previous)
+    {
+      _arrangeProbe.Value = previous.Active;
+      _arrangeProbeTarget.Value = previous.Target;
+    }
+
+    /// <summary>
+    /// True when a strict call on this mock is exempt from the strict check because it is the mock
+    /// the active <c>When</c> probe is arranging. The first strict mock encountered claims the probe;
+    /// any other strict mock is not exempt.
+    /// </summary>
+    private bool IsExemptDuringArrangeProbe()
+    {
+      if (!_arrangeProbe.Value)
+      {
+        return false;
+      }
+
+      if (_arrangeProbeTarget.Value is null)
+      {
+        _arrangeProbeTarget.Value = this;
+        return true;
+      }
+
+      return ReferenceEquals(_arrangeProbeTarget.Value, this);
+    }
 
     /// <summary>
     /// A pending capture in the current async context: the last call made on a mock (or a matcher
@@ -143,8 +176,10 @@ namespace Assertive.Mocking.Runtime
       public (string Method, Func<object?[], bool> Match)? Match;
     }
 
-    // Copy-on-write: assigning a fresh dictionary isolates this async context, while inherited
-    // values (e.g. a Task that captured this ExecutionContext) can never mutate ours.
+    // Copy-on-write: every mutation assigns a fresh dictionary (and a fresh PendingCapture value),
+    // so two contexts sharing an inherited dictionary can never overwrite each other's entry. The
+    // real safety is that SetCapture always precedes the in-place mutation of its own PendingCapture
+    // (ResolveArrangeTarget / CurrentCapture null out Match only after a SetCapture in the same flow).
     private static readonly AsyncLocal<Dictionary<MockBase, PendingCapture>?> _pendingCaptures = new();
 
     private PendingCapture Pending =>
@@ -176,6 +211,9 @@ namespace Assertive.Mocking.Runtime
       next.Remove(this);
       _pendingCaptures.Value = next;
     }
+
+    /// <summary>Drops the captured call after <see cref="Mock.Raise"/> has read the event name.</summary>
+    internal void ClearCapturedCall() => ClearCapture();
 
     /// <summary>The mock whose arrange lambda is currently executing (innermost scope), if any.</summary>
     private static MockBase? CurrentArrangeMock =>
@@ -271,9 +309,18 @@ namespace Assertive.Mocking.Runtime
       }
 
       // Support the standalone arrange form: var mock = A<T>(); mock.Method(default).Returns(v);
-      // Matcher interceptors never reach OnCall, so record the pending target here.
+      // Matcher interceptors never reach OnCall, so record the pending target here. The interceptor
+      // exists only for the call that is the direct receiver of the arrange verb, so this is the
+      // authoritative target: unlike OnCall's soft target it must survive a mock call nested in the
+      // verb's arguments (e.g. `m.Greet(x).Returns(other.Count())`).
       if (!Capturing)
+      {
         _standaloneArrangeMock.Value = this;
+        if (!_globalCapturing.Value)
+        {
+          _standaloneArrangeTarget.Value = this;
+        }
+      }
     }
 
     /// <summary>
@@ -292,6 +339,14 @@ namespace Assertive.Mocking.Runtime
     /// Cleared after an arrange verb consumes it.
     /// </summary>
     private static readonly AsyncLocal<MockBase?> _standaloneArrangeMock = new();
+
+    /// <summary>
+    /// Authoritative standalone-arrange target, set by a generated interceptor (which is only emitted
+    /// when the call is the direct receiver of <c>Returns</c>/<c>Throws</c>/<c>Does</c>). It takes
+    /// precedence over <see cref="_standaloneArrangeMock"/> so a mock call nested in the verb's
+    /// arguments cannot steal the arrangement.
+    /// </summary>
+    private static readonly AsyncLocal<MockBase?> _standaloneArrangeTarget = new();
 
     internal void BeginArrange()
     {
@@ -338,13 +393,16 @@ namespace Assertive.Mocking.Runtime
     private static (MockBase Mock, string Method, Func<object?[], bool> Match) ResolveArrangeTarget()
     {
       var scopeMock = CurrentArrangeMock;
-      var mock = scopeMock ?? _standaloneArrangeMock.Value
+      var mock = scopeMock ?? _standaloneArrangeTarget.Value ?? _standaloneArrangeMock.Value
         ?? throw new InvalidOperationException(
           "Assertive.Mocking: an arrange verb (Returns/Throws/Does) was called with no preceding mock call on this thread.");
 
       var isStandalone = scopeMock is null;
       if (isStandalone)
-        _standaloneArrangeMock.Value = null; // consume
+      {
+        _standaloneArrangeTarget.Value = null; // consume
+        _standaloneArrangeMock.Value = null;
+      }
 
       var pending = mock.Pending;
 
@@ -394,13 +452,16 @@ namespace Assertive.Mocking.Runtime
     internal static (MockBase Mock, MockInvocation Call, Func<object?[], bool> Match) CurrentCapture()
     {
       var scopeMock = CurrentArrangeMock;
-      var mock = scopeMock ?? _standaloneArrangeMock.Value
+      var mock = scopeMock ?? _standaloneArrangeTarget.Value ?? _standaloneArrangeMock.Value
         ?? throw new InvalidOperationException(
           "Assertive.Mocking: When(...) was called with no preceding mock call or active A<T>(...) arrange lambda.");
 
       var isStandalone = scopeMock is null;
       if (isStandalone)
-        _standaloneArrangeMock.Value = null; // consume
+      {
+        _standaloneArrangeTarget.Value = null; // consume
+        _standaloneArrangeMock.Value = null;
+      }
 
       var pending = mock.Pending;
       if (pending.Call is not { } call)
@@ -519,10 +580,14 @@ namespace Assertive.Mocking.Runtime
     /// </summary>
     public bool OnCall(string method, object?[] arguments, out object? configuredReturn, out bool matched)
     {
-      // A call that reaches OnCall was not intercepted, so any matcher queued for it can never be
-      // consumed. Drop it so it cannot bind the next predicate arrangement to the wrong argument.
-      Mock.ClearPendingMatchers();
-
+      // NOTE: do NOT clear pending matchers here. OnCall also runs for plain calls nested inside the
+      // arguments of an outer intercepted arrangement, e.g.
+      //     mock.Join(Any<string>(s => ...), other.Count()).Returns("ok");
+      // `other.Count()` reaches OnCall while the predicate queued by `Any` still belongs to the outer
+      // interceptor, which runs after the arguments. Clearing here would strand that predicate.
+      // The non-intercepted paths that genuinely own a matcher (non-mock interceptor fallthrough,
+      // generic/ref-return stubs) clear it explicitly; matchers on ref/out or named-argument calls
+      // are already reported as unsupported by MOCK003/MOCK004.
       if (Capturing)
       {
         var captured = new MockInvocation(method, arguments);
@@ -574,15 +639,25 @@ namespace Assertive.Mocking.Runtime
         // Strict: nothing implicit. An unarranged call is an error (no default, no auto-mock).
         // Checked before recording so a violation doesn't pollute the call log. A probe call made
         // by When(() => ...) is an arrangement in progress, not usage, so it is exempt.
-        if (Strict && !_arrangeProbe.Value)
+        if (Strict && !IsExemptDuringArrangeProbe())
         {
           var arranged = _setups.Count == 0
             ? "(no arrangements)"
             : string.Join(", ", _setups.Select(s => s.Method).Distinct());
 
+          // Property getters/setters and indexers cannot be intercepted at the call site (Roslyn
+          // interceptors only cover invocations), so the fluent standalone `mock.Prop.Returns(v)`
+          // form is impossible for them. Say so explicitly instead of a bare strict violation.
+          var isPropertyOrIndexer = method.StartsWith("get_", StringComparison.Ordinal)
+            || method.StartsWith("set_", StringComparison.Ordinal);
+          var arrangeHint = isPropertyOrIndexer
+            ? $"{Environment.NewLine}Standalone arrangement of a property or indexer on a strict mock is not supported; " +
+              "arrange it inside the A<T>(...) / Setup(...) form instead, e.g. A<T>(m => m.Prop.Returns(value))."
+            : string.Empty;
+
           throw new StrictMockException(
             $"Strict mock of {InterfaceName()}: {new MockInvocation(method, arguments).Format()} was called, " +
-            $"but no matching arrangement was set up.{Environment.NewLine}Arranged: {arranged}");
+            $"but no matching arrangement was set up.{Environment.NewLine}Arranged: {arranged}{arrangeHint}");
         }
 
         _calls.Add(new MockInvocation(method, arguments));

@@ -185,6 +185,7 @@ namespace Assertive.Mocking
 
       var eventName = core.CapturedCall?.Method
         ?? throw new InvalidOperationException("Assertive.Mocking: Mock.Raise could not capture the event name.");
+      core.ClearCapturedCall();
 
       var handler = core.GetEventHandler(eventName);
       handler?.DynamicInvoke(args);

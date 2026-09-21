@@ -297,12 +297,6 @@ namespace Assertive.Mocking.Generators
         return false;
       }
 
-      var receiver = ctx.SemanticModel.GetSymbolInfo(memberAccess.Expression, ct).Symbol;
-      if (receiver is null)
-      {
-        return false;
-      }
-
       for (var current = invocation.Parent; current is not null; current = current.Parent)
       {
         if (current is AnonymousFunctionExpressionSyntax lambda)
@@ -324,7 +318,61 @@ namespace Assertive.Mocking.Generators
             return false;
           }
 
-          return SymbolEqualityComparer.Default.Equals(receiver, ctx.SemanticModel.GetDeclaredSymbol(parameter, ct));
+          return ExpressionResolvesToParameter(ctx, memberAccess.Expression, ctx.SemanticModel.GetDeclaredSymbol(parameter, ct), ct, depth: 0);
+        }
+      }
+
+      return false;
+    }
+
+    /// <summary>
+    /// True when <paramref name="expression"/> is the arrange lambda parameter, possibly reached
+    /// through a cast (<c>((T)x).M()</c>) or a local alias whose initializer is the parameter
+    /// (<c>var y = x; y.M()</c>). This keeps MOCK002 diagnosing those forms while still ignoring a
+    /// local that is a genuine real object (<c>RealImpl real = new(); real.M()</c>).
+    /// </summary>
+    private static bool ExpressionResolvesToParameter(GeneratorSyntaxContext ctx, ExpressionSyntax expression, ISymbol? parameter, System.Threading.CancellationToken ct, int depth)
+    {
+      if (parameter is null || depth > 8)
+      {
+        return false;
+      }
+
+      // Peel parentheses and casts: the cast target is the mocked type, the inner expression is
+      // what carries the receiver's identity.
+      while (true)
+      {
+        switch (expression)
+        {
+          case ParenthesizedExpressionSyntax parenthesized:
+            expression = parenthesized.Expression;
+            continue;
+          case CastExpressionSyntax cast:
+            expression = cast.Expression;
+            continue;
+          default:
+            break;
+        }
+
+        break;
+      }
+
+      var symbol = ctx.SemanticModel.GetSymbolInfo(expression, ct).Symbol;
+      if (SymbolEqualityComparer.Default.Equals(symbol, parameter))
+      {
+        return true;
+      }
+
+      // Local alias: follow its initializer (and only its initializer — a later assignment is not
+      // modelled, so a local reassigned from a real object is not treated as the mock).
+      if (symbol is ILocalSymbol local)
+      {
+        foreach (var reference in local.DeclaringSyntaxReferences)
+        {
+          if (reference.GetSyntax(ct) is VariableDeclaratorSyntax { Initializer.Value: { } initializer })
+          {
+            return ExpressionResolvesToParameter(ctx, initializer, parameter, ct, depth + 1);
+          }
         }
       }
 
@@ -657,7 +705,15 @@ namespace Assertive.Mocking.Generators
     /// </summary>
     private static bool IsStandaloneArrangeProbe(SyntaxNode node)
     {
-      if (!HasArrangeVerbAncestor(node))
+      // The call must be the direct receiver of a fluent arrange verb: `node.Returns(...)`.
+      // A mock call merely nested inside the verb's arguments (e.g. `x.F(Any<string>(), other.Count())`)
+      // is not itself being arranged and must run normally, not be swallowed by an interceptor.
+      if (node is not InvocationExpressionSyntax invocation
+          || invocation.Parent is not MemberAccessExpressionSyntax
+          {
+            Name.Identifier.ValueText: "Returns" or "Throws" or "Does" or "ReturnsSequentially",
+          } verbAccess
+          || !ReferenceEquals(verbAccess.Expression, invocation))
       {
         return false;
       }
@@ -669,8 +725,8 @@ namespace Assertive.Mocking.Generators
           return false;
         }
 
-        if (current is InvocationExpressionSyntax invocation
-            && CalleeName(invocation) is "When" or "Received" or "DidNotReceive" or "A" or "Setup")
+        if (current is InvocationExpressionSyntax enclosing
+            && CalleeName(enclosing) is "When" or "Received" or "DidNotReceive" or "A" or "Setup")
         {
           return false;
         }

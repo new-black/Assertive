@@ -281,6 +281,48 @@ class Test { void Run() { var m = A<NonVirtualService>(); m.Compute().Returns(5)
   }
 
   [Fact]
+  public void Non_virtual_arrangement_through_a_cast_reports_MOCK002_error()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class NonVirtualService { public int Compute() => 1; }
+class Test { void Run() { var m = A<NonVirtualService>(x => ((NonVirtualService)x).Compute().Returns(5)); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => diagnostics.Any(d => d.Id == "MOCK002" && d.Severity == DiagnosticSeverity.Error));
+  }
+
+  [Fact]
+  public void Non_virtual_arrangement_through_a_local_alias_reports_MOCK002_error()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class NonVirtualService { public int Compute() => 1; }
+class Test { void Run() { var m = A<NonVirtualService>(x => { var y = x; y.Compute().Returns(5); }); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => diagnostics.Any(d => d.Id == "MOCK002" && d.Severity == DiagnosticSeverity.Error));
+  }
+
+  [Fact]
+  public void Local_alias_of_a_real_object_does_not_report_MOCK002()
+  {
+    var source = @"
+using Assertive.Mocking;
+using static Assertive.Mocking.Mock;
+public class RealImpl { public virtual int Value() => 1; public int NonVirtual() => 2; }
+class Test { void Run() { var m = A<RealImpl>(x => { RealImpl real = new(); var alias = real; _ = alias.NonVirtual(); }); } }
+";
+    var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
+
+    Assert(() => !diagnostics.Any(d => d.Id == "MOCK002"));
+  }
+
+  [Fact]
   public void Real_object_call_in_nested_lambda_does_not_report_MOCK002()
   {
     var source = @"
