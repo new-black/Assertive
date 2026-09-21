@@ -444,11 +444,14 @@ class Test
   [Fact]
   public void Named_argument_matcher_outside_an_arrange_context_is_not_reported()
   {
+    // Genuinely passes a named-argument MATCHER outside any arrange context: MOCK004 only applies
+    // inside an A/When/Received arrange lambda, so it must not fire here. If the arrange-context
+    // check regressed, the matcher-looking named argument below would be reported and this fails.
     var source = @"
 using Assertive.Mocking;
 using static Assertive.Mocking.Mock;
 public interface IGreeter { string Greet(string name); }
-class Test { void Run() { var g = A<IGreeter>(); g.Greet(name: ""x""); } }
+class Test { void Run() { var g = A<IGreeter>(); g.Greet(name: Any<string>(s => s == ""x"")); } }
 ";
     var (_, diagnostics) = RunGeneratorWithDiagnostics(source);
 

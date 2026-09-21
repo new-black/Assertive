@@ -50,9 +50,17 @@ namespace Assertive.Mocking
     /// before it dequeues them.
     /// <para>
     /// A matcher helper whose call is never intercepted (e.g. the matcher is stored in a local and
-    /// passed on a later statement) leaves its predicate in the queue. A call's own matchers are
-    /// always the most recently enqueued, so dropping everything but the last
-    /// <paramref name="keepLast"/> prevents the stale predicate from binding the wrong argument.
+    /// passed on a later statement) leaves its predicate in the queue. For a flat intercepted call
+    /// (including <c>params</c> and multi-predicate calls) the call's own matchers are the most
+    /// recently enqueued, so dropping everything but the last <paramref name="keepLast"/> prevents
+    /// the stale predicate from binding the wrong argument.
+    /// </para>
+    /// <para>
+    /// Known caveat: matcher-bearing calls must not be nested inside another matcher-bearing call's
+    /// arguments. The inner interceptor runs its own <see cref="PrunePendingMatchers"/> after the
+    /// outer call has already enqueued its predicate, which drops the outer predicate; the outer
+    /// interceptor then finds an empty queue and throws <see cref="InvalidOperationException"/>.
+    /// Nested matcher-bearing calls are therefore unsupported.
     /// </para>
     /// </summary>
     [EditorBrowsable(EditorBrowsableState.Never)]
@@ -144,7 +152,7 @@ namespace Assertive.Mocking
     {
       if (_predicates.Value is not { Count: > 0 } queue)
       {
-        throw new InvalidOperationException("Assertive.Mocking: no predicate matcher available — Any<T>(predicate) must appear directly inside the intercepted mock call.");
+        throw new InvalidOperationException("Assertive.Mocking: no predicate matcher available — Any<T>(predicate) must appear directly inside the intercepted mock call. This is often caused by a matcher-bearing call nested inside another matcher-bearing call's arguments, which is not supported.");
       }
 
       var entry = queue.Dequeue();
