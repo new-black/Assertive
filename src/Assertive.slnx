@@ -1,4 +1,8 @@
 <Solution>
+  <Project Path="Assertive.Mocking/Assertive.Mocking.csproj" />
+  <Project Path="Assertive.Mocking.Generators/Assertive.Mocking.Generators.csproj" />
+  <Project Path="Assertive.Mocking.Test/Assertive.Mocking.Test.csproj" />
+  <Project Path="Assertive.Mocking.Test.Aot/Assertive.Mocking.Test.Aot.csproj" />
   <Project Path="Assertive.Examples/Assertive.Examples.csproj" />
   <Project Path="Assertive.Generators/Assertive.Generators.csproj" />
   <Project Path="Assertive.Test.Aot/Assertive.Test.Aot.csproj" />

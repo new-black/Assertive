@@ -61,6 +61,26 @@ namespace Assertive.Helpers
       }
     }
 
+    /// <summary>
+    /// Serializes <paramref name="o"/> and collapses any multi-line output to a single line —
+    /// suitable for embedding inside a single-line display context (e.g. mock invocation formatting).
+    /// </summary>
+    public static string SerializeInline(object? o)
+    {
+      string result;
+      try
+      {
+        result = SerializeImpl(o, 0, null);
+      }
+      catch (Exception ex)
+      {
+        return $"<exception serializing = {ex.InnerException?.GetType().Name ?? ex.GetType().Name}>";
+      }
+
+      return string.Join(" ", string.Join(" ", result.Split(_newLineSplitChars, StringSplitOptions.None))
+        .Split(_spaceSplitChars, StringSplitOptions.RemoveEmptyEntries));
+    }
+
     private class Ellipsis
     {
       private readonly int? _remaining;

@@ -1,0 +1,6 @@
+
+Expected Reserve(OrderItem { ProductId = 99, Name = Gadget, Quantity = 1 }) to be received at least once, but was received 0 times.
+
+Received calls:
+  [0] Reserve(OrderItem { ProductId = 42, Name = Widget, Quantity = 3 })
+················································································

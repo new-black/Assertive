@@ -1,0 +1,6 @@
+
+Expected Greet("Bob the Builder") to be received at least once, but was received 0 times.
+
+Received calls:
+  [0] Greet("Adam the Magnificent")
+················································································
