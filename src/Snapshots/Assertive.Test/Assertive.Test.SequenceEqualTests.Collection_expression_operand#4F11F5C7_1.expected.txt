@@ -1,0 +1,16 @@
+
+dictionary.Select(e => e.Key).SequenceEqual([1, 2, 3])
+
+[EXPECTED]
+dictionary.Select(e => e.Key) should equal [1, 2, 3]
+[ACTUAL]
+There was 1 difference:
+
+[2]: 4 <> 3
+
+dictionary.Select(e => e.Key): [ 1, 2, 4 ]
+[1, 2, 3]: [ 1, 2, 3 ]
+
+[LOCALS]
+dictionary: { [1] = "a", [2] = "b", [4] = "d" }
+················································································

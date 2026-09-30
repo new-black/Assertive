@@ -1,0 +1,16 @@
+
+expected.SequenceEqual(ys.Concat([4, 6]))
+
+[EXPECTED]
+expected should equal ys.Concat([4, 6])
+[ACTUAL]
+There was 1 difference:
+
+[2]: 5 <> 6
+
+expected: [ 3, 4, 5 ]
+ys.Concat([4, 6]): [ 3, 4, 6 ]
+
+[LOCALS]
+ys: [ 3 ]
+················································································

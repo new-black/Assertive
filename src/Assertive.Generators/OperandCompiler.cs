@@ -209,6 +209,21 @@ namespace Assertive.Generators
 
             continue;
           }
+
+          // Collection expressions have no target type once detached from their original
+          // context (`var x = [...]` is CS9176, `(object)([...])` is CS9174). The rewriter
+          // re-applies the converted type as an explicit cast, so that type must be
+          // nameable and boxable (ref-like targets degrade to the opaque path).
+          case CollectionExpressionSyntax collection:
+          {
+            var convertedType = _model.GetTypeInfo(collection, _ct).ConvertedType;
+            if (convertedType == null || !CallSiteAnalyzer.IsUsableType(convertedType, _compilation))
+            {
+              return false;
+            }
+
+            continue;
+          }
         }
       }
 
@@ -580,6 +595,29 @@ namespace Assertive.Generators
         // name glues onto it (`newglobal::...`). Restore the conventional spacing.
         creation = creation.WithNewKeyword(SyntaxFactory.Token(SyntaxKind.NewKeyword).WithTrailingTrivia(SyntaxFactory.Space));
         return creation.WithTriviaFrom(node);
+      }
+
+      // Collection expressions depend on their surrounding context for a target type;
+      // pasted into the generated file (a fresh `var` or an `(object)` cast) that context
+      // is gone (CS9176/CS9174). Re-apply the converted type as an explicit cast so the
+      // expression stands alone; the compiler then lowers it exactly as at the call site.
+      public override SyntaxNode? VisitCollectionExpression(CollectionExpressionSyntax node)
+      {
+        var visited = (CollectionExpressionSyntax?)base.VisitCollectionExpression(node);
+        if (visited == null)
+        {
+          return null;
+        }
+
+        var type = _model.GetTypeInfo(node, _ct).ConvertedType;
+        if (type == null || !CallSiteAnalyzer.IsUsableType(type, _model.Compilation))
+        {
+          Failed = true;
+          return visited;
+        }
+
+        var typeFqn = SyntaxFactory.ParseTypeName(type.ToDisplayString(QualifiedFormatFor(node)));
+        return SyntaxFactory.CastExpression(typeFqn, visited).WithTriviaFrom(node);
       }
 
       public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node)

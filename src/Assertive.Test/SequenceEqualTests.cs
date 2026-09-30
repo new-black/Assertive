@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
+using static Assertive.DSL;
 
 namespace Assertive.Test
 {
@@ -106,6 +107,48 @@ namespace Assertive.Test
       };
 
       ShouldFail(() => dict1.SequenceEqual(dict2));
+    }
+
+    [Fact]
+    public void Collection_expression_operand()
+    {
+      var dictionary = new Dictionary<int, string> { [1] = "a", [2] = "b", [4] = "d" };
+
+      ShouldFail(() => dictionary.Select(e => e.Key).SequenceEqual([1, 2, 3]));
+    }
+
+    [Fact]
+    public void Collection_expression_operand_with_captured_local()
+    {
+      var dictionary = new Dictionary<int, string> { [1] = "a", [2] = "b", [4] = "d" };
+      var three = 3;
+
+      ShouldFail(() => dictionary.Select(e => e.Key).SequenceEqual([1, 2, three]));
+    }
+
+    [Fact]
+    public void Collection_expression_in_nested_call_argument()
+    {
+      var expected = new List<int> { 3, 4, 5 };
+      var ys = new List<int> { 3 };
+
+      ShouldFail(() => expected.SequenceEqual(ys.Concat([4, 6])));
+    }
+
+    [Fact]
+    public void Collection_expression_operand_passes()
+    {
+      var dictionary = new Dictionary<int, string> { [1] = "a", [2] = "b", [3] = "c" };
+
+      Assert(() => dictionary.Select(e => e.Key).SequenceEqual([1, 2, 3]));
+    }
+
+    [Fact]
+    public void Collection_expression_with_anonymous_element_type_passes()
+    {
+      var items = new[] { new { Id = 1 }, new { Id = 2 } };
+
+      Assert(() => items.SequenceEqual([new { Id = 1 }, new { Id = 2 }]));
     }
   }
 }
