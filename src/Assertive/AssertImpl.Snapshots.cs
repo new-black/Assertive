@@ -185,7 +185,18 @@ internal partial class AssertImpl
     var actualNode = projectedActual != null ? SerializeToNode(projectedActual, serializerOptions) : null;
     var actualJson = SerializeActual(serializerOptions, actualNode);
 
-    if (TryAcceptSnapshot(expectedFileInfo, options, actualJson))
+    var contentToAccept = actualJson;
+
+    // An automatic overwrite keeps placeholders from the existing expected file that still match
+    // the actual values, so regenerating snapshots doesn't replace intentional placeholders with
+    // the unstable real values they were masking.
+    if (expectedFileExists && (options.Configuration.TreatAllSnapshotsAsCorrect || IsAcceptSnapshotChangesEnabled()))
+    {
+      contentToAccept = SerializeActual(serializerOptions,
+        MergePreservingPlaceholders(expectedNode, actualNode, options.Configuration.Normalization));
+    }
+
+    if (TryAcceptSnapshot(expectedFileInfo, options, contentToAccept))
     {
       return null;
     }
@@ -308,6 +319,127 @@ internal partial class AssertImpl
     }
 
     return false;
+  }
+
+  /// <summary>
+  /// Builds the content for an automatic snapshot overwrite: actual values are written through,
+  /// except where the existing expected file has a placeholder that still matches the actual
+  /// value (its validator passes and numbered placeholders still see equal values). Preserving
+  /// those keeps intentional placeholders from being replaced by the unstable values they mask.
+  /// </summary>
+  private static JsonNode? MergePreservingPlaceholders(JsonNode? expected, JsonNode? actual,
+    Configuration.CompareSnapshotsConfiguration.NormalizationConfiguration normalization)
+  {
+    return MergePreservingPlaceholdersRecursive(expected, actual, normalization,
+      new Dictionary<(string, int), string>());
+  }
+
+  private static JsonNode? MergePreservingPlaceholdersRecursive(JsonNode? expected, JsonNode? actual,
+    Configuration.CompareSnapshotsConfiguration.NormalizationConfiguration normalization, Dictionary<(string, int), string> countedPlaceholderValues)
+  {
+    // Objects: mirror the actual shape (new properties appear, removed ones disappear) while
+    // recursing into properties both sides still have.
+    if (expected is JsonObject expectedObject && actual is JsonObject actualObject)
+    {
+      var merged = new JsonObject();
+
+      foreach (var property in actualObject)
+      {
+        expectedObject.TryGetPropertyValue(property.Key, out var expectedPropertyValue);
+        merged[property.Key] =
+          MergePreservingPlaceholdersRecursive(expectedPropertyValue, property.Value, normalization, countedPlaceholderValues);
+      }
+
+      return merged;
+    }
+
+    // Arrays: align by index for the overlapping prefix, then append new actual items.
+    if (expected is JsonArray expectedArray && actual is JsonArray actualArray)
+    {
+      var merged = new JsonArray();
+      var sharedCount = Math.Min(expectedArray.Count, actualArray.Count);
+
+      for (var i = 0; i < sharedCount; i++)
+      {
+        merged.Add(MergePreservingPlaceholdersRecursive(expectedArray[i], actualArray[i], normalization, countedPlaceholderValues));
+      }
+
+      for (var i = sharedCount; i < actualArray.Count; i++)
+      {
+        merged.Add(actualArray[i]?.DeepClone());
+      }
+
+      return merged;
+    }
+
+    if (expected is JsonValue expectedValue
+        && expectedValue.GetValueKind() == JsonValueKind.String
+        && expectedValue.GetValue<string>() is { } placeholder
+        && placeholder.StartsWith(normalization.PlaceholderPrefix)
+        && actual != null
+        // Mirrors CheckRecursive: a string placeholder only lines up with strings, numbers and
+        // booleans (null, arrays and objects are a type mismatch and get the actual value).
+        && actual.GetValueKind() is JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False
+        && PlaceholderMatches(normalization, placeholder, actual, countedPlaceholderValues))
+    {
+      return expected.DeepClone();
+    }
+
+    return actual?.DeepClone();
+  }
+
+  /// <summary>
+  /// Whether a placeholder in the existing expected file still matches the actual value, using
+  /// the same rules as comparison: numbered placeholders must see equal values and a registered
+  /// validator (if any) must pass.
+  /// </summary>
+  private static bool PlaceholderMatches(Configuration.CompareSnapshotsConfiguration.NormalizationConfiguration normalization, string placeholder,
+    JsonNode actual, Dictionary<(string, int), string> countedPlaceholderValues)
+  {
+    var actualValue = actual.GetValueKind() == JsonValueKind.String
+      ? actual.GetValue<string>()
+      : actual.ToJsonString();
+
+    var value = placeholder;
+    var counted = value.IndexOf('#', startIndex: normalization.PlaceholderPrefix.Length);
+    int? count = null;
+
+    if (counted > 0 && int.TryParse(value[(counted + 1)..], out var parsedCount))
+    {
+      count = parsedCount;
+      value = value[..counted];
+    }
+
+    if (count.HasValue)
+    {
+      if (!countedPlaceholderValues.TryGetValue((value, count.Value), out var previouslyEncounteredActualValue))
+      {
+        countedPlaceholderValues[(value, count.Value)] = actualValue;
+      }
+      else if (actualValue != previouslyEncounteredActualValue)
+      {
+        return false;
+      }
+    }
+
+    var validator = normalization.PlaceholderValidatorsLookup.GetValueOrDefault(value[normalization.PlaceholderPrefix.Length..]);
+
+    if (validator != default)
+    {
+      try
+      {
+        if (!validator.Item1(actualValue))
+        {
+          return false;
+        }
+      }
+      catch
+      {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private static bool IsAcceptSnapshotChangesEnabled()
